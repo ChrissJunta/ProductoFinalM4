@@ -1,12 +1,46 @@
-# SPEC v5.0 — MVP Mesa de Ayuda Omnicanal
+# SPEC v5.2 — MVP Mesa de Ayuda Omnicanal
 ## Documento unificado FRONT + BACK
 
+**Versión:** 5.2  
+**Fecha:** 2026-10-12  
 **Estado:** Especificación técnica consolidada para implementación  
 **Stack base:** Django + HTML + Bootstrap + PostgreSQL  
 **Canales:** Web + WhatsApp  
 **SGA:** desacoplado; no requerido para ejecutar el MVP  
 **IA:** asistiva; no ejecuta acciones administrativas críticas  
 **Objetivo de esta versión:** mantener FRONT y BACK dentro del mismo SPEC, claramente separados, evitando duplicidad, módulos innecesarios y sobrearquitectura.
+
+---
+
+# 0. Control de versiones
+
+| Versión | Fecha | Cambio principal |
+|---|---|---|
+| 5.0 | — | Unificación FRONT + BACK en un único documento. |
+| 5.1 | — | PostgreSQL como base de datos y backlog de tareas FE/BE. |
+| 5.2 | 2026-10-12 | Corrección de inconsistencias detectadas en revisión (ver tabla siguiente). |
+
+## 0.1 Cambios de la v5.2
+
+| # | Problema en v5.1 | Corrección en v5.2 | Sección |
+|---|---|---|---|
+| 1 | Título interno decía “v5.0” y no había control de versiones. | Título corregido y tabla de versiones. | 0 |
+| 2 | Workflow incompleto: `ESCALATED`, `CANCELLED` y `REOPENED` sin transiciones de entrada/salida. | Máquina de estados completa. | 32 |
+| 3 | No existía flujo de rechazo de la resolución por parte del usuario. | Transición `RESOLVED → IN_PROGRESS` (rechazo) y cierre automático. | 32 |
+| 4 | Las transiciones no indicaban qué rol puede ejecutarlas. | Tabla de transiciones con rol permitido. | 32 |
+| 5 | WhatsApp entregaba datos sensibles (notas, deuda) sin autenticación definida. | Teléfono verificado + código de vinculación desde portal. | 35.1 |
+| 6 | FE-003 permitía adjuntos pero no existía modelo. | Modelo `Attachment` y restricciones. | 26 |
+| 7 | El ticket no guardaba la intención que lo originó. | Campo `Ticket.intent`. | 26 |
+| 8 | Mensaje “El ticket fue actualizado por otro usuario” sin mecanismo de control de concurrencia. | Campo `Ticket.version` (bloqueo optimista). | 26 |
+| 9 | Fuente de conocimiento N1 indefinida (RAG está prohibido). | N1 usa `IntentAction.response_template` y constantes; sin RAG. | 31.1 |
+| 10 | API REST sin consumidor (viola regla 56.6); el front es server-rendered. | Solo webhook WhatsApp como API; el front usa vistas Django. | 47 |
+| 11 | Faltaban acciones de resolver, escalar, reabrir y confirmar. | Rutas de acción explícitas. | 47 |
+| 12 | Worker y SLA sin mecanismo de ejecución periódica. | Comandos de gestión + cron/systemd timer. | 38 |
+| 13 | `business_hours_only` sin calendario definido. | Calendario laboral como constante en settings. | 34 |
+| 14 | Proveedor WhatsApp no especificado. | Meta WhatsApp Cloud API. | 35 |
+| 15 | Proveedor LLM no definido y presentado como cerrado. | Decisión abierta (ADR pendiente), con `FakeLLMProvider` por defecto. | 42 |
+| 16 | Catálogos (`Area`, `Category`, `Subcategory`) y `AuditLog` sin tarea en backlog. | Nueva tarea BE-T03A. | 60.4 |
+| 17 | BE-T01/BE-T02 separadas pese a requerir una única migración inicial de usuario; dataset de IA solo en BE-T20. | BE-T01 absorbe BE-T02; dataset etiquetado se adelanta a BE-T17; dependencia SLA explícita. | 60.4 |
 
 ---
 
@@ -178,9 +212,17 @@ Construir un MVP de Mesa de Ayuda Omnicanal capaz de:
 └───────────────────────────┬──────────────────────────────────┘
                             ▼
 ┌──────────────────────────────────────────────────────────────┐
-│                         PostgreSQL                                │
+│                         PostgreSQL                           │
 └──────────────────────────────────────────────────────────────┘
 ```
+
+## 5.1 Justificación de PostgreSQL (v5.2)
+
+- **Concurrencia:** `SELECT ... FOR UPDATE SKIP LOCKED` permite que el worker procese inbox/outbox sin Redis/Celery y sin doble procesamiento.
+- **Generación de códigos únicos:** secuencias nativas garantizan `ticket_code` sin duplicados bajo concurrencia (criterio de BE-T03).
+- **JSON:** `jsonb` para `payload_json`, `AuditLog` y salidas IA, con validación en aplicación.
+- **Integridad:** restricciones únicas parciales (ej. `phone` único solo si no está vacío) y `CHECK` constraints.
+- **Paridad dev/CI/prod:** el mismo motor en las tres etapas; SQLite no se usa ni siquiera en pruebas.
 
 ---
 
@@ -306,6 +348,7 @@ Inicio
 ├── Mis tickets
 ├── Consultar ticket
 └── Perfil
+    └── Vincular WhatsApp
 ```
 
 ## Agente
@@ -777,17 +820,22 @@ Usar `AbstractUser`, `Groups`, `Permissions`.
 # 25. Modelo de usuario
 
 ```text
-User
+User (AbstractUser)
 - id
 - username
 - first_name
 - last_name
 - email
-- phone
-- external_id
-- source
+- phone              (E.164, único si no está vacío)
+- phone_verified_at  (null = teléfono no verificado para WhatsApp)
+- external_id        (identificador institucional, único si no está vacío)
+- source             (LOCAL | SGA | WHATSAPP)
 - is_active
 ```
+
+`AUTH_USER_MODEL = "accounts.User"` debe definirse antes de la primera migración.
+
+`phone_verified_at` se incorpora en v5.2 para soportar la autenticación por WhatsApp (sección 35.1).
 
 Roles mediante Groups:
 
@@ -839,6 +887,7 @@ id
 ticket_code
 user_id
 channel
+intent_id              (nullable; intención que originó el ticket — v5.2)
 category_id
 subcategory_id
 priority
@@ -849,14 +898,43 @@ subject
 description
 classification_source
 classification_score
+version                (entero; bloqueo optimista — v5.2)
 created_at
 assigned_at
 first_response_at
 resolved_at
 closed_at
+first_response_due_at  (v5.2)
 sla_due_at
 updated_at
 ```
+
+Reglas:
+
+- `ticket_code` con formato `HD-AAAA-NNNNNN`, generado en backend dentro de transacción (secuencia PostgreSQL), nunca en frontend.
+- `version` se incrementa en cada actualización. Toda actualización desde UI envía la versión leída; si no coincide, se rechaza y se muestra “El ticket fue actualizado por otro usuario.”
+- `intent_id` permite medir automatización por intención y alimentar métricas IA.
+
+## `Attachment` (v5.2)
+
+```text
+id
+ticket_id
+message_id        (nullable)
+uploaded_by_id
+file              (FileField en MEDIA_ROOT/attachments/AAAA/MM/)
+original_name
+content_type
+size_bytes
+created_at
+```
+
+Restricciones:
+
+- extensiones permitidas: `pdf`, `png`, `jpg`, `jpeg`;
+- tamaño máximo: 5 MB por archivo;
+- se valida extensión, tipo MIME y tamaño en backend;
+- se descarga solo mediante vista con control de permisos (no servir `MEDIA_ROOT` público).
 
 ## `TicketStatusHistory`
 
@@ -1078,28 +1156,56 @@ N3 → ticket + routing
 N4 → revisión humana
 ```
 
+## 31.1 Fuente de conocimiento N1 (v5.2)
+
+N1 **no usa RAG** (prohibido en sección 4). El “conocimiento autorizado” se limita a:
+
+1. `IntentAction.response_template` configurado por el administrador (contactos, requisitos, fechas académicas);
+2. constantes versionadas en código para datos que no cambian sin despliegue.
+
+El LLM, si interviene, solo puede reformular el texto de la plantilla sin añadir hechos; la salida se valida contra la plantilla de origen. Si no existe plantilla activa para la intención, la solicitud baja a N3 (ticket).
+
+## 31.2 Autenticación previa
+
+Toda intención con `Intent.requires_authentication = true` (horario, notas, deuda, matrícula, materias, estado de ticket) exige usuario autenticado: sesión web o teléfono verificado en WhatsApp (sección 35.1).
+
 ---
 
 # 32. Workflow
 
-Transiciones:
+## 32.1 Máquina de estados (v5.2)
 
-```text
-NEW → CLASSIFIED
-CLASSIFIED → ASSIGNED
-ASSIGNED → IN_PROGRESS
-IN_PROGRESS → WAITING_USER
-WAITING_USER → IN_PROGRESS
-IN_PROGRESS → RESOLVED
-RESOLVED → CLOSED
-CLOSED → REOPENED
-```
+Toda transición no listada en esta tabla está **prohibida** (por ejemplo `NEW → CLOSED`, `CANCELLED → *`).
 
-No permitido:
+| # | Desde | Hacia | Rol permitido | Disparador / condición |
+|---|---|---|---|---|
+| 1 | NEW | CLASSIFIED | Sistema, Agente, Supervisor | Intención/categoría determinada |
+| 2 | NEW | CANCELLED | Usuario (propio), Supervisor | Antes de clasificar; motivo obligatorio |
+| 3 | CLASSIFIED | ASSIGNED | Sistema (routing), Agente, Supervisor | Área y/o responsable asignados |
+| 4 | CLASSIFIED | CANCELLED | Usuario (propio), Supervisor | Motivo obligatorio |
+| 5 | ASSIGNED | IN_PROGRESS | Agente asignado, Supervisor | Primera acción del agente |
+| 6 | ASSIGNED | ESCALATED | Agente asignado, Supervisor, Sistema (SLA) | Motivo obligatorio |
+| 7 | IN_PROGRESS | WAITING_USER | Agente asignado, Supervisor | Solicitud de información |
+| 8 | WAITING_USER | IN_PROGRESS | Usuario (propio, al responder), Agente, Supervisor | Nueva respuesta del usuario |
+| 9 | WAITING_USER | CANCELLED | Sistema | Sin respuesta en `WAITING_USER_TIMEOUT_DAYS` (7 días) |
+| 10 | IN_PROGRESS | ESCALATED | Agente asignado, Supervisor, Sistema (SLA) | Motivo obligatorio |
+| 11 | IN_PROGRESS | RESOLVED | Agente asignado, Supervisor | Mensaje de resolución obligatorio |
+| 12 | ESCALATED | ASSIGNED | Supervisor | Reasignación a otra área/agente |
+| 13 | ESCALATED | IN_PROGRESS | Supervisor | El supervisor atiende directamente |
+| 14 | RESOLVED | CLOSED | Usuario (propio, confirma), Sistema | Confirmación o `AUTO_CLOSE_DAYS` (3 días) sin respuesta |
+| 15 | RESOLVED | IN_PROGRESS | Usuario (propio, rechaza) | Rechazo de la resolución; motivo obligatorio |
+| 16 | CLOSED | REOPENED | Usuario (propio), Supervisor | Dentro de `REOPEN_WINDOW_DAYS` (7 días) desde el cierre |
+| 17 | REOPENED | ASSIGNED | Sistema, Supervisor | Vuelve al último responsable si sigue activo; si no, routing |
 
-```text
-NEW → CLOSED
-```
+Notas:
+
+- `CANCELLED` es terminal. `CLOSED` solo admite `REOPENED`.
+- El rechazo de la resolución (15) incrementa el contador de reaperturas en métricas y conserva el SLA original.
+- La escalada (6, 10) crea un `Alert` de tipo `ESCALATED`.
+- “Sistema” significa un proceso backend (routing, comando SLA, cierre automático), nunca el LLM.
+- Los plazos (`WAITING_USER_TIMEOUT_DAYS`, `AUTO_CLOSE_DAYS`, `REOPEN_WINDOW_DAYS`) son constantes en settings, no tablas.
+
+## 32.2 Reglas de ejecución
 
 Toda transición:
 
@@ -1168,9 +1274,58 @@ Valores iniciales:
 | HIGH | 60 min | 1440 min |
 | CRITICAL | 15 min | 240 min |
 
+## 34.1 Calendario laboral (v5.2)
+
+Cuando `SLAPolicy.business_hours_only = true`, los minutos se cuentan solo dentro del calendario laboral, definido como constante en settings (no tabla):
+
+```python
+BUSINESS_HOURS = {
+    "timezone": TIME_ZONE,             # zona horaria institucional (variable de entorno)
+    "weekdays": [0, 1, 2, 3, 4],      # lunes a viernes
+    "start": "08:00",
+    "end": "17:00",
+}
+HOLIDAYS = []  # lista de fechas ISO, mantenida en settings
+```
+
+Si `business_hours_only = false`, se usan minutos corridos (24×7).
+
+## 34.2 Evaluación periódica
+
+El SLA se evalúa con el comando `python manage.py check_sla` (ver sección 38), que genera `Alert` de tipo `SLA_WARNING` (≥ 80 % del plazo consumido) y `SLA_BREACHED` (plazo vencido), de forma idempotente (una alerta abierta por tipo y ticket).
+
 ---
 
 # 35. WhatsApp
+
+Proveedor: **Meta WhatsApp Cloud API** (v5.2). Verificación del webhook con `hub.verify_token`; validación de firma con cabecera `X-Hub-Signature-256` (HMAC-SHA256 con el App Secret). Credenciales solo por variables de entorno.
+
+## 35.1 Autenticación por WhatsApp (v5.2)
+
+Un número de WhatsApp **no** basta por sí mismo para entregar datos sensibles.
+
+Flujo de vinculación:
+
+```text
+Usuario inicia sesión en portal web
+↓
+Perfil → "Vincular WhatsApp" → backend genera código de 6 dígitos
+   (un solo uso, válido 10 minutos, almacenado como hash)
+↓
+Usuario envía el código por WhatsApp desde su número
+↓
+Backend valida código + número remitente
+↓
+User.phone = número (E.164), User.phone_verified_at = ahora
+```
+
+Reglas:
+
+- Mensajes de un número no verificado: solo intenciones con `requires_authentication = false` (contactos, requisitos, fechas). Para el resto se responde con instrucciones de vinculación.
+- Máximo 5 intentos fallidos de código por número y hora (rate limiting).
+- Cambiar el teléfono en el perfil anula `phone_verified_at`.
+- Toda vinculación y desvinculación se registra en `AuditLog`.
+- Los datos sensibles por WhatsApp se minimizan (ej. deuda total, no detalle de pagos).
 
 ## Entrada
 
@@ -1251,6 +1406,16 @@ Procesa:
 
 No incorporar Redis/Celery inicialmente.
 
+## 38.1 Ejecución periódica (v5.2)
+
+| Comando | Frecuencia | Función |
+|---|---|---|
+| `process_integration_queue` | cada 1 min | Inbox/outbox WhatsApp, reintentos con backoff exponencial (máx. 5 intentos) |
+| `check_sla` | cada 5 min | Alertas `SLA_WARNING` / `SLA_BREACHED`, escalamiento automático |
+| `close_stale_tickets` | cada hora | Cierre automático de `RESOLVED` y cancelación de `WAITING_USER` vencidos |
+
+Se ejecutan mediante **cron** del sistema operativo (o systemd timer) en el servidor; cada comando es idempotente y usa `select_for_update(skip_locked=True)` para evitar doble procesamiento si dos ejecuciones se solapan. En desarrollo pueden lanzarse manualmente. `process_integration_queue` admite `--loop` para ejecución continua en desarrollo.
+
 ---
 
 # 39. InstitutionalDataProvider
@@ -1303,6 +1468,16 @@ class LLMProvider:
     def summarize(self, messages): ...
     def generate_response(self, context): ...
 ```
+
+## 42.1 Selección de proveedor (v5.2)
+
+El proveedor LLM real es una **decisión abierta** (ADR-010 en `progress.md`). Criterios: costo por 1K tokens, latencia P95, soporte de salida JSON estructurada, tratamiento de datos personales y disponibilidad regional.
+
+Hasta cerrar la decisión:
+
+- `LLM_PROVIDER=fake` es el valor por defecto en desarrollo y CI (`FakeLLMProvider` determinístico);
+- el proveedor se selecciona por variable de entorno, sin cambiar código de negocio;
+- no se envían a un LLM externo datos sensibles (notas, deuda); solo el texto del mensaje del usuario, previamente minimizado.
 
 ---
 
@@ -1436,38 +1611,56 @@ Humano
 
 ---
 
-# 47. API compartida FRONT ↔ BACK
+# 47. Contrato FRONT ↔ BACK (v5.2)
 
-## Tickets
+**Decisión v5.2:** el frontend es server-rendered (Django Templates), por lo que **no** consume una API REST. Una API REST de tickets no tendría consumidor y violaría la regla 56.6. El contrato FRONT ↔ BACK son las **rutas de vistas Django** (formularios con CSRF, POST-redirect-GET). No se incorpora Django REST Framework en el MVP.
 
-```text
-POST   /api/tickets/
-GET    /api/tickets/
-GET    /api/tickets/{id}/
-PATCH  /api/tickets/{id}/
-POST   /api/tickets/{id}/assign/
-POST   /api/tickets/{id}/status/
-POST   /api/tickets/{id}/messages/
-```
+Las vistas solo orquestan: validan formulario, llaman al servicio (`TicketService`, etc.) y renderizan. La lógica de negocio vive en los servicios.
 
-## WhatsApp
+## 47.1 Rutas web
 
 ```text
-GET  /api/webhooks/whatsapp/
-POST /api/webhooks/whatsapp/
+GET        /accounts/login/
+POST       /accounts/login/
+POST       /accounts/logout/
+GET        /                                   → redirección por rol
+
+GET        /tickets/                           → listado (filtros + paginación)
+GET|POST   /tickets/new/                       → crear
+GET        /tickets/{code}/                    → detalle + conversación
+POST       /tickets/{code}/messages/           → responder (con adjunto opcional)
+POST       /tickets/{code}/assign/             → asignar / reasignar
+POST       /tickets/{code}/status/             → transición genérica permitida por rol
+POST       /tickets/{code}/resolve/            → IN_PROGRESS → RESOLVED
+POST       /tickets/{code}/escalate/           → → ESCALATED
+POST       /tickets/{code}/confirm/            → RESOLVED → CLOSED (usuario)
+POST       /tickets/{code}/reject-resolution/  → RESOLVED → IN_PROGRESS (usuario)
+POST       /tickets/{code}/reopen/             → CLOSED → REOPENED
+POST       /tickets/{code}/cancel/             → → CANCELLED
+GET        /tickets/{code}/attachments/{id}/   → descarga con control de permisos
+
+GET        /agent/inbox/                       → bandeja del agente
+GET        /alerts/                            → alertas (Supervisor)
+GET        /metrics/                           → métricas (Supervisor)
+GET|POST   /profile/whatsapp/                  → vinculación de WhatsApp (sección 35.1)
+
+/manage/...                                    → CRUD de catálogos (Administrador)
 ```
 
-## Institucional
+Todas las acciones POST envían el campo `version` del ticket (bloqueo optimista).
+
+## 47.2 API (única con consumidor externo)
 
 ```text
-GET /api/institutional/schedule/
-GET /api/institutional/grades/
-GET /api/institutional/debt/
-GET /api/institutional/enrollment/
-GET /api/institutional/subjects/
+GET  /api/webhooks/whatsapp/    → verificación Meta (hub.challenge)
+POST /api/webhooks/whatsapp/    → recepción de eventos (firma obligatoria)
 ```
 
-No exponer endpoints IA internos sin necesidad.
+## 47.3 Consultas institucionales
+
+No se exponen endpoints `/api/institutional/*`. Las consultas institucionales se resuelven internamente mediante `InstitutionalQueryService` → `InstitutionalDataProvider`, invocado por el Autonomy Engine (WhatsApp y web). Si en el futuro un consumidor real lo requiere, se añadirá mediante CHANGE REQUEST.
+
+No exponer endpoints IA internos.
 
 ---
 
@@ -1537,7 +1730,7 @@ Objetivos experimentales del MVP.
 
 - pytest;
 - pytest-django;
-- PostgreSQL real en CI;
+- PostgreSQL real en CI (GitHub Actions con servicio `postgres:16`);
 - FakeLLMProvider;
 - mock WhatsApp;
 - mock SGA;
@@ -1721,7 +1914,7 @@ INTENT ENGINE
   ↓
 AUTONOMY ENGINE
   ├── N0 → InstitutionalDataProvider → Respuesta
-  ├── N1 → AIService / conocimiento → Respuesta
+  ├── N1 → IntentAction.response_template (+ AIService opcional) → Respuesta
   ├── N2 → TicketService → Validación
   ├── N3 → TicketService → Routing → Agente
   └── N4 → Revisión humana
@@ -1833,7 +2026,7 @@ CANCELLED
 
 **Objetivo:** permitir crear una solicitud desde web.
 
-**Dependencias:** BE-T03.
+**Dependencias:** BE-T03, BE-T03A.
 
 **Entregables:**
 - `ticket_form.html`;
@@ -1934,7 +2127,7 @@ CANCELLED
 
 **Objetivo:** administrar áreas, categorías, subcategorías, intenciones, routing y SLA.
 
-**Dependencias:** BE-T09.
+**Dependencias:** BE-T03A, BE-T09.
 
 **Entregables:**
 - vistas CRUD;
@@ -1963,35 +2156,67 @@ CANCELLED
 
 ---
 
-## 60.4 Backlog BACK
+### FE-T11 — Vinculación de WhatsApp (v5.2)
 
-### BE-T01 — Autenticación, roles y permisos
+**Objetivo:** permitir al usuario vincular su número de WhatsApp desde el perfil.
 
-**Objetivo:** implementar `accounts`.
+**Dependencias:** BE-T11A.
 
 **Entregables:**
-- `AbstractUser`;
-- Groups;
-- permisos;
-- login/logout;
-- control horizontal y vertical.
+- vista de perfil con estado de vinculación;
+- botón “Vincular WhatsApp” que muestra el código temporal;
+- opción de desvincular.
 
 **Criterio de aceptación:**
-- matriz de permisos verificada.
+- el código solo se muestra al usuario autenticado propietario;
+- el estado refleja `phone_verified_at`.
+
+---
+
+## 60.4 Backlog BACK
+
+### BE-T01 — Proyecto base, usuario, autenticación y roles (incluye BE-T02)
+
+**Objetivo:** crear el esqueleto del proyecto e implementar `accounts`.
+
+> v5.2: BE-T02 se fusiona en BE-T01 porque el usuario personalizado (`AUTH_USER_MODEL`) debe existir **antes** de la primera migración del proyecto; separarlos obligaría a rehacer migraciones.
+
+**Entregables:**
+- proyecto Django (`config/settings/{base,dev,test}.py`) y las cinco apps vacías;
+- PostgreSQL por variables de entorno (`.env.example`);
+- `User(AbstractUser)` con `phone`, `phone_verified_at`, `external_id`, `source`;
+- Groups `Usuario`, `Agente`, `Supervisor`, `Administrador` mediante migración de datos;
+- login/logout con redirección por rol;
+- utilidades de control vertical (rol) y horizontal (propietario);
+- pytest + pytest-django + CI con PostgreSQL.
+
+**Criterio de aceptación:**
+- migraciones correctas y reversibles;
+- matriz de permisos verificada por pruebas;
+- CI en verde contra PostgreSQL.
 
 ---
 
 ### BE-T02 — Modelo base de usuario
 
-**Objetivo:** extender usuario con información mínima.
+**Estado:** CANCELLED — fusionada en BE-T01 (v5.2).
+
+---
+
+### BE-T03A — Catálogos y auditoría (v5.2)
+
+**Objetivo:** crear las entidades de las que dependen tickets, routing y SLA.
+
+**Dependencias:** BE-T01.
 
 **Entregables:**
-- `phone`;
-- `external_id`;
-- `source`.
+- `Area`, `Category`, `Subcategory` con desactivación lógica;
+- `AuditLog` y función de servicio `audit.record(...)` en `helpdesk`;
+- datos iniciales mínimos (migración de datos o fixture).
 
 **Criterio de aceptación:**
-- migraciones correctas y reversibles.
+- catálogos administrables desde Django admin;
+- toda escritura de catálogo genera `AuditLog`.
 
 ---
 
@@ -1999,8 +2224,11 @@ CANCELLED
 
 **Objetivo:** implementar `TicketService.create()`.
 
+**Dependencias:** BE-T01, BE-T03A.
+
 **Entregables:**
-- modelo Ticket;
+- modelo Ticket (incluye `intent`, `version`);
+- modelo `Attachment` con validaciones;
 - código único;
 - creación web;
 - auditoría inicial.
@@ -2058,12 +2286,15 @@ CANCELLED
 **Objetivo:** implementar transiciones controladas.
 
 **Entregables:**
-- reglas de transición;
+- máquina de estados de la sección 32.1 (17 transiciones con rol);
 - historial;
-- transacciones atómicas.
+- transacciones atómicas;
+- bloqueo optimista con `Ticket.version`;
+- comando `close_stale_tickets`.
 
 **Criterio de aceptación:**
-- transiciones inválidas rechazadas.
+- transiciones inválidas o no permitidas al rol rechazadas;
+- actualización concurrente detectada.
 
 ---
 
@@ -2071,13 +2302,17 @@ CANCELLED
 
 **Objetivo:** calcular vencimientos.
 
+**Dependencias:** BE-T03 (el SLA se fija al crear el ticket), BE-T07.
+
 **Entregables:**
 - SLAPolicy;
-- cálculo `sla_due_at`;
-- Alert.
+- cálculo `first_response_due_at` y `sla_due_at` con calendario laboral (34.1);
+- Alert;
+- comando `check_sla`.
 
 **Criterio de aceptación:**
-- alertas correctas al aproximarse y vencer.
+- alertas correctas al aproximarse y vencer;
+- cálculo correcto cruzando fines de semana y fuera de horario.
 
 ---
 
@@ -2123,6 +2358,25 @@ CANCELLED
 
 **Criterio de aceptación:**
 - duplicados no generan doble procesamiento.
+
+---
+
+### BE-T11A — Vinculación y autenticación WhatsApp (v5.2)
+
+**Objetivo:** impedir la entrega de datos sensibles a números no verificados.
+
+**Dependencias:** BE-T01, BE-T11.
+
+**Entregables:**
+- generación de código de vinculación (hash, un solo uso, 10 min);
+- validación del código recibido por WhatsApp;
+- `phone_verified_at`;
+- rate limiting de intentos;
+- auditoría de vinculación.
+
+**Criterio de aceptación:**
+- número no verificado no recibe notas/deuda/horario;
+- código expirado o reutilizado rechazado.
 
 ---
 
@@ -2210,10 +2464,12 @@ CANCELLED
 - extract;
 - summarize;
 - generate_response;
-- validación de salida.
+- validación de salida;
+- dataset etiquetado de evaluación (mínimo 20 ejemplos por intención, separado en desarrollo/prueba) — adelantado desde BE-T20 en v5.2.
 
 **Criterio de aceptación:**
-- salida ajustada al contrato y catálogos.
+- salida ajustada al contrato y catálogos;
+- métricas base (Accuracy, Macro F1) calculadas sobre el dataset con `FakeLLMProvider` y reglas.
 
 ---
 
@@ -2258,8 +2514,7 @@ CANCELLED
 - E2E;
 - seguridad;
 - carga;
-- benchmark IA;
-- dataset;
+- benchmark IA (sobre el dataset de BE-T17);
 - UAT.
 
 **Criterio de aceptación:**
@@ -2275,14 +2530,15 @@ CANCELLED
 |---|---|
 | FE-T01 | BE-T01 |
 | FE-T02 | BE-T03, BE-T04 |
-| FE-T03 | BE-T03 |
+| FE-T03 | BE-T03, BE-T03A |
 | FE-T04 | BE-T04 |
 | FE-T05 | BE-T05, BE-T07 |
 | FE-T06 | BE-T04, BE-T06 |
 | FE-T07 | BE-T07 |
 | FE-T08 | BE-T08 |
-| FE-T09 | BE-T09 |
+| FE-T09 | BE-T03A, BE-T09 |
 | FE-T10 | BE-T10 |
+| FE-T11 | BE-T11A |
 
 FRONT puede trabajar antes de completar BACK utilizando datos mock, siempre que respete el contrato definido en esta SPEC.
 
