@@ -108,7 +108,7 @@ Reglas:
 |---|---|---|---|---|
 | BE-T01 | REVIEW (incluye BE-T02; pendiente de revisión del PR) | Claude | - | 2026-10-12 |
 | BE-T02 | CANCELLED (fusionada en BE-T01, v5.2) | - | - | 2026-10-12 |
-| BE-T03A | TODO | - | BE-T01 | - |
+| BE-T03A | REVIEW (pendiente de revisión del PR) | Claude | BE-T01 | 2026-10-12 |
 | BE-T03 | TODO | - | BE-T01, BE-T03A | - |
 | BE-T04 | TODO | - | BE-T03 | - |
 | BE-T05 | TODO | - | BE-T03 | - |
@@ -224,6 +224,9 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-013 | 2026-10-12 | Claude = BACKEND, ChatGPT = FRONTEND (`templates/`, `static/`) | Trabajo paralelo sin pisarse | Ver sección 3.1 y contratos de vista |
 | ADR-014 | 2026-10-12 | Login con usuario **o** correo; correo ambiguo (compartido) se rechaza | FE-001 “usuario/correo” | `UsernameOrEmailBackend` |
 | ADR-016 | 2026-10-12 | Orquestación agéntica con LangGraph (`langgraph` + `langgraph-checkpoint-postgres`) | Sin orquestación el sistema no es agéntico; LangGraph da grafo explícito, memoria, `interrupt` humano y control de herramientas | SPEC §46A; sustituye la prohibición genérica “agents” por reglas de agente controlado; BE-T18A |
+| ADR-017 | 2026-10-12 | Catálogos sin borrado físico (`on_delete=PROTECT`, admin sin delete); solo activar/desactivar | Trazabilidad e integridad referencial con tickets | `helpdesk.catalogs` |
+| ADR-018 | 2026-10-12 | Toda escritura de catálogo pasa por `helpdesk.catalogs` (`save_catalog_item`, `set_active`) y audita solo los campos cambiados | Un único punto auditado para admin y para FE-T09 | `helpdesk` |
+| ADR-019 | 2026-10-12 | `AuditLog` inmutable (sin edición ni borrado desde ORM de instancia ni admin) | Valor probatorio de la auditoría | `helpdesk.AuditLog` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -424,6 +427,9 @@ Plantilla:
 
 - `accounts/migrations/0001_initial.py` — modelo `User` (AbstractUser + `phone`, `phone_verified_at`, `external_id`, `source`; únicos parciales en `phone` y `external_id`) — aplicada y reversible — BE-T01
 - `accounts/migrations/0002_create_role_groups.py` — migración de datos: Groups `Usuario`, `Agente`, `Supervisor`, `Administrador` — aplicada y reversible — BE-T01
+- `helpdesk/migrations/0001_initial.py` — `Area`, `Category`, `Subcategory`, `AuditLog` — aplicada y reversible — BE-T03A
+- `helpdesk/migrations/0002_initial_catalogs.py` — 4 áreas, 4 categorías, 12 subcategorías (auditadas como SYSTEM) — aplicada y reversible — BE-T03A
+- `helpdesk/migrations/0003_role_permissions.py` — permisos de modelo por rol para catálogos y auditoría — aplicada y reversible — BE-T03A
 
 Formato:
 
@@ -443,6 +449,9 @@ Rutas web (vistas Django, ADR-007):
 - `GET /` — `accounts:role_redirect` — REVIEW — BE-T01 — CONTRACT-003
 - `GET /inicio/` — `accounts:home` — REVIEW — BE-T01 — CONTRACT-002
 - `/admin/` — Django admin (gestión de usuarios y grupos) — REVIEW — BE-T01
+
+- `/admin/helpdesk/{area,category,subcategory}/` — catálogos (alta, edición, activar/desactivar; sin borrado) — REVIEW — BE-T03A
+- `/admin/helpdesk/auditlog/` — auditoría, solo lectura — REVIEW — BE-T03A
 
 API: ninguna todavía (el webhook WhatsApp llegará con BE-T11).
 
@@ -464,6 +473,14 @@ Formato:
 **Entorno:** PostgreSQL 16 local, `config.settings.test`, sin `.env` (igual que CI)
 **Resultado:** PASS — 72 pruebas, cobertura 99 %
 **Fallos:** ninguno
+
+### TEST-RUN-002
+**Fecha:** 2026-10-12
+**Tarea:** BE-T03A
+**Comando:** mismo que TEST-RUN-001
+**Entorno:** PostgreSQL 16 local, `config.settings.test`, sin `.env` (igual que CI)
+**Resultado:** PASS — 111 pruebas, cobertura 99 %
+**Fallos:** el primer intento falló por orden de pruebas (una prueba transaccional vaciaba los datos sembrados por migraciones); corregido con `serialized_rollback=True` en las pruebas de reversibilidad de migraciones.
 
 Formato:
 
@@ -553,10 +570,10 @@ SPEC aprobada: Sí
 SPEC versión: 5.2
 Front backlog definido: Sí
 Back backlog definido: Sí
-Código implementado: BE-T01 (incluye BE-T02) en REVIEW
-Migraciones: accounts 0001, 0002
-Endpoints: login, logout, role_redirect, home (vistas web)
-Pruebas: TEST-RUN-001 PASS
+Código implementado: BE-T01 (incluye BE-T02) y BE-T03A en REVIEW
+Migraciones: accounts 0001, 0002; helpdesk 0001, 0002, 0003
+Endpoints: login, logout, role_redirect, home (vistas web); admin de catálogos y auditoría
+Pruebas: TEST-RUN-001, TEST-RUN-002 PASS
 Bloqueos: Ninguno
 ```
 
@@ -603,3 +620,44 @@ Bloqueos: Ninguno
 - Anular `phone_verified_at` al cambiar el teléfono → BE-T11A.
 - Rate limiting de login (SPEC §48) → BE-T20 (seguridad), salvo que se adelante.
 - Settings de producción (`config/settings/prod.py`, HSTS, logging) → antes del despliegue.
+
+## BE-T03A — Catálogos y auditoría — Cierre
+
+**Estado:** REVIEW (pasa a DONE cuando el PR se apruebe y CI esté en verde)
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-12
+
+### Implementado
+- `helpdesk.Area`, `Category`, `Subcategory`: código en mayúsculas (`^[A-Z][A-Z0-9_]*$`), único (subcategoría: único por categoría), `is_active`, `created_at`/`updated_at`, `on_delete=PROTECT`.
+- Una categoría activa no puede tener un área por defecto inactiva (`Category.clean`).
+- `helpdesk.AuditLog` según SPEC §26 (`actor_type` USER/SYSTEM/AI, `actor`, `action`, `entity_type` = `app.modelo`, `entity_id`, JSON anterior/nuevo/metadatos), inmutable.
+- `helpdesk.audit.record(action, instance, *, actor, actor_type, previous, new, metadata)` y constantes `audit.Action`.
+- `helpdesk.catalogs.save_catalog_item(instance, *, actor)` y `set_active(instance, active, *, actor)`: transaccionales, auditan solo los campos cambiados, no auditan si no hubo cambios.
+- Django admin: catálogos con acciones activar/desactivar y sin borrado; auditoría solo lectura.
+- Datos iniciales: áreas ACADEMIC, FINANCE, IT, SERVICE; categorías ACADEMIC, FINANCIAL, TECHNICAL, GENERAL con 12 subcategorías (códigos alineados con SPEC §29 y §44).
+- Permisos por rol: Administrador gestiona catálogos y ve auditoría; Supervisor ve catálogos y auditoría; Agente ve catálogos; Usuario ninguno. Nadie tiene permiso de borrado de catálogos ni de edición de auditoría.
+
+### Archivos creados/modificados
+- `apps/helpdesk/{models,audit,catalogs,admin}.py`
+- `apps/helpdesk/migrations/0001_initial.py`, `0002_initial_catalogs.py`, `0003_role_permissions.py`
+- `apps/helpdesk/tests/{test_catalogs,test_audit,test_admin,test_permissions}.py`
+- `apps/accounts/tests/test_migrations.py` (`serialized_rollback`)
+
+### Contratos para FRONT
+- Sin vistas web nuevas: la administración usa Django admin hasta FE-T09. Cuando se implemente FE-T09, backend publicará sus vistas (`CONTRACT-XXX`) y estas llamarán a `helpdesk.catalogs`.
+
+### Decisiones tomadas
+- ADR-017, ADR-018, ADR-019.
+
+### Pendientes derivados
+- Para entrar a Django admin, un usuario del grupo Administrador también necesita `is_staff=True` (lo marca un superusuario). FE-T09 eliminará esa dependencia con vistas propias.
+- El historial de `AuditLog` desde la UI (filtros por entidad/actor) se definirá con FE-T08/FE-T09.
+
+## 2026-10-12 — Claude (BACKEND) / BE-T03A
+
+- Estado anterior: TODO.
+- Estado nuevo: REVIEW.
+- Trabajo realizado: catálogos, auditoría, datos iniciales, permisos por rol, admin.
+- Archivos: ver cierre de BE-T03A.
+- Pruebas: TEST-RUN-002 PASS.
+- Observaciones: desbloquea BE-T03 (tickets) en cuanto se apruebe.
