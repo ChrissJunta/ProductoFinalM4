@@ -11,7 +11,8 @@ omit = ["*/migrations/*", "*/tests/*", "config/asgi.py", "config/wsgi.py", "conf
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-extend-exclude = ["*/migrations/*"]
+# La documentación (.md) no se formatea: sus bloques de código son ilustrativos.
+extend-exclude = ["*/migrations/*", "*.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "DJ"]
