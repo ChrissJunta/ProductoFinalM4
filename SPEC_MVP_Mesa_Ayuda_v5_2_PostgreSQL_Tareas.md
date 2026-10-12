@@ -1280,8 +1280,8 @@ Cuando `SLAPolicy.business_hours_only = true`, los minutos se cuentan solo dentr
 
 ```python
 BUSINESS_HOURS = {
-    "timezone": TIME_ZONE,             # zona horaria institucional (variable de entorno)
-    "weekdays": [0, 1, 2, 3, 4],      # lunes a viernes
+    "timezone": TIME_ZONE,  # zona horaria institucional (variable de entorno)
+    "weekdays": [0, 1, 2, 3, 4],  # lunes a viernes
     "start": "08:00",
     "end": "17:00",
 }
@@ -1969,6 +1969,7 @@ Esta sección convierte la SPEC en un backlog ejecutable para trabajo paralelo e
 6. Si una tarea requiere modificar un contrato existente, debe registrar el cambio en `progress.md`.
 7. Todo cambio que afecte FRONT y BACK debe actualizar su dependencia cruzada.
 8. Las tareas deben cerrarse únicamente cuando cumplan su criterio de aceptación.
+9. FRONT es dueño exclusivo de `templates/` y `static/`; BACK publica cada vista con su url name, plantilla esperada y contrato de contexto (`CONTRACT-XXX` en `progress.md`). BACK solo crea plantillas mínimas marcadas `TEMPORAL (backend)` cuando una prueba lo requiera.
 
 ---
 

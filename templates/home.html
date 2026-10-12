@@ -1,0 +1,7 @@
+{# TEMPORAL (backend): plantilla mínima para pruebas. La reemplaza el FRONTEND según CONTRACT-002 en progress.md. #}
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Inicio</title></head>
+<body>
+<p>{{ user.username }} · {{ user_role }}</p>
+<form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button type="submit">Cerrar sesión</button></form>
+</body></html>

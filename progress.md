@@ -19,7 +19,7 @@ Debe evitar:
 
 Antes de escribir código:
 
-1. Leer `SPEC_MVP_Mesa_Ayuda_v5_1_PostgreSQL_Tareas.md`.
+1. Leer `SPEC_MVP_Mesa_Ayuda_v5_2_PostgreSQL_Tareas.md`.
 2. Leer este `progress.md`.
 3. Verificar el estado de la tarea.
 4. Revisar dependencias.
@@ -56,14 +56,30 @@ CANCELLED   = descartada por cambio aprobado
 # 3. Estado global
 
 ```text
-SPEC_VERSION: 5.1
-DATABASE: PostgreSQL
+SPEC_VERSION: 5.2
+DATABASE: PostgreSQL 16
+FRAMEWORK: Django 5.2 LTS (Python 3.12+)
 ARCHITECTURE: Django monolith modular
 FRONT: Django Templates + Bootstrap
 BACK_APPS: accounts, helpdesk, automation, integrations, ai
 SGA_MODE: LocalProvider para MVP
 AI_MODE: asistivo
+LLM_PROVIDER: abierto (ADR-010); FakeLLMProvider por defecto
 ```
+
+## 3.1 Reparto de trabajo entre agentes (ADR-013)
+
+| Ámbito | Agente | Archivos que le pertenecen |
+|---|---|---|
+| BACKEND | Claude | `config/`, `apps/`, `conftest.py`, `requirements*.txt`, `pyproject.toml`, `.github/`, migraciones, pruebas |
+| FRONTEND | ChatGPT | `templates/`, `static/` |
+
+Reglas:
+
+1. El backend **no** diseña plantillas. Solo puede dejar una plantilla mínima marcada `TEMPORAL (backend)` cuando una prueba necesite renderizar la vista; el frontend la reemplaza.
+2. Cada vista backend se publica con su **url name**, plantilla esperada y **contrato de contexto** en la sección 12 (`CONTRACT-XXX`). El frontend consume solo lo que figura en el contrato.
+3. Si el frontend necesita un dato nuevo en el contexto, lo solicita como CHANGE REQUEST en la sección 12; no lo calcula en la plantilla.
+4. Los contextos solo exponen datos ya autorizados por backend: la plantilla nunca decide permisos, estados, SLA ni prioridad.
 
 ---
 
@@ -71,16 +87,17 @@ AI_MODE: asistivo
 
 | ID | Estado | Responsable/Agente | Dependencia | Última actualización |
 |---|---|---|---|---|
-| FE-T01 | TODO | - | BE-T01 | - |
+| FE-T01 | TODO (desbloqueada: CONTRACT-001/002/003) | ChatGPT | BE-T01 | 2026-10-12 |
 | FE-T02 | TODO | - | BE-T03, BE-T04 | - |
-| FE-T03 | TODO | - | BE-T03 | - |
+| FE-T03 | TODO | - | BE-T03, BE-T03A | - |
 | FE-T04 | TODO | - | BE-T04 | - |
 | FE-T05 | TODO | - | BE-T05, BE-T07 | - |
 | FE-T06 | TODO | - | BE-T04, BE-T06 | - |
 | FE-T07 | TODO | - | BE-T07 | - |
 | FE-T08 | TODO | - | BE-T08 | - |
-| FE-T09 | TODO | - | BE-T09 | - |
+| FE-T09 | TODO | - | BE-T03A, BE-T09 | - |
 | FE-T10 | TODO | - | BE-T10 | - |
+| FE-T11 | TODO | - | BE-T11A | - |
 
 ---
 
@@ -88,26 +105,35 @@ AI_MODE: asistivo
 
 | ID | Estado | Responsable/Agente | Dependencia | Última actualización |
 |---|---|---|---|---|
-| BE-T01 | TODO | - | - | - |
-| BE-T02 | TODO | - | BE-T01 | - |
-| BE-T03 | TODO | - | BE-T01, BE-T02 | - |
+| BE-T01 | REVIEW (incluye BE-T02; pendiente de revisión del PR) | Claude | - | 2026-10-12 |
+| BE-T02 | CANCELLED (fusionada en BE-T01, v5.2) | - | - | 2026-10-12 |
+| BE-T03A | TODO | - | BE-T01 | - |
+| BE-T03 | TODO | - | BE-T01, BE-T03A | - |
 | BE-T04 | TODO | - | BE-T03 | - |
 | BE-T05 | TODO | - | BE-T03 | - |
 | BE-T06 | TODO | - | BE-T03 | - |
 | BE-T07 | TODO | - | BE-T03 | - |
-| BE-T08 | TODO | - | BE-T07 | - |
+| BE-T08 | TODO | - | BE-T03, BE-T07 | - |
 | BE-T09 | TODO | - | BE-T03 | - |
 | BE-T10 | TODO | - | BE-T03, BE-T08 | - |
 | BE-T11 | TODO | - | BE-T05 | - |
+| BE-T11A | TODO | - | BE-T01, BE-T11 | - |
 | BE-T12 | TODO | - | BE-T11 | - |
 | BE-T13 | TODO | - | BE-T09 | - |
-| BE-T14 | TODO | - | BE-T13 | - |
+| BE-T14 | TODO | - | BE-T13, BE-T11A | - |
 | BE-T15 | TODO | - | BE-T14 | - |
 | BE-T16 | TODO | - | - | - |
 | BE-T17 | TODO | - | BE-T16 | - |
 | BE-T18 | TODO | - | BE-T16, BE-T17 | - |
 | BE-T19 | TODO | - | BE-T15 | - |
 | BE-T20 | TODO | - | BE-T01..BE-T19 | - |
+
+Notas v5.2:
+
+- BE-T03A (catálogos `Area`/`Category`/`Subcategory` + `AuditLog`) es nueva: BE-T03 la necesita para FK y auditoría.
+- BE-T08 depende también de BE-T03 porque `sla_due_at` se fija al crear el ticket.
+- El dataset etiquetado de IA se adelanta a BE-T17 (antes en BE-T20).
+- BE-T11A (vinculación WhatsApp) bloquea a BE-T14: sin ella no se pueden entregar datos sensibles por WhatsApp.
 
 ---
 
@@ -185,6 +211,16 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-003 | Inicial | Sin Redis/Celery en MVP | Reducir infraestructura | Integraciones |
 | ADR-004 | Inicial | LocalProvider antes de SGA real | Desacoplar MVP | Integración |
 | ADR-005 | Inicial | LLM no ejecuta negocio | Seguridad y gobernanza | IA |
+| ADR-006 | 2026-10-12 | BE-T02 fusionada en BE-T01 | `AUTH_USER_MODEL` debe existir antes de la primera migración | Backlog |
+| ADR-007 | 2026-10-12 | Sin API REST de tickets ni DRF; contrato FRONT/BACK = vistas Django | Front server-rendered; regla 56.6 (sin endpoints sin consumidor) | API |
+| ADR-008 | 2026-10-12 | WhatsApp exige teléfono verificado con código desde portal | Proteger notas/deuda | WhatsApp, `User.phone_verified_at` |
+| ADR-009 | 2026-10-12 | Meta WhatsApp Cloud API | Proveedor oficial; firma `X-Hub-Signature-256` | Integraciones |
+| ADR-010 | 2026-10-12 | Proveedor LLM: **ABIERTO** | Falta comparar costo, latencia, JSON estructurado y privacidad | IA (FakeLLMProvider hasta decidir) |
+| ADR-011 | 2026-10-12 | PostgreSQL también en pruebas/CI (sin SQLite) | `SKIP LOCKED`, secuencias, índices parciales; paridad dev/CI/prod | Persistencia, CI |
+| ADR-012 | 2026-10-12 | Django 5.2 LTS + psycopg 3 + django-environ | Soporte extendido; configuración por entorno | Stack |
+| ADR-013 | 2026-10-12 | Claude = BACKEND, ChatGPT = FRONTEND (`templates/`, `static/`) | Trabajo paralelo sin pisarse | Ver sección 3.1 y contratos de vista |
+| ADR-014 | 2026-10-12 | Login con usuario **o** correo; correo ambiguo (compartido) se rechaza | FE-001 “usuario/correo” | `UsernameOrEmailBackend` |
+| ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
 
@@ -219,6 +255,15 @@ classify(text, context=None)
 extract(text, schema)
 summarize(messages)
 generate_response(context)
+```
+
+## Roles (Groups, creados por migración `accounts/0002`)
+
+```text
+Usuario
+Agente
+Supervisor
+Administrador
 ```
 
 ## Estados
@@ -289,10 +334,59 @@ Cuando exista uno:
 
 Registrar aquí cualquier cambio FRONT/BACK antes de implementarlo.
 
+## 12.1 Contratos de vista publicados por BACKEND
+
+Convenciones para todas las vistas:
+
+- Todos los formularios POST incluyen `{% csrf_token %}`.
+- El texto de error se muestra tal como lo entrega el backend o con los mensajes genéricos de SPEC §19; nunca detalles internos.
+- Variables globales disponibles en **todas** las plantillas (context processors):
+  - `user` — usuario actual (`AnonymousUser` si no hay sesión). Campos utilizables: `username`, `email`, `first_name`, `last_name`, `get_full_name`, `is_authenticated`.
+  - `user_role` — `str | None`: `"Usuario"`, `"Agente"`, `"Supervisor"`, `"Administrador"` o `None` si no hay sesión. Usar solo para **mostrar** navegación por rol (SPEC §10); el backend vuelve a validar permisos.
+  - `messages` — mensajes flash de Django (`message.tags`: `debug`, `info`, `success`, `warning`, `error`).
+  - `request`.
+
+### CONTRACT-001 — Login
+**Fecha:** 2026-10-12
+**Origen:** BACK (BE-T01) → consumidor FE-T01
+**URL name:** `accounts:login` → `/accounts/login/`
+**Plantilla:** `auth/login.html` (hoy existe una versión `TEMPORAL (backend)` que FRONT debe reemplazar)
+**Métodos:** GET (muestra formulario), POST (autentica)
+**Contexto:**
+
+| Variable | Tipo | Descripción |
+|---|---|---|
+| `form` | `AuthenticationForm` | Campos `form.username` (usuario **o** correo) y `form.password`. Errores en `form.non_field_errors` (un único mensaje genérico; no distingue usuario inexistente, contraseña incorrecta o cuenta inactiva). |
+| `next` | `str` | Destino tras login (puede ser vacío). Reenviar como `<input type="hidden" name="next">`. |
+| `site`, `site_name` | — | Provistos por Django; no requeridos. |
+
+**POST esperado:** `username`, `password`, `next` (opcional), `csrfmiddlewaretoken`.
+**Respuestas:** éxito → 302 a `next` si es del mismo sitio, si no a `accounts:role_redirect`. Error → 200 con `form` con errores. Usuario ya autenticado que hace GET → 302 a `accounts:role_redirect`.
+**Aprobado:** Sí
+
+### CONTRACT-002 — Inicio (temporal por rol)
+**Fecha:** 2026-10-12
+**Origen:** BACK (BE-T01) → consumidor FE-T01 / FE-T02
+**URL name:** `accounts:home` → `/inicio/`
+**Plantilla:** `home.html` (versión `TEMPORAL (backend)`)
+**Métodos:** GET. Requiere sesión (sin sesión → 302 a login).
+**Contexto:** solo variables globales (`user`, `user_role`, `messages`).
+**Nota:** es la pantalla de aterrizaje provisional de todos los roles. Cuando existan FE-T02/FE-T06/FE-T08/FE-T09, backend cambiará `ROLE_HOME_URLS` (CHANGE REQUEST) para apuntar a cada panel.
+**Aprobado:** Sí
+
+### CONTRACT-003 — Redirección por rol y logout
+**Fecha:** 2026-10-12
+**Origen:** BACK (BE-T01) → consumidor FE-T01
+**`accounts:role_redirect`** → `/` · GET · sin plantilla. Requiere sesión. Responde 302 a la pantalla de inicio del rol (`apps/accounts/views.py::ROLE_HOME_URLS`). Usar como destino del logo/“Inicio” en la navegación.
+**`accounts:logout`** → `/accounts/logout/` · **solo POST** (GET devuelve 405) · sin plantilla. Debe enviarse desde un `<form method="post">` con `{% csrf_token %}`. Responde 302 a `accounts:login`.
+**Aprobado:** Sí
+
+## 12.2 Solicitudes de cambio
+
 Actualmente:
 
 ```text
-NINGUNO
+NINGUNA
 ```
 
 Plantilla:
@@ -311,11 +405,8 @@ Plantilla:
 
 # 13. Migraciones aplicadas
 
-Actualmente:
-
-```text
-NINGUNA
-```
+- `accounts/migrations/0001_initial.py` — modelo `User` (AbstractUser + `phone`, `phone_verified_at`, `external_id`, `source`; únicos parciales en `phone` y `external_id`) — aplicada y reversible — BE-T01
+- `accounts/migrations/0002_create_role_groups.py` — migración de datos: Groups `Usuario`, `Agente`, `Supervisor`, `Administrador` — aplicada y reversible — BE-T01
 
 Formato:
 
@@ -328,11 +419,15 @@ Formato:
 
 # 14. Endpoints implementados
 
-Actualmente:
+Rutas web (vistas Django, ADR-007):
 
-```text
-NINGUNO
-```
+- `GET|POST /accounts/login/` — `accounts:login` — REVIEW — BE-T01 — CONTRACT-001
+- `POST /accounts/logout/` — `accounts:logout` — REVIEW — BE-T01 — CONTRACT-003
+- `GET /` — `accounts:role_redirect` — REVIEW — BE-T01 — CONTRACT-003
+- `GET /inicio/` — `accounts:home` — REVIEW — BE-T01 — CONTRACT-002
+- `/admin/` — Django admin (gestión de usuarios y grupos) — REVIEW — BE-T01
+
+API: ninguna todavía (el webhook WhatsApp llegará con BE-T11).
 
 Formato:
 
@@ -345,11 +440,13 @@ Formato:
 
 # 15. Pruebas ejecutadas
 
-Actualmente:
-
-```text
-NINGUNA
-```
+### TEST-RUN-001
+**Fecha:** 2026-10-12
+**Tarea:** BE-T01
+**Comando:** `ruff check . && ruff format --check . && python manage.py check && python manage.py makemigrations --check --dry-run && pytest --cov --cov-fail-under=80`
+**Entorno:** PostgreSQL 16 local, `config.settings.test`, sin `.env` (igual que CI)
+**Resultado:** PASS — 72 pruebas, cobertura 99 %
+**Fallos:** ninguno
 
 Formato:
 
@@ -378,6 +475,15 @@ Añadir siempre al final, sin borrar entradas anteriores.
 - Pruebas:
 - Observaciones:
 ```
+
+## 2026-10-12 — Claude (BACKEND) / SPEC v5.2 + BE-T01
+
+- Estado anterior: SPEC 5.1; BE-T01 y BE-T02 en TODO.
+- Estado nuevo: SPEC 5.2; BE-T01 en REVIEW; BE-T02 CANCELLED (fusionada).
+- Trabajo realizado: corrección de 17 problemas de la SPEC (ver SPEC §0.1); backlog ajustado; esqueleto Django, usuario, roles, login/logout, CI. Reparto FRONT/BACK acordado (ADR-013) y contratos de vista CONTRACT-001..003 publicados.
+- Archivos: ver cierre de BE-T01 (sección 20).
+- Pruebas: TEST-RUN-001 PASS.
+- Observaciones: FE-T01 queda desbloqueada para el agente FRONTEND.
 
 ---
 
@@ -426,12 +532,56 @@ NO CREAR NUEVA APP
 
 ```text
 SPEC aprobada: Sí
-SPEC versión: 5.1
+SPEC versión: 5.2
 Front backlog definido: Sí
 Back backlog definido: Sí
-Código implementado: No registrado
-Migraciones: No registradas
-Endpoints: No registrados
-Pruebas: No registradas
+Código implementado: BE-T01 (incluye BE-T02) en REVIEW
+Migraciones: accounts 0001, 0002
+Endpoints: login, logout, role_redirect, home (vistas web)
+Pruebas: TEST-RUN-001 PASS
 Bloqueos: Ninguno
 ```
+
+---
+
+# 20. Registro de tareas
+
+## BE-T01 — Proyecto base, usuario, autenticación y roles (incluye BE-T02) — Cierre
+
+**Estado:** REVIEW (pasa a DONE cuando el PR se apruebe y CI esté en verde)
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-12
+
+### Implementado
+- Proyecto Django 5.2 con `config/settings/{base,dev,test}.py`; secretos y BD por variables de entorno (`.env.example`).
+- Cinco apps registradas (`accounts`, `helpdesk`, `automation`, `integrations`, `ai`); solo `accounts` tiene contenido.
+- `accounts.User(AbstractUser)` con `phone` (E.164), `phone_verified_at`, `external_id`, `source` (`LOCAL`/`SGA`/`WHATSAPP`); unicidad parcial de `phone` y `external_id`.
+- Groups de rol por migración de datos reversible.
+- `accounts.roles`: `Role`, `get_role`, `has_role` (prioridad Administrador > Supervisor > Agente > Usuario).
+- `accounts.permissions`: control vertical `role_required` / `RoleRequiredMixin`; control horizontal `check_owner_or_staff`.
+- `UsernameOrEmailBackend`: login con usuario o correo, error genérico, tiempo de respuesta igualado.
+- Vistas `login`, `logout` (solo POST), `role_redirect`, `home`; context processor `user_role`.
+- Admin de usuarios con campos institucionales.
+- Cookies `HttpOnly`, `Secure` fuera de DEBUG, `X-Frame-Options: DENY`.
+- CI GitHub Actions: ruff, `check`, `makemigrations --check`, pytest con PostgreSQL 16 y cobertura ≥ 80 %.
+
+### Archivos creados/modificados
+- `manage.py`, `config/**`, `apps/**`, `conftest.py`
+- `requirements.txt`, `requirements-dev.txt`, `pyproject.toml`, `.env.example`, `.gitignore`
+- `.github/workflows/ci.yml`
+- `templates/auth/login.html`, `templates/home.html` — **TEMPORAL (backend)**, para que FRONT los reemplace.
+
+### Migraciones
+- `accounts/0001_initial`, `accounts/0002_create_role_groups`
+
+### Pruebas ejecutadas
+- TEST-RUN-001 (modelo, roles, matriz de permisos, login/logout/CSRF/redirects, reversibilidad de migraciones).
+
+### Decisiones tomadas
+- ADR-006, ADR-011, ADR-012, ADR-013, ADR-014, ADR-015.
+
+### Pendientes derivados
+- Los Groups no tienen permisos de modelo asignados todavía: se asignarán en la migración de cada tarea que cree modelos (BE-T03A, BE-T03…).
+- Anular `phone_verified_at` al cambiar el teléfono → BE-T11A.
+- Rate limiting de login (SPEC §48) → BE-T20 (seguridad), salvo que se adelante.
+- Settings de producción (`config/settings/prod.py`, HSTS, logging) → antes del despliegue.

@@ -1,0 +1,17 @@
+import pytest
+from django.contrib.auth.models import Group
+
+PASSWORD = "Clave-Segura-2026"
+
+
+@pytest.fixture
+def make_user(django_user_model):
+    """Crea un usuario con el rol (Group) indicado."""
+
+    def _make_user(username="usuario", role=None, password=PASSWORD, **extra):
+        user = django_user_model.objects.create_user(username=username, password=password, **extra)
+        if role:
+            user.groups.add(Group.objects.get(name=role))
+        return user
+
+    return _make_user
