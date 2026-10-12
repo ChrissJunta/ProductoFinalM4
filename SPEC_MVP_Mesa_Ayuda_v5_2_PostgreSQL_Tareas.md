@@ -7,7 +7,7 @@
 **Stack base:** Django + HTML + Bootstrap + PostgreSQL  
 **Canales:** Web + WhatsApp  
 **SGA:** desacoplado; no requerido para ejecutar el MVP  
-**IA:** asistiva; no ejecuta acciones administrativas críticas  
+**IA:** agéntica y controlada, orquestada con **LangGraph** (grafo de estados); no ejecuta acciones administrativas críticas  
 **Objetivo de esta versión:** mantener FRONT y BACK dentro del mismo SPEC, claramente separados, evitando duplicidad, módulos innecesarios y sobrearquitectura.
 
 ---
@@ -41,6 +41,7 @@
 | 15 | Proveedor LLM no definido y presentado como cerrado. | Decisión abierta (ADR pendiente), con `FakeLLMProvider` por defecto. | 42 |
 | 16 | Catálogos (`Area`, `Category`, `Subcategory`) y `AuditLog` sin tarea en backlog. | Nueva tarea BE-T03A. | 60.4 |
 | 17 | BE-T01/BE-T02 separadas pese a requerir una única migración inicial de usuario; dataset de IA solo en BE-T20. | BE-T01 absorbe BE-T02; dataset etiquetado se adelanta a BE-T17; dependencia SLA explícita. | 60.4 |
+| 18 | La IA era un conjunto de llamadas sueltas (clasificar, extraer, resumir) sin orquestación: el sistema no podía considerarse **agéntico**. | Orquestación agéntica con **LangGraph**: Intent Engine, Autonomy Engine, herramientas y revisión humana como nodos y aristas de un grafo de estados versionado. Se levanta la prohibición genérica de “agents” y se sustituye por reglas de agente controlado. | 2, 3.5, 4, 5, 24, 30, 31, 43, 46A, 52, 54, 55, 56, 58, 60.4 |
 
 ---
 
@@ -73,6 +74,7 @@ Construir un MVP de Mesa de Ayuda Omnicanal capaz de:
 - No crear módulo independiente de catálogos.
 - No duplicar usuarios institucionales.
 - No permitir que el LLM consulte directamente tablas ni ejecute acciones de negocio.
+- Toda orquestación agéntica se modela como **grafo LangGraph** (sección 46A); no se crean bucles de agente ad hoc ni cadenas de prompts fuera del grafo.
 - No almacenar como tabla configuraciones que pueden mantenerse como constantes.
 - No implementar funciones futuras sin vínculo con un caso de aceptación.
 - No incorporar SPA ni frameworks JavaScript adicionales.
@@ -139,7 +141,8 @@ Construir un MVP de Mesa de Ayuda Omnicanal capaz de:
 - validación estructural;
 - fallback;
 - métricas;
-- trazabilidad.
+- trazabilidad;
+- **orquestación agéntica con LangGraph**: grafo de estados que decide, invoca herramientas autorizadas, se autocorrige (reintento/fallback) y pausa para revisión humana (sección 46A).
 
 ## 3.6 Integración institucional
 
@@ -166,7 +169,9 @@ Construir un MVP de Mesa de Ayuda Omnicanal capaz de:
 - implementar múltiples bases de datos;
 - implementar dashboards BI avanzados;
 - implementar app móvil nativa;
-- implementar RAG, agentes autónomos o MCP en el MVP.
+- implementar RAG o MCP en el MVP;
+- agentes **sin control**: sin grafo definido, con herramientas de escritura libres, multiagente abierto o sin revisión humana (el agente permitido es el de la sección 46A);
+- LangGraph Platform/Server, LangGraph Cloud o LangSmith obligatorio (el grafo corre embebido en Django).
 
 ---
 
@@ -193,6 +198,7 @@ Construir un MVP de Mesa de Ayuda Omnicanal capaz de:
 │ AutomationService                                            │
 │ InstitutionalQueryService                                    │
 │ AIService                                                    │
+│ AgentGraph (LangGraph) ── orquesta Intent/Autonomy/Tools     │
 └───────────────────────────┬──────────────────────────────────┘
                             ▼
 ┌──────────────────────────────────────────────────────────────┐
@@ -813,7 +819,8 @@ Usar `AbstractUser`, `Groups`, `Permissions`.
 - métricas;
 - validación;
 - fallback;
-- decisiones IA.
+- decisiones IA;
+- **grafo agéntico LangGraph** (`apps/ai/agent/`: estado, nodos, herramientas, construcción del grafo, checkpointer).
 
 ---
 
@@ -1144,6 +1151,8 @@ Validación / humano
 
 No llamar al LLM si una regla simple resuelve la intención.
 
+Desde v5.2 el Intent Engine se implementa como los nodos `classify_rules` → `classify_llm` → `validate_output` del grafo LangGraph (sección 46A). La regla anterior se cumple con una arista condicional: si `classify_rules` resuelve, el grafo no visita `classify_llm`.
+
 ---
 
 # 31. Autonomy Engine
@@ -1155,6 +1164,8 @@ N2 → ticket + validación
 N3 → ticket + routing
 N4 → revisión humana
 ```
+
+Desde v5.2 el Autonomy Engine es el nodo `decide_autonomy` del grafo LangGraph, cuya arista condicional enruta a la rama N0–N4 (sección 46A). La decisión de nivel es **determinística** (catálogo `Intent.automation_level` + confianza), nunca la elige el LLM libremente.
 
 ## 31.1 Fuente de conocimiento N1 (v5.2)
 
@@ -1540,6 +1551,9 @@ confidence
 accepted
 corrected
 corrected_by
+graph_version     (v5.2 — versión del grafo LangGraph)
+node_path         (v5.2 — lista JSON de nodos recorridos)
+thread_id         (v5.2 — hilo LangGraph = Conversation.id)
 created_at
 ```
 
@@ -1608,6 +1622,133 @@ LLM fallback
 ↓ fallo
 Humano
 ```
+
+---
+
+# 46A. Orquestación agéntica con LangGraph (v5.2)
+
+## 46A.1 Decisión
+
+El comportamiento agéntico del MVP se implementa con **LangGraph** (`langgraph` 1.x), embebido en el proceso Django. El agente es un **grafo de estados explícito**: los nodos son pasos (reglas, LLM, herramientas, validación, revisión humana) y las aristas condicionales deciden el siguiente paso según el estado validado.
+
+Esto hace al sistema **agéntico** porque, ante cada mensaje, el agente:
+
+1. **percibe** (mensaje + contexto de conversación + identidad verificada);
+2. **razona** (clasifica, extrae entidades, evalúa confianza);
+3. **decide** la ruta (N0–N4) mediante aristas condicionales;
+4. **actúa** con herramientas autorizadas (consultas institucionales, consulta de ticket, creación de ticket);
+5. **observa** el resultado de la herramienta y decide si responde, reintenta, pide aclaración o escala;
+6. **mantiene memoria** de la conversación (checkpointer PostgreSQL);
+7. **pausa** para revisión humana (`interrupt`) cuando la confianza o el nivel lo exigen.
+
+Modificar el comportamiento del agente = **modificar el grafo** (añadir/quitar nodos, cambiar aristas o condiciones) en `apps/ai/agent/graph.py`, no dispersar lógica en vistas o servicios.
+
+## 46A.2 Ubicación (sin nueva app)
+
+```text
+apps/ai/agent/
+├── state.py      # AgentState (TypedDict)
+├── nodes.py      # funciones de nodo
+├── tools.py      # herramientas autorizadas (wrappers de servicios)
+├── graph.py      # build_graph(): nodos + aristas; GRAPH_VERSION
+└── runner.py     # run_agent(message) / resume_agent(thread_id, decision)
+```
+
+## 46A.3 Estado del grafo
+
+```python
+class AgentState(TypedDict):
+    thread_id: str                 # = conversation_id
+    user_id: int | None
+    channel: str                   # WEB | WHATSAPP
+    is_verified: bool              # sesión web o phone_verified_at (35.1)
+    message: str
+    intent: str | None
+    entities: dict
+    confidence: float | None
+    classification_source: str     # RULES | LLM | HUMAN
+    autonomy_level: str | None     # N0..N4
+    tool_calls: list[dict]         # herramientas invocadas y resultado resumido
+    ticket_code: str | None
+    response: str | None
+    attempts: int                  # reintentos LLM consumidos
+    errors: list[str]
+    requires_human: bool
+```
+
+El estado **no** guarda datos sensibles completos (notas, deuda): solo referencias o resúmenes mínimos.
+
+## 46A.4 Grafo
+
+```text
+START
+  ↓
+load_context ──────────────► (usuario, conversación, ticket activo, verificación)
+  ↓
+classify_rules ──resuelto──────────────────────────────┐
+  │ no resuelto                                        │
+  ↓                                                    │
+classify_llm ──error──► retry_or_fallback ──agotado──► human_review
+  ↓                          │ reintento               ▲
+validate_output ◄────────────┘                         │
+  │ inválido / confianza < 0.70 ───────────────────────┤
+  ↓                                                    │
+decide_autonomy ◄──────────────────────────────────────┘ (desde classify_rules)
+  ├── N0 → check_auth ──no verificado──► respond_link_instructions → END
+  │          ↓ verificado
+  │        call_tool (InstitutionalQueryService) ──error──► create_ticket
+  │          ↓
+  │        respond → END
+  ├── N1 → respond_template → END
+  ├── N2 → create_ticket → human_review (validación) → respond → END
+  ├── N3 → create_ticket → route_ticket → respond → END
+  └── N4 → create_ticket → human_review → respond → END
+```
+
+`human_review` usa `interrupt()` de LangGraph: el hilo queda pausado en el checkpointer hasta que un Agente/Supervisor decide desde la bandeja (acepta, corrige clasificación o rechaza). `resume_agent(thread_id, decision)` reanuda el grafo con `Command(resume=decision)`.
+
+Confianza 0.70–0.849 → `decide_autonomy` fuerza `human_review` antes de ejecutar acciones N2/N3 (§46).
+
+## 46A.5 Herramientas autorizadas
+
+| Herramienta | Tipo | Servicio subyacente | Quién la invoca |
+|---|---|---|---|
+| `get_schedule`, `get_grades`, `get_debt`, `get_enrollment`, `get_subjects` | Lectura | `InstitutionalQueryService` | Nodo `call_tool` (puede sugerirla el LLM) |
+| `get_ticket_status` | Lectura | `TicketService` (solo tickets del usuario) | Nodo `call_tool` |
+| `create_ticket` | Escritura | `TicketService.create()` | **Solo nodo determinístico** |
+| `route_ticket` | Escritura | `AutomationService.route_ticket()` | **Solo nodo determinístico** |
+
+Reglas:
+
+1. El LLM puede **proponer** una herramienta de lectura de la lista; el nodo valida nombre, argumentos (esquema) y autorización antes de ejecutarla.
+2. Las herramientas de escritura nunca se exponen al LLM: las invoca un nodo determinístico tras validar el estado.
+3. Las herramientas siempre actúan sobre el **usuario del estado** (`user_id`); el LLM no puede indicar otro usuario.
+4. Máximo `AGENT_MAX_STEPS = 12` pasos por ejecución (`recursion_limit`); al superarlo → `human_review`.
+5. Cambiar estados, asignar, cerrar, modificar notas/deuda: **no existen como herramientas** (§45 sigue vigente).
+
+## 46A.6 Memoria y persistencia
+
+- Checkpointer: `PostgresSaver` (`langgraph-checkpoint-postgres`) sobre la misma base PostgreSQL, en tablas propias del checkpointer.
+- `thread_id` = `Conversation.id`; así la conversación Web/WhatsApp comparte memoria.
+- En pruebas se usa `InMemorySaver`.
+- El checkpointer no sustituye a los modelos de negocio: tickets, mensajes y auditoría siguen en sus tablas Django.
+
+## 46A.7 Ejecución
+
+- WhatsApp: el worker `process_integration_queue` invoca `run_agent()` al procesar cada evento de `IntegrationInbox` (sin Redis/Celery).
+- Web: la vista de nuevo mensaje/solicitud invoca `run_agent()` de forma síncrona con timeout; si excede el tiempo, el mensaje queda registrado y se procesa como ticket N3.
+- Toda ejecución registra `AIDecision` con `graph_version` y el recorrido de nodos (`node_path`), y `AIUsage` por cada llamada LLM.
+
+## 46A.8 Versionado y cambios del grafo
+
+- `GRAPH_VERSION` (constante en `graph.py`) se incrementa en cada cambio de nodos o aristas.
+- Todo cambio del grafo requiere: CHANGE REQUEST en `progress.md`, pruebas de las rutas afectadas y diagrama actualizado (`graph.get_graph().draw_mermaid()` guardado en `docs/agent_graph.md`).
+- El LLM **no** modifica el grafo en tiempo de ejecución; el grafo solo se cambia en código revisado.
+
+## 46A.9 Pruebas
+
+- Cada ruta N0–N4 tiene una prueba con `FakeLLMProvider` y `InMemorySaver`.
+- Pruebas de: regla resuelve sin visitar `classify_llm`; salida LLM inválida → `human_review`; error LLM → retry → fallback → humano; número no verificado no llega a `call_tool`; `interrupt` y reanudación; límite de pasos.
 
 ---
 
@@ -1757,7 +1898,7 @@ WhatsApp + inbox/outbox.
 Automatización + LocalProvider.
 
 ## Fase 5
-IA + proveedor real + fallback.
+IA + proveedor real + fallback + grafo agéntico LangGraph (BE-T18A).
 
 ## Fase 6
 Contrato SGA + SGAProvider mock.
@@ -1801,7 +1942,8 @@ CA-010 Conversación contextual
 13. registra métricas;
 14. audita IA;
 15. funciona sin SGA;
-16. sustituye LocalProvider por SGAProvider sin cambiar lógica de negocio.
+16. sustituye LocalProvider por SGAProvider sin cambiar lógica de negocio;
+17. orquesta todo el flujo con el grafo agéntico LangGraph, con herramientas autorizadas, memoria conversacional y revisión humana (46A).
 
 ---
 
@@ -1833,10 +1975,14 @@ GraphQL
 WebSockets
 vector DB
 RAG
-agents
+agentes fuera de LangGraph o sin control (ver 46A)
+frameworks multiagente (CrewAI, AutoGen, etc.)
+LangGraph Platform / Server / Cloud
 MCP
 Kubernetes
 ```
+
+**Autorizado desde v5.2:** `langgraph` y `langgraph-checkpoint-postgres`, únicamente dentro de `apps/ai/agent/`.
 
 ## Frontend no autorizado
 
@@ -1870,6 +2016,8 @@ PWA
 13. Toda vista frontend debe justificar un flujo funcional.
 14. Toda lógica de negocio debe vivir en backend.
 15. El frontend nunca debe ser fuente de verdad de estados, SLA o permisos.
+16. Toda lógica agéntica vive en el grafo LangGraph de `apps/ai/agent/`; ningún otro módulo llama al LLM para decidir flujo.
+17. Las herramientas de escritura del agente solo las invoca un nodo determinístico; el LLM solo propone herramientas de lectura.
 
 ---
 
@@ -1910,9 +2058,10 @@ IDENTIFICACIÓN
   ↓
 CONVERSATION SERVICE
   ↓
-INTENT ENGINE
+AGENTE LANGGRAPH (46A)
+  │  INTENT ENGINE  (nodos classify_rules / classify_llm / validate_output)
   ↓
-AUTONOMY ENGINE
+  │  AUTONOMY ENGINE (nodo decide_autonomy + aristas condicionales)
   ├── N0 → InstitutionalDataProvider → Respuesta
   ├── N1 → IntentAction.response_template (+ AIService opcional) → Respuesta
   ├── N2 → TicketService → Validación
@@ -2480,13 +2629,35 @@ CANCELLED
 
 **Entregables:**
 - AIUsage;
-- AIDecision;
+- AIDecision (incluye `graph_version` y `node_path` — v5.2);
 - retry;
 - fallback provider;
 - escalamiento humano.
 
 **Criterio de aceptación:**
 - ningún fallo IA pierde la solicitud.
+
+---
+
+### BE-T18A — Grafo agéntico LangGraph (v5.2)
+
+**Objetivo:** orquestar Intent Engine, Autonomy Engine, herramientas y revisión humana como un grafo LangGraph (sección 46A).
+
+**Dependencias:** BE-T13, BE-T14, BE-T15, BE-T16, BE-T17, BE-T18.
+
+**Entregables:**
+- `apps/ai/agent/` (`state.py`, `nodes.py`, `tools.py`, `graph.py`, `runner.py`);
+- herramientas autorizadas con validación de esquema y autorización;
+- `human_review` con `interrupt` y reanudación desde la bandeja;
+- checkpointer PostgreSQL (`PostgresSaver`) e `InMemorySaver` en pruebas;
+- integración con `process_integration_queue` y la vista web de mensajes;
+- `GRAPH_VERSION`, `node_path` en `AIDecision` y diagrama `docs/agent_graph.md`.
+
+**Criterio de aceptación:**
+- CA-001 a CA-010 recorren el grafo con `FakeLLMProvider`;
+- ninguna herramienta de escritura es invocable por el LLM;
+- número no verificado no obtiene datos sensibles;
+- error del LLM nunca pierde la solicitud (termina en ticket o revisión humana).
 
 ---
 

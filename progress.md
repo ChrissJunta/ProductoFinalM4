@@ -65,6 +65,7 @@ BACK_APPS: accounts, helpdesk, automation, integrations, ai
 SGA_MODE: LocalProvider para MVP
 AI_MODE: asistivo
 LLM_PROVIDER: abierto (ADR-010); FakeLLMProvider por defecto
+AGENT: LangGraph 1.x embebido en apps/ai/agent/ (ADR-016)
 ```
 
 ## 3.1 Reparto de trabajo entre agentes (ADR-013)
@@ -125,14 +126,16 @@ Reglas:
 | BE-T16 | TODO | - | - | - |
 | BE-T17 | TODO | - | BE-T16 | - |
 | BE-T18 | TODO | - | BE-T16, BE-T17 | - |
+| BE-T18A | TODO | - | BE-T13..BE-T18 | 2026-10-12 |
 | BE-T19 | TODO | - | BE-T15 | - |
-| BE-T20 | TODO | - | BE-T01..BE-T19 | - |
+| BE-T20 | TODO | - | BE-T01..BE-T19, BE-T18A | - |
 
 Notas v5.2:
 
 - BE-T03A (catálogos `Area`/`Category`/`Subcategory` + `AuditLog`) es nueva: BE-T03 la necesita para FK y auditoría.
 - BE-T08 depende también de BE-T03 porque `sla_due_at` se fija al crear el ticket.
 - El dataset etiquetado de IA se adelanta a BE-T17 (antes en BE-T20).
+- BE-T18A (grafo agéntico LangGraph) orquesta BE-T13/BE-T14/BE-T15/BE-T17/BE-T18; los motores se implementan como funciones reutilizables que luego son nodos del grafo.
 - BE-T11A (vinculación WhatsApp) bloquea a BE-T14: sin ella no se pueden entregar datos sensibles por WhatsApp.
 
 ---
@@ -220,6 +223,7 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-012 | 2026-10-12 | Django 5.2 LTS + psycopg 3 + django-environ | Soporte extendido; configuración por entorno | Stack |
 | ADR-013 | 2026-10-12 | Claude = BACKEND, ChatGPT = FRONTEND (`templates/`, `static/`) | Trabajo paralelo sin pisarse | Ver sección 3.1 y contratos de vista |
 | ADR-014 | 2026-10-12 | Login con usuario **o** correo; correo ambiguo (compartido) se rechaza | FE-001 “usuario/correo” | `UsernameOrEmailBackend` |
+| ADR-016 | 2026-10-12 | Orquestación agéntica con LangGraph (`langgraph` + `langgraph-checkpoint-postgres`) | Sin orquestación el sistema no es agéntico; LangGraph da grafo explícito, memoria, `interrupt` humano y control de herramientas | SPEC §46A; sustituye la prohibición genérica “agents” por reglas de agente controlado; BE-T18A |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -255,6 +259,16 @@ classify(text, context=None)
 extract(text, schema)
 summarize(messages)
 generate_response(context)
+```
+
+## Agente LangGraph (SPEC §46A)
+
+```text
+Ubicación: apps/ai/agent/ (state.py, nodes.py, tools.py, graph.py, runner.py)
+Entrada:   run_agent(message) / resume_agent(thread_id, decision)
+thread_id: Conversation.id
+Escritura: create_ticket y route_ticket SOLO desde nodos determinísticos
+Cambios:   modificar el grafo exige CHANGE REQUEST + GRAPH_VERSION + pruebas + docs/agent_graph.md
 ```
 
 ## Roles (Groups, creados por migración `accounts/0002`)
@@ -293,6 +307,7 @@ apps/sla
 apps/notifications
 apps/audit
 apps/conversations
+apps/agents            (el agente vive en apps/ai/agent/)
 
 microservices/
 kafka/
@@ -383,11 +398,13 @@ Convenciones para todas las vistas:
 
 ## 12.2 Solicitudes de cambio
 
-Actualmente:
-
-```text
-NINGUNA
-```
+### CHANGE REQUEST CR-001 — Agente LangGraph
+**Fecha:** 2026-10-12
+**Origen:** Solicitud del responsable del proyecto
+**Cambio:** la IA pasa de llamadas sueltas a un agente orquestado con LangGraph (SPEC §46A). Se levanta la prohibición genérica de “agents” (SPEC §4, §55) y se reemplaza por reglas de agente controlado.
+**Impacto:** nueva tarea BE-T18A; `AIDecision` añade `graph_version`, `node_path`, `thread_id`; nuevas dependencias `langgraph`, `langgraph-checkpoint-postgres` (se añadirán a `requirements.txt` al iniciar BE-T18A, no antes).
+**Consumidores afectados:** FRONT sin cambios hasta FE-T06 (la bandeja mostrará los casos pausados en `human_review`; su contrato se publicará con BE-T18A).
+**Aprobado:** Sí
 
 Plantilla:
 
@@ -484,6 +501,7 @@ Añadir siempre al final, sin borrar entradas anteriores.
 - Archivos: ver cierre de BE-T01 (sección 20).
 - Pruebas: TEST-RUN-001 PASS.
 - Observaciones: FE-T01 queda desbloqueada para el agente FRONTEND.
+- Actualización: CR-001 / ADR-016 — SPEC §46A incorpora el agente LangGraph; nueva tarea BE-T18A.
 
 ---
 
