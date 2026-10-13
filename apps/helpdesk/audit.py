@@ -12,6 +12,8 @@ class Action:
     ACTIVATE = "ACTIVATE"
     DEACTIVATE = "DEACTIVATE"
     STATUS_CHANGE = "STATUS_CHANGE"
+    ASSIGN = "ASSIGN"
+    REASSIGN = "REASSIGN"
 
 
 def entity_type_of(instance):

@@ -17,7 +17,7 @@ from django.utils import timezone
 from apps.accounts.roles import Role, get_role
 
 from . import alerts, audit, queries
-from .models import Alert, Ticket, TicketStatusHistory
+from .models import Alert, Ticket, TicketMessage, TicketStatusHistory
 
 S = Ticket.Status
 
@@ -58,7 +58,7 @@ TRANSITIONS = {
     (S.IN_PROGRESS, S.ESCALATED): _rule(
         A.ASSIGNED_AGENT, A.SUPERVISOR, A.SYSTEM, reason_required=True
     ),  # 10
-    # 11: hasta que exista la conversación (BE-T05) el mensaje de resolución es el motivo.
+    # 11: el motivo es el mensaje de resolución; también se publica en la conversación.
     (S.IN_PROGRESS, S.RESOLVED): _rule(A.ASSIGNED_AGENT, A.SUPERVISOR, reason_required=True),
     (S.ESCALATED, S.ASSIGNED): _rule(A.SUPERVISOR),  # 12
     (S.ESCALATED, S.IN_PROGRESS): _rule(A.SUPERVISOR),  # 13
@@ -198,6 +198,18 @@ def transition(ticket, target, *, actor=None, reason="", expected_version=None):
     TicketStatusHistory.objects.create(
         ticket=locked, previous_status=previous, new_status=target, actor=actor, reason=reason
     )
+    if target == S.RESOLVED and actor is not None:
+        # Fila 11: el mensaje de resolución se publica en la conversación del ticket.
+        TicketMessage.objects.create(
+            ticket=locked,
+            sender_type=TicketMessage.SenderType.AGENT,
+            sender=actor,
+            message_type=TicketMessage.MessageType.RESOLUTION,
+            content=reason,
+        )
+        if locked.first_response_at is None:
+            Ticket.objects.filter(pk=locked.pk).update(first_response_at=now)
+            locked.first_response_at = now
     _sync_alerts(locked, previous, target, reason)
     audit.record(
         audit.Action.STATUS_CHANGE,

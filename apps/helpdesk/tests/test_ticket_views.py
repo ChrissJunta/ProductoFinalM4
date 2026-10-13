@@ -50,7 +50,7 @@ def test_create_ticket(client, make_user):
 
     ticket = Ticket.objects.get()
     assert response.status_code == 302
-    assert response.url == reverse("accounts:role_redirect")
+    assert response.url == reverse("helpdesk:ticket_detail", args=[ticket.ticket_code])  # CR-005
     assert ticket.user == user
     assert ticket.subcategory == sub
     messages = [str(m) for m in response.wsgi_request._messages]

@@ -22,3 +22,6 @@ media/*
 .idea/
 .DS_Store
 Thumbs.db
+
+# Salida de scripts/e2e_demo.py
+salida_e2e/

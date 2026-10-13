@@ -1,0 +1,21 @@
+{% if actions or assign.can_assign %}
+<section class="card border-0 shadow-sm mb-4" aria-labelledby="acciones">
+  <div class="card-body">
+    <h2 id="acciones" class="h5">Acciones</h2>
+    {% for action in actions %}
+      <form aria-label="{{ action.label }}" method="post" action="{% url action.url_name ticket.ticket_code %}" class="border rounded p-2 mb-2">
+        {% csrf_token %}
+        <input type="hidden" name="version" value="{{ ticket.version }}">
+        {% if action.generic %}<input type="hidden" name="to_status" value="{{ action.target }}">{% endif %}
+        {% if action.reason_required %}
+          <label class="form-label small" for="reason-{{ forloop.counter }}">Motivo / mensaje (obligatorio)</label>
+          <textarea class="form-control form-control-sm mb-2" id="reason-{{ forloop.counter }}" name="reason" rows="2" maxlength="2000" required></textarea>
+        {% endif %}
+        <p class="small text-secondary">Al enviar esta acción, el backend validará el estado y la versión del ticket.</p><button type="submit" class="btn btn-sm btn-outline-primary">{{ action.label }}</button>
+      </form>
+    {% endfor %}
+    {% include 'components/ticket_assignment.html' %}
+  </div>
+</section>
+{% endif %}
+

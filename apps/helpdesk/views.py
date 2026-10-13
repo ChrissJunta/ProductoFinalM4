@@ -6,14 +6,15 @@ from django.core.paginator import Paginator
 from django.db.models import Count
 from django.http import FileResponse, Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from apps.accounts.permissions import role_required
 from apps.accounts.roles import Role
 
-from . import queries, workflow
-from .forms import TicketCreateForm, TransitionForm, category_tree
+from . import assignment, conversations, queries, sla, workflow
+from .forms import AssignForm, MessageForm, TicketCreateForm, TransitionForm, category_tree
 from .models import Alert, Area, Attachment, Category, Ticket
 from .tickets import TicketService
 
@@ -51,8 +52,7 @@ def ticket_create(request):
                 form.add_error(field if field in form.fields else None, errors)
         else:
             messages.success(request, f"Solicitud {ticket.ticket_code} creada.")
-            # Cuando exista el detalle (BE-T05/FE-T05) se redirigirá allí (CHANGE REQUEST).
-            return redirect("accounts:role_redirect")
+            return redirect("helpdesk:ticket_detail", code=ticket.ticket_code)
     return render(
         request,
         "helpdesk/ticket_form.html",
@@ -84,7 +84,6 @@ def _safe_next(request):
         target, allowed_hosts={request.get_host()}, require_https=request.is_secure()
     ):
         return target
-    # Cuando exista el detalle (BE-T05/FE-T05) será el destino por defecto (CHANGE REQUEST).
     return None
 
 
@@ -125,7 +124,7 @@ def ticket_transition(request, code, action=None):
             request,
             f"Ticket {ticket.ticket_code}: estado cambiado a {ticket.get_status_display()}.",
         )
-    return redirect(_safe_next(request) or "accounts:role_redirect")
+    return redirect(_safe_next(request) or _detail_url(ticket))
 
 
 ALERTS_PER_PAGE = 25
@@ -242,3 +241,138 @@ def agent_inbox(request):
         "helpdesk/agent_inbox.html",
         _list_context(request, qs, applied, {"tab": tab, "tabs": tabs, "assignees": agents}),
     )
+
+
+def _detail_url(ticket):
+    return reverse("helpdesk:ticket_detail", args=[ticket.ticket_code])
+
+
+# Acción de la UI para cada transición permitida (CONTRACT-010).
+# (estado origen o None, destino) → (url name, etiqueta)
+ACTION_ROUTES = {
+    (S.RESOLVED, S.CLOSED): ("helpdesk:ticket_confirm", "Confirmar solución"),
+    (S.RESOLVED, S.IN_PROGRESS): ("helpdesk:ticket_reject_resolution", "Rechazar solución"),
+    (None, S.RESOLVED): ("helpdesk:ticket_resolve", "Resolver"),
+    (None, S.ESCALATED): ("helpdesk:ticket_escalate", "Escalar"),
+    (None, S.REOPENED): ("helpdesk:ticket_reopen", "Reabrir"),
+    (None, S.CANCELLED): ("helpdesk:ticket_cancel", "Cancelar solicitud"),
+    (None, S.IN_PROGRESS): ("helpdesk:ticket_status", "Iniciar / retomar atención"),
+    (None, S.WAITING_USER): ("helpdesk:ticket_status", "Esperar respuesta del usuario"),
+    (None, S.CLASSIFIED): ("helpdesk:ticket_status", "Marcar como clasificado"),
+    (None, S.ASSIGNED): ("helpdesk:ticket_status", "Marcar como asignado"),
+}
+
+
+def ticket_actions(ticket, user):
+    """Acciones de estado que `user` puede ejecutar ahora, listas para pintar botones."""
+    actions = []
+    for target in workflow.allowed_targets(ticket, user):
+        route = ACTION_ROUTES.get((ticket.status, target)) or ACTION_ROUTES[(None, target)]
+        rule = workflow.TRANSITIONS[(ticket.status, target)]
+        actions.append(
+            {
+                "target": target,
+                "label": route[1],
+                "url_name": route[0],
+                "url": reverse(route[0], args=[ticket.ticket_code]),
+                "reason_required": rule.reason_required,
+                "generic": route[0] == "helpdesk:ticket_status",
+            }
+        )
+    return actions
+
+
+@login_required
+@require_GET
+def ticket_detail(request, code):
+    """FE-005 / CONTRACT-010: detalle, conversación omnicanal y acciones autorizadas."""
+    ticket = get_object_or_404(
+        queries.with_related(queries.visible_tickets(request.user)), ticket_code=code
+    )
+    user = request.user
+    return render(
+        request,
+        "helpdesk/ticket_detail.html",
+        {
+            "ticket": ticket,
+            "sla": sla.sla_status(ticket),
+            "timeline": conversations.timeline(ticket),
+            "attachments": ticket.attachments.all(),
+            "is_owner": ticket.user_id == user.pk,
+            "actions": ticket_actions(ticket, user),
+            "can_reply": conversations.can_reply(ticket, user),
+            "can_request_info": (
+                conversations.sender_type_for(ticket, user) == "AGENT"
+                and S.WAITING_USER in workflow.allowed_targets(ticket, user)
+            ),
+            "message_form": MessageForm(),
+            "assign": assignment.assign_options(ticket, user),
+        },
+    )
+
+
+def _first_error(form):
+    for errors in form.errors.values():
+        return errors[0]
+    return "Solicitud incompleta."
+
+
+@login_required
+@require_POST
+def ticket_message(request, code):
+    """CONTRACT-011: responder en la conversación del ticket (con adjunto opcional)."""
+    ticket = queries.get_visible_ticket_or_404(request.user, code)
+    form = MessageForm(request.POST, request.FILES)
+    if not form.is_valid():
+        messages.error(request, _first_error(form))
+        return redirect(_detail_url(ticket))
+    data = form.cleaned_data
+    try:
+        conversations.add_message(
+            ticket,
+            request.user,
+            data["content"],
+            attachment=data["attachment"],
+            request_info=data["request_info"],
+        )
+    except workflow.TransitionForbidden:
+        raise
+    except workflow.TransitionError as exc:
+        messages.error(request, exc.message)
+    except ValidationError as exc:
+        messages.error(request, exc.messages[0])
+    else:
+        messages.success(request, "Mensaje enviado.")
+    return redirect(_detail_url(ticket))
+
+
+@login_required
+@require_POST
+def ticket_assign(request, code):
+    """CONTRACT-012: asignar o reasignar área y responsable."""
+    ticket = queries.get_visible_ticket_or_404(request.user, code)
+    form = AssignForm(request.POST)
+    if not form.is_valid():
+        return HttpResponseBadRequest("Solicitud incompleta.")
+    data = form.cleaned_data
+    area = Area.objects.filter(pk=data["area"]).first()
+    assignee = None
+    if data["assignee"]:
+        assignee = get_user_model().objects.filter(pk=data["assignee"]).first()
+        if assignee is None:
+            return HttpResponseBadRequest("Responsable no válido.")
+    try:
+        ticket = TicketService.assign(
+            ticket,
+            actor=request.user,
+            area=area,
+            assignee=assignee,
+            expected_version=data["version"],
+        )
+    except workflow.TransitionForbidden:
+        raise
+    except workflow.TransitionError as exc:
+        messages.error(request, exc.message)
+    else:
+        messages.success(request, f"Ticket {ticket.ticket_code} asignado.")
+    return redirect(_safe_next(request) or _detail_url(ticket))

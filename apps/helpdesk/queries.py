@@ -158,3 +158,23 @@ def ticket_rows(tickets, now=None):
     now = now or timezone.now()
     index = sla.policy_index()
     return [{"ticket": t, "sla": sla.sla_status(t, now, policies=index)} for t in tickets]
+
+
+RECENT_LIMIT = 5
+
+
+def dashboard(user):
+    """Contexto del inicio (FE-002 / CONTRACT-013): últimos tickets y resumen por estado."""
+    visible = visible_tickets(user)
+    if get_role(user) != Role.USUARIO:
+        # Para el personal, «recientes» son los suyos o asignados a él, no toda la cola.
+        visible = visible.filter(Q(user=user) | Q(assigned_user=user))
+    recent = with_related(visible.order_by("-updated_at", "-id"))[:RECENT_LIMIT]
+    return {
+        "recent_rows": ticket_rows(recent),
+        "summary": {
+            "open": visible.exclude(status__in=sla.FINISHED).count(),
+            "waiting_user": visible.filter(status=S.WAITING_USER).count(),
+            "resolved": visible.filter(status=S.RESOLVED).count(),
+        },
+    }

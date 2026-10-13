@@ -4,6 +4,7 @@
     <a class="fw-bold fs-5 text-decoration-none text-primary d-flex align-items-center gap-2 me-auto" href="{% url 'accounts:role_redirect' %}"><img class="brand-logo" src="{% static 'img/LOGO-UTI-2.png' %}" width="72" height="72" alt="Universidad Indoamérica"><span>Mesa de Ayuda</span></a>
     {% if user.is_authenticated %}
       <a class="nav-link" href="{% url 'accounts:role_redirect' %}">Inicio</a>
+      <a class="nav-link" href="{% url 'helpdesk:ticket_create' %}">Nueva solicitud</a>
       <a class="nav-link" href="{% url 'helpdesk:ticket_list' %}">{% if user_role == 'Usuario' %}Mis tickets{% else %}Tickets{% endif %}</a>
       {% if user_role == 'Agente' or user_role == 'Supervisor' %}<a class="nav-link" href="{% url 'helpdesk:agent_inbox' %}">Bandeja</a>{% endif %}
       {% if user_role == 'Supervisor' %}<a class="nav-link" href="{% url 'helpdesk:alert_list' %}">Alertas</a>{% endif %}
