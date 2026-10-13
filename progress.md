@@ -141,7 +141,7 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | BE-T18 | REVIEW (pendiente de revisión del PR) | Claude | BE-T16, BE-T17 | 2026-10-13 |
 | BE-T18A | REVIEW (web; la entrada WhatsApp llega con BE-T11/T12 simulados) | Claude | BE-T13..BE-T18 | 2026-10-13 |
 | BE-T19 | REVIEW (adaptador + SGA simulado; contrato real del SGA pendiente) | Claude | BE-T15 | 2026-10-13 |
-| BE-T20 | TODO | - | BE-T01..BE-T19, BE-T18A | - |
+| BE-T20 | IN_PROGRESS (seguridad, carga y benchmark hechos; aceptación final CA-001..010 y UAT tras WhatsApp) | Claude | BE-T01..BE-T19, BE-T18A | 2026-10-13 |
 
 Notas v5.2:
 
@@ -282,6 +282,9 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-058 | 2026-10-13 | Administración propia en `/manage/` (CONTRACT-016) con un registro único de entidades; escritura solo vía `helpdesk.catalogs` (auditada), sin borrado; `code` inmutable tras crear; relaciones limitadas a opciones activas (más la actual al editar); sin bloqueo optimista (solo Administrador; auditoría completa) | Desbloquea FE-T09 sin duplicar lógica del admin de Django | `helpdesk.catalog_admin`, `manage_views` |
 | ADR-059 | 2026-10-13 | Métricas (CONTRACT-017): universo = tickets creados en el periodo (fechas locales, extremos incluidos, por defecto 30 días, máx. 1 año); tiempos en minutos de reloj; SLA cumple/incumple/en curso/sin SLA; cumplimiento = cumple/(cumple+incumple). Solo Supervisor (§47.1). Incluye métricas IA de §49 | Definiciones explícitas para que FRONT no calcule | `helpdesk.metrics` |
 | ADR-060 | 2026-10-13 | `SGAProvider` usa un contrato HTTP **supuesto** (`/estudiantes/{id}/horario|calificaciones|estado-cuenta|matricula|asignaturas`, campos en español) aislado en `sga.ROUTES` y `map_*`; se ajusta en un solo lugar cuando el SGA publique el suyo. Timeout por petición (`SGA_TIMEOUT`), 1 reintento ante 5xx/timeout/red, 404 → `StudentNotFound`, otro 4xx sin reintento, JSON o formato inválido → `ProviderError`. Token Bearer opcional (`SGA_TOKEN`) | SPEC §41 «no inventar endpoints reales»; LocalProvider y SGAProvider cumplen el mismo contrato | `integrations.institutional.sga`, `sga_mock` |
+| ADR-061 | 2026-10-13 | Límite de intentos con la caché de Django (ventana fija): login 5 fallos/15 min por usuario y 20 por IP (bloquea aun con clave correcta, 429), asistente 30 mensajes/5 min por usuario. `X-Forwarded-For` solo con `TRUSTED_PROXY_COUNT`. Caché `locmem` en desarrollo; `CACHE_BACKEND=db` con varios procesos | SPEC §48 sin Redis (prohibido) | `accounts.ratelimit` |
+| ADR-062 | 2026-10-13 | `CONN_MAX_AGE` por defecto 0: con hilos efímeros (runserver) las conexiones persistentes agotaron PostgreSQL en la prueba de carga; subirlo solo en producción con workers fijos | Defecto real hallado por BE-T20 (TEST-RUN-013) | `config/settings/base.py` |
+| ADR-063 | 2026-10-13 | Ajustes de producción por entorno (HTTPS, HSTS, cookies seguras, proxy, CSRF trusted origins, sesión de 8 h); `check --deploy` sin advertencias salvo `security.W021` (precarga HSTS: decisión institucional) | SPEC §48 | `config/settings/base.py` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -1051,6 +1054,13 @@ Formato:
 **Comando:** mismo que TEST-RUN-001 (dos ejecuciones completas sin `.env`)
 **Resultado:** PASS — 763 pruebas, cobertura 99 % (`sga.py` 100 %), incluye peticiones HTTP reales contra el SGA simulado.
 **Fallos:** ninguno.
+
+### TEST-RUN-013
+**Fecha:** 2026-10-13
+**Tarea:** BE-T20 (seguridad, carga, benchmark IA)
+**Seguridad:** pruebas de límite de intentos (login por usuario e IP, asistente), IP real tras proxy y `manage.py check --deploy --fail-level WARNING` con ajustes de producción: PASS.
+**Carga (`scripts/load_test.py`, servidor de desarrollo de un proceso):** primera corrida 500 peticiones / 10 hilos → **18 errores 500** (conexiones PostgreSQL agotadas por `CONN_MAX_AGE=60` con hilos efímeros). Corregido (ADR-062): 500 peticiones / 10 hilos → 0 errores, 22 req/s, P50 332 ms, P95 610 ms, P99 748 ms; 1000 / 20 hilos → 0 errores, 21 req/s, P95 1.2 s. El techo es el servidor de desarrollo (un proceso); producción con varios workers escala horizontalmente.
+**Benchmark IA (`evaluate_intents --agent`, conjunto de prueba, FakeLLM):** accuracy del agente 0.767; latencia de extremo a extremo P50 85 ms, P95 130 ms, P99 154 ms. Objetivo SPEC §50 (accuracy ≥ 85 %, macro F1 ≥ 0.80) **no alcanzado con el LLM simulado**: requiere el proveedor real (ADR-010).
 
 Formato:
 

@@ -80,3 +80,13 @@ def test_evaluate_command_leaves_no_usage_rows():
     text = out.getvalue()
     assert "120 ejemplos" in text and "reglas + LLM" in text and "macro F1" in text
     assert AIUsage.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_evaluate_command_agent_benchmark():
+    from django.contrib.auth import get_user_model
+
+    out = StringIO()
+    call_command("evaluate_intents", "--split", "test", "--agent", stdout=out)
+    assert "agente        accuracy" in out.getvalue() and "P95" in out.getvalue()
+    assert not get_user_model().objects.filter(username="benchmark-ia").exists()  # rollback

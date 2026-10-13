@@ -73,7 +73,11 @@ DATABASES = {
         "PASSWORD": env("POSTGRES_PASSWORD", default=""),
         "HOST": env("POSTGRES_HOST", default="localhost"),
         "PORT": env("POSTGRES_PORT", default="5432"),
-        "CONN_MAX_AGE": env.int("POSTGRES_CONN_MAX_AGE", default=60),
+        # 0 = una conexión por petición. Con un servidor de hilos efímeros (runserver)
+        # las conexiones persistentes se acumulan hasta agotar PostgreSQL (TEST-RUN-013).
+        # En producción con workers fijos (gunicorn) puede subirse si
+        # workers × hilos < max_connections (ADR-062).
+        "CONN_MAX_AGE": env.int("POSTGRES_CONN_MAX_AGE", default=0),
     }
 }
 
@@ -144,3 +148,33 @@ AI_SUMMARY_MAX_CHARS = 500
 # «memory» solo para pruebas (se pierde al reiniciar).
 AGENT_CHECKPOINTER = env("AGENT_CHECKPOINTER", default="postgres")
 AGENT_MAX_STEPS = 12  # recursion_limit (SPEC §46A.5, regla 4)
+
+# Límite de intentos (SPEC §48, ADR-061): (intentos, ventana en segundos).
+RATE_LIMITS = {
+    "login_ip": (20, 15 * 60),  # fallos de login por IP
+    "login_user": (5, 15 * 60),  # fallos de login por nombre de usuario
+    "assistant": (30, 5 * 60),  # mensajes al asistente por usuario
+}
+TRUSTED_PROXY_COUNT = env.int("TRUSTED_PROXY_COUNT", default=0)  # proxies delante de Django
+CACHE_BACKEND = env("CACHE_BACKEND", default="locmem")  # locmem | db (varios procesos)
+CACHES = {
+    "default": (
+        {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "django_cache"}
+        if CACHE_BACKEND == "db"
+        else {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}
+    )
+}
+
+# Producción detrás de HTTPS (SPEC §48). Desactivados por defecto para desarrollo local.
+SECURE_SSL_REDIRECT = env.bool("DJANGO_SECURE_SSL_REDIRECT", default=False)
+SECURE_HSTS_SECONDS = env.int("DJANGO_HSTS_SECONDS", default=0)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = SECURE_HSTS_SECONDS > 0
+SECURE_HSTS_PRELOAD = False
+# Entrar en la lista de precarga HSTS de los navegadores es una decisión institucional
+# irreversible a corto plazo; no la toma el MVP.
+SILENCED_SYSTEM_CHECKS = ["security.W021"]
+if TRUSTED_PROXY_COUNT:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
+SECURE_REFERRER_POLICY = "same-origin"
+SESSION_COOKIE_AGE = 8 * 60 * 60  # jornada laboral

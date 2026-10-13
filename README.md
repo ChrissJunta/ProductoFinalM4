@@ -83,6 +83,16 @@ python manage.py check_sla              # cada 5 min: alertas de SLA y escalamie
 python manage.py close_stale_tickets    # cada hora: cierre/cancelación automáticos
 ```
 
+### Carga y benchmark (opcional)
+
+```bash
+python scripts/load_test.py --base http://127.0.0.1:8000 --threads 10 --requests 50
+python manage.py evaluate_intents --agent     # accuracy y latencia P50/P95/P99 del agente
+python manage.py run_sga_mock --port 8099     # SGA simulado (INSTITUTIONAL_PROVIDER=sga, SGA_BASE_URL=…)
+```
+
+Para producción, ver el bloque «Producción» de `.env.example` (HTTPS, cookies seguras, proxy, caché compartida).
+
 ### Verificación automática en navegador (opcional)
 
 ```bash
