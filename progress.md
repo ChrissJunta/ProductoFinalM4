@@ -929,6 +929,23 @@ Añadir siempre al final, sin borrar entradas anteriores.
 
 ---
 
+## 2026-10-13 01:35 — ChatGPT (FRONTEND) / Integración funcional para revisión — America/Guayaquil
+
+- Autorización explícita del usuario: entregar una rama conjunta verificable de Claude + ChatGPT **antes** de pasar a main. Rama `feature/integracion-mvp`, base remota `main-r0dfx3` / `5ac611b`; main permanece `48e04a5`.
+- Autoría: Claude = BACK; ChatGPT = FRONT. Coordinación mediante repositorio/progress y observaciones de Claude transmitidas por el usuario; no comunicación directa ni cambios manuales a BACK.
+- Se integra FE-T01 actual (logo/branding), FE-T03 y la punta FE-T06 que contiene FE-T08/04. Todas las ramas/commits de tarea son ancestros de esta rama. Claude ya había integrado sus versiones previas en main-r0dfx3; no se duplican implementaciones.
+- Conflictos de progress.md resueltos conservando las entradas de ambas ramas; navegación combinada mantiene Inicio, Nueva solicitud, Mis tickets/Tickets, Bandeja (Agente/Supervisor), Alertas (Supervisor) y logout POST/CSRF. La combinación se valida realmente, no solo mergeability individual. No se mezcló la rama antigua de identidad: se copió exclusivamente el commit PNG original.
+- Capacidad operativa actual: login usuario/correo y sesión; creación con categoría/subcategoría/adjunto; listado y filtros de tickets autorizados; bandeja de lectura; alertas Supervisor. Django Templates + Bootstrap5 local + JS mínimo, branding morado/naranja accesible y tipografía de sistema provisional.
+- Validación sobre la rama conjunta: **483 pruebas PASS, cobertura 98.78 %** contra PostgreSQL 16.15; Django check, migraciones sin cambios, ruff check/format, node --check y diff check PASS. Chromium real 360/768/1280: navegación de los cuatro roles y respuestas 200/403/302, login/correo/errores/CSRF/logout, crear/adjunto válido-inválido/descarga/uso sin JS, privacidad de listado, filtros/paginación y bandeja por área/asignación/triaje/alertas PASS. Datos y archivos sintéticos solo en BD temporal eliminada.
+- axe-core 4.11.0 verificado SHA512: cero violaciones detectadas en login, error, inicio de los cuatro roles, creación, listado, alertas y bandeja para reglas WCAG2A/AA/2.1AA/2.2AA; no equivale a certificación completa. Logo original no deformado; botones/foco/enlaces morados y acento naranja decorativo, sin fuente oficial inventada.
+- Verificación de conservación: archivos fuente BACK sin diferencias respecto a `5ac611b`; filas/historias/contratos BACK íntegros; IDs de contratos sin colisiones, solicitudes FRONT en espacio `CONTRACT-FRONT-*`; PNG idéntico al asset de usuario.
+- Esta entrega **no es el MVP completo**: dashboard FE-T02, detalle/conversación FE-T05, acciones FE-T07 y asignación FE-T06 requieren contratos BACK pendientes; FE-T06 continúa REVIEW de lectura, sin operaciones de asignación. FE-T09/10 esperan BACK/contratos. No se inventan datos, vistas, formularios ni allowed_targets.
+- Publicación prevista: rama conjunta + PR **DRAFT contra main** para validación del usuario, sin merge automático ni push main. PR #2 figura MERGED solo hacia main-r0dfx3 por la integración de Claude; PR #1 sigue OPEN. PR #3–#6 y ramas por tarea se conservan; no se anticipan retargets de main.
+- Reproducción en este Cloud (helpers fuera del checkout): `source /workspace/.mesa-cloud/env.sh`; `bash /workspace/.mesa-cloud/start-db.sh`; `cd /workspace/ProductoFinalM4`; `source .venv/bin/activate`; `python manage.py migrate --noinput`; `python manage.py check`; `python manage.py runserver 127.0.0.1:8000 --noreload` en sesión persistente. Pruebas: `DJANGO_SETTINGS_MODULE=config.settings.test pytest --cov --cov-fail-under=80`; revisión funcional con `python /workspace/.mesa-cloud/validate_front.py --ticket --nav --audit --audit-strict --branding` y modos independientes `--list`, `--alerts`, `--inbox`. No crear usuarios reales ni usar secretos de producción.
+- Seguimiento Cloud único ACTIVO cada hora según UI, America/Guayaquil, id `6acd9bd4f1648190a92625ce9eefe1d5`; primera ejecución/GitHub/continuación automática aún no verificados. No monitores duplicados ni dependencia de PC local.
+
+---
+
 # 17. Regla anti-repetición
 
 Antes de implementar cualquier funcionalidad, buscar en este archivo:
