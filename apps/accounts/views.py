@@ -1,8 +1,12 @@
 import logging
+from datetime import datetime
 
+from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
+from django.views.decorators.http import require_http_methods
 
 from apps.helpdesk.queries import dashboard
 
@@ -63,3 +67,39 @@ def role_redirect(request):
 def home(request):
     """FE-002 / CONTRACT-013: inicio con tickets recientes y resumen."""
     return render(request, "home.html", dashboard(request.user))
+
+
+WA_SESSION_KEY = "whatsapp_link_code"
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def whatsapp_link(request):
+    """FE-T11 / CONTRACT-018: estado, código de vinculación y desvinculación (SPEC §35.1)."""
+    from apps.integrations.whatsapp import linking
+
+    user = request.user
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "generate":
+            code, expires = linking.generate_code(user)
+            request.session[WA_SESSION_KEY] = {"code": code, "expires_at": expires.isoformat()}
+        elif action == "unlink":
+            linking.unlink(user, actor=user)
+            messages.success(request, "WhatsApp desvinculado.")
+        else:
+            messages.error(request, "Acción inválida.")
+        return redirect("accounts:whatsapp")
+    pending = request.session.pop(WA_SESSION_KEY, None)  # el código se muestra una sola vez
+    return render(
+        request,
+        "accounts/whatsapp.html",
+        {
+            "phone": user.phone,
+            "is_verified": user.is_phone_verified,
+            "verified_at": user.phone_verified_at,
+            "code": pending["code"] if pending else None,
+            "code_expires_at": (datetime.fromisoformat(pending["expires_at"]) if pending else None),
+            "code_minutes": settings.WHATSAPP_LINK_CODE_MINUTES,
+        },
+    )
