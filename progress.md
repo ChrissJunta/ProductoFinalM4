@@ -104,14 +104,14 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | FE-T02 | REVIEW (CONTRACT-013; resumen y recientes implementados) | ChatGPT | BE-T03, BE-T04 | 2026-10-13 |
 | FE-T03 | REVIEW (implementada y validada en Cloud; pendiente de revisión) | ChatGPT | BE-T03, BE-T03A | 2026-10-12 |
 | FE-T04 | REVIEW (listado validado en Cloud; CONTRACT-008) | ChatGPT | BE-T04 | 2026-10-12 |
-| FE-T05 | REVIEW (detalle y conversación CONTRACT-010/011) | ChatGPT | BE-T05, BE-T07 | 2026-10-13 |
+| FE-T05 | REVIEW (detalle, conversación y revisión humana CONTRACT-010/011/015) | ChatGPT | BE-T05, BE-T07 | 2026-10-13 |
 | FE-T06 | REVIEW (lectura y asignación CONTRACT-009/012) | ChatGPT | BE-T04, BE-T06 | 2026-10-13 |
 | FE-T07 | REVIEW (acciones autorizadas CONTRACT-006/010) | ChatGPT | BE-T07 | 2026-10-13 |
 | FE-T08 | REVIEW (alertas implementadas y validadas; CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-12 |
 | FE-T09 | REVIEW (administración CONTRACT-016 implementada) | ChatGPT | BE-T03A, BE-T09 | 2026-10-13 |
 | FE-T10 | REVIEW (métricas CONTRACT-017 implementadas) | ChatGPT | BE-T10 | 2026-10-13 |
 | FE-T11 | TODO (desbloqueada: CONTRACT-018; hay plantilla TEMPORAL) | ChatGPT | BE-T11A | 2026-10-13 |
-| FE-T12 | TODO (nueva: asistente CONTRACT-014 + tarjeta de revisión humana CONTRACT-015; hay plantilla TEMPORAL del asistente) | ChatGPT | BE-T14, BE-T18A | 2026-10-13 |
+| FE-T12 | TODO (asistente CONTRACT-014 pendiente fuera de alcance FE01..10; tarjeta CONTRACT-015 ya en FE-T05) | ChatGPT | BE-T14, BE-T18A | 2026-10-13 |
 
 ---
 
@@ -813,6 +813,14 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Estado:** Pendiente BE-T10 y contrato aprobado.
 **Solicitud concreta:** BACK debe publicar URL name/ruta GET, plantilla, roles autorizados, filtros y parámetros (periodo/área/categoría/canal), contexto de abiertos/cerrados, cumplimiento SLA, tiempos y agrupaciones por área/categoría/canal. Definir unidades, zona horaria, denominadores, tratamiento de registros sin SLA/fechas, estados vacíos y errores 403. Si se requieren exportaciones, publicar sus rutas/permisos y formato; FRONT no agregará métricas ni consultas.
 **Consumidor:** FE-T10.
+**Aprobado:** Pendiente
+
+### CONTRACT-FRONT-007 — Extensión de métricas WhatsApp FE-T10 — Pendiente
+**Fecha:** 2026-10-13 — America/Guayaquil
+**Origen:** FRONT
+**Estado:** CONTRACT-017 aprobado no documenta aún metrics.whatsapp añadido por BE-T12.
+**Solicitud:** ampliar explícitamente CONTRACT-017 con contexto y definiciones de inbound, inbound_failed, outbound_sent, outbound_failed, outbound_pending, retries y conversations, unidad/periodo y aplicación de filtros área/categoría/canal. Confirmar la diferencia entre conversaciones y números únicos, y denominador de fallos/reintentos si se pide porcentaje. No se calculan ni infieren estos indicadores en FRONT; interfaz FE-T10 actual presenta las claves publicadas en CONTRACT-017.
+**Consumidor:** FE-T10 (extensión posterior). No bloquea la presentación de métricas aprobadas.
 **Aprobado:** Pendiente
 
 ## 12.2 Solicitudes de cambio
@@ -1998,3 +2006,13 @@ Bloqueos: Ninguno
 **Resto de BE-T20:** integración y E2E (TEST-RUN-014), seguridad (TEST-RUN-013 y revisión independiente, ver abajo), carga y benchmark IA (TEST-RUN-013).
 **Pendiente:** UAT con usuarios reales de la universidad (requiere personas, no automatizable) y objetivo IA de SPEC §50, que depende del proveedor LLM real (ADR-010).
 
+
+## 2026-10-13 10:16 — ChatGPT (FRONTEND) / FE-T05/09/10 e integración — REVIEW — America/Guayaquil
+
+- Backend vigente integrado: a93118b6257d960d2bb469abfefb31c620207281. Claude añadió durante esta revisión WhatsApp simulado/CA001..010; se sincronizó sin reset ni cambios manuales BACK. Conflictos solo progress: estados FRONT vigentes y ambas historias conservadas, sin duplicados ni marcadores finales. Main intacta; ramas propias sin force push.
+- FE-T05 PR #9 sobre main-r0dfx3: revisión humana CONTRACT-015 (ai_review/can_correct, acciones POST/CSRF/catálogo BACK), mantiene detalle omnicanal. FE-T09 PR #11 sobre FE-T05: siete catálogos CONTRACT-016, CRUD/desactivación/paginación/errores/agents/keywords. FE-T10 PR #12 sobre FE-T09: valores/filtros CONTRACT-017 sin cálculos FRONT. REVIEW hasta validación humana. Integración feature/integracion-mvp/PR DRAFT #7 contiene BACK Claude + FRONT ChatGPT y ramas de tarea conservadas.
+- Suite real final: **801 passed en 110.01 s, cobertura98.99 %**, PostgreSQL16.15, DJANGO_SETTINGS_MODULE=config.settings.test pytest --cov --cov-fail-under=80. Log /workspace/.mesa-cloud/suite-final.log. Previa base79177e5 en esta ejecución:771PASS/99.00%;629corresponde a revisión anterior;701 era anuncio BACK, no resultado atribuido a este Cloud.
+- Chromium final:13pasos de regresión PASS, más7escenarios nuevos PASS. Checkpointer PostgreSQL real para aceptar/corregir/rechazar, retiro de tarjeta y can_correct=False, Usuario sin UI/403, CSRF403/GET405. Métricas ocho tickets, fechas inválidas y ceros; siete catálogos, alta/edición/desactivar/reactivar área con agents, código disabled, error duplicado y autoescape. Responsive360/768/1280.22auditorías axe sin hallazgos seleccionados tras corregir lista de errores y contraste de btn-outline-primary. Cero5xx; no certificación WCAG completa.
+- Datos solo sintéticos en bases temporales eliminadas; helpers/media/evidencia fuera del repo, proveedores fake/local/simulado, sin secretos de producción. Django check/makemigrations sin cambios, Ruff check/format152archivos y sintaxis JS pasan. Checkpointer de desarrollo no se inicializó con datos reales.
+- CONTRACT-FRONT005/006 respondidas por016/017: ya no bloquean FE-T09/10. Nueva petición007 precisa extensión metrics.whatsapp no documentada en017; no UI inferida. FE-T11(018) y asistente FE-T12(014) quedan fuera del alcance actualFE01..10: plantillas temporales BACK conservadas; tarjeta015 implementada una sola vez enFE-T05 para no duplicar trabajo. Fuente oficial pendiente, sistema provisional; integración no sustituye UAT humana ni proveedores reales.
+- Seguimiento Cloud único horario activo según UI, primera ejecución remota no verificada. Actualización de setup/arranque se guarda en borrador para revisar/guardar/publicar; no monitor duplicado.
