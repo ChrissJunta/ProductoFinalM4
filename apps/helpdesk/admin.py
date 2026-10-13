@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 
 from . import catalogs
-from .models import Area, AuditLog, Category, Subcategory
+from .models import Area, Attachment, AuditLog, Category, Subcategory, Ticket
 
 
 class CatalogAdmin(admin.ModelAdmin):
@@ -53,14 +53,8 @@ class SubcategoryAdmin(CatalogAdmin):
     list_select_related = ("category",)
 
 
-@admin.register(AuditLog)
-class AuditLogAdmin(admin.ModelAdmin):
-    """Solo lectura: la auditoría no se crea, edita ni borra desde el admin."""
-
-    list_display = ("created_at", "actor_type", "actor", "action", "entity_type", "entity_id")
-    list_filter = ("actor_type", "action", "entity_type")
-    search_fields = ("entity_id", "actor__username")
-    list_select_related = ("actor",)
+class ReadOnlyAdmin(admin.ModelAdmin):
+    """Solo consulta: la escritura pasa por los servicios, que auditan cada cambio."""
 
     def has_add_permission(self, request):
         return False
@@ -70,3 +64,25 @@ class AuditLogAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(AuditLog)
+class AuditLogAdmin(ReadOnlyAdmin):
+    list_display = ("created_at", "actor_type", "actor", "action", "entity_type", "entity_id")
+    list_filter = ("actor_type", "action", "entity_type")
+    search_fields = ("entity_id", "actor__username")
+    list_select_related = ("actor",)
+
+
+@admin.register(Ticket)
+class TicketAdmin(ReadOnlyAdmin):
+    list_display = ("ticket_code", "subject", "user", "status", "priority", "channel", "created_at")
+    list_filter = ("status", "priority", "channel", "assigned_area")
+    search_fields = ("ticket_code", "subject", "user__username")
+    list_select_related = ("user",)
+
+
+@admin.register(Attachment)
+class AttachmentAdmin(ReadOnlyAdmin):
+    list_display = ("original_name", "ticket", "content_type", "size_bytes", "created_at")
+    list_select_related = ("ticket",)

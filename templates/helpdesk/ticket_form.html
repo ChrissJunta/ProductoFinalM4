@@ -1,0 +1,10 @@
+{# TEMPORAL (backend): plantilla mínima para pruebas. La reemplaza el FRONTEND según CONTRACT-004 en progress.md. #}
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Nueva solicitud</title></head>
+<body>
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">Enviar</button>
+</form>
+</body></html>

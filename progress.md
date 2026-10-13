@@ -90,7 +90,7 @@ Reglas:
 |---|---|---|---|---|
 | FE-T01 | TODO (desbloqueada: CONTRACT-001/002/003) | ChatGPT | BE-T01 | 2026-10-12 |
 | FE-T02 | TODO | - | BE-T03, BE-T04 | - |
-| FE-T03 | TODO | - | BE-T03, BE-T03A | - |
+| FE-T03 | TODO (desbloqueada: CONTRACT-004/005) | ChatGPT | BE-T03, BE-T03A | 2026-10-13 |
 | FE-T04 | TODO | - | BE-T04 | - |
 | FE-T05 | TODO | - | BE-T05, BE-T07 | - |
 | FE-T06 | TODO | - | BE-T04, BE-T06 | - |
@@ -109,7 +109,7 @@ Reglas:
 | BE-T01 | REVIEW (incluye BE-T02; pendiente de revisión del PR) | Claude | - | 2026-10-12 |
 | BE-T02 | CANCELLED (fusionada en BE-T01, v5.2) | - | - | 2026-10-12 |
 | BE-T03A | REVIEW (pendiente de revisión del PR) | Claude | BE-T01 | 2026-10-12 |
-| BE-T03 | TODO | - | BE-T01, BE-T03A | - |
+| BE-T03 | REVIEW (pendiente de revisión del PR) | Claude | BE-T01, BE-T03A | 2026-10-13 |
 | BE-T04 | TODO | - | BE-T03 | - |
 | BE-T05 | TODO | - | BE-T03 | - |
 | BE-T06 | TODO | - | BE-T03 | - |
@@ -227,6 +227,9 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-017 | 2026-10-12 | Catálogos sin borrado físico (`on_delete=PROTECT`, admin sin delete); solo activar/desactivar | Trazabilidad e integridad referencial con tickets | `helpdesk.catalogs` |
 | ADR-018 | 2026-10-12 | Toda escritura de catálogo pasa por `helpdesk.catalogs` (`save_catalog_item`, `set_active`) y audita solo los campos cambiados | Un único punto auditado para admin y para FE-T09 | `helpdesk` |
 | ADR-019 | 2026-10-12 | `AuditLog` inmutable (sin edición ni borrado desde ORM de instancia ni admin) | Valor probatorio de la auditoría | `helpdesk.AuditLog` |
+| ADR-020 | 2026-10-13 | `ticket_code` = `HD-AAAA-NNNNNN` con una secuencia PostgreSQL global (`helpdesk_ticket_code_seq`); el número no se reinicia cada año | `nextval` es atómico: sin duplicados bajo concurrencia y sin tabla de contadores con bloqueo | `helpdesk.tickets.next_ticket_code` |
+| ADR-021 | 2026-10-13 | Al crear, `assigned_area` = área por defecto de la categoría; estado `NEW`, prioridad `MEDIUM` | Enrutamiento mínimo hasta BE-T09 (RoutingRule) | `TicketService.create` |
+| ADR-022 | 2026-10-13 | Tipo de adjunto por firma del contenido (magic bytes) + extensión; se ignora el tipo MIME declarado por el navegador; nombre en disco aleatorio | Evitar archivos disfrazados y rutas con datos del usuario | `helpdesk.attachments` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -399,6 +402,37 @@ Convenciones para todas las vistas:
 **`accounts:logout`** → `/accounts/logout/` · **solo POST** (GET devuelve 405) · sin plantilla. Debe enviarse desde un `<form method="post">` con `{% csrf_token %}`. Responde 302 a `accounts:login`.
 **Aprobado:** Sí
 
+### CONTRACT-004 — Crear ticket (FE-003)
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T03) → consumidor FE-T03
+**URL name:** `helpdesk:ticket_create` → `/tickets/new/`
+**Plantilla:** `helpdesk/ticket_form.html` (hoy existe una versión `TEMPORAL (backend)` que FRONT debe reemplazar)
+**Métodos:** GET (formulario vacío), POST (crear). Requiere sesión (sin sesión → 302 a login). Cualquier rol puede crear; el ticket siempre queda a nombre del usuario en sesión.
+**Contexto:**
+
+| Variable | Tipo | Descripción |
+|---|---|---|
+| `form` | `TicketCreateForm` | Campos en este orden: `subject` (texto, máx. 200, obligatorio), `description` (texto largo, máx. 5000, obligatorio), `category` (select, opcional, solo activas), `subcategory` (select, opcional, solo activas), `attachment` (archivo, opcional). Errores por campo en `form.<campo>.errors`; generales en `form.non_field_errors`. |
+| `category_tree` | `list[dict]` | `[{"id": int, "name": str, "subcategories": [{"id": int, "name": str}]}]`, solo elementos activos. Para filtrar en el cliente las subcategorías según la categoría elegida (JS mínimo, opcional). |
+
+**POST esperado:** `multipart/form-data` con `subject`, `description`, `category` (id, opcional), `subcategory` (id, opcional), `attachment` (opcional), `csrfmiddlewaretoken`. Cualquier otro campo (estado, prioridad, código, área…) se ignora.
+**Adjunto:** PDF, PNG o JPG/JPEG, máximo 5 MB. El backend valida extensión, tamaño y contenido real; la validación del cliente (atributo `accept=".pdf,.png,.jpg,.jpeg"`) es solo de ayuda.
+**Respuestas:**
+- éxito → 302 a `accounts:role_redirect` con mensaje flash `success`: `"Solicitud HD-AAAA-NNNNNN creada."` (cuando exista el detalle de ticket, BACK cambiará el destino mediante CHANGE REQUEST);
+- error de validación → 200 con `form` con errores (no se crea nada).
+
+**Aprobado:** Sí
+
+### CONTRACT-005 — Descargar adjunto
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T03) → consumidor FE-T05 (detalle de ticket)
+**URL name:** `helpdesk:attachment_download` → `/tickets/<ticket_code>/attachments/<id>/`
+**Uso en plantilla:** `{% url 'helpdesk:attachment_download' ticket.ticket_code attachment.id %}`
+**Métodos:** GET · sin plantilla · requiere sesión.
+**Respuestas:** 200 con el archivo (`Content-Disposition: attachment`, nombre original); 403 si el usuario no es el dueño del ticket ni un rol de atención; 404 si el adjunto no pertenece a ese ticket o el archivo no existe.
+**Datos del adjunto disponibles** (cuando se publique el contrato de detalle): `original_name`, `content_type`, `size_bytes`, `created_at`.
+**Aprobado:** Sí
+
 ## 12.2 Solicitudes de cambio
 
 ### CHANGE REQUEST CR-001 — Agente LangGraph
@@ -408,6 +442,13 @@ Convenciones para todas las vistas:
 **Impacto:** nueva tarea BE-T18A; `AIDecision` añade `graph_version`, `node_path`, `thread_id`; nuevas dependencias `langgraph`, `langgraph-checkpoint-postgres` (se añadirán a `requirements.txt` al iniciar BE-T18A, no antes).
 **Consumidores afectados:** FRONT sin cambios hasta FE-T06 (la bandeja mostrará los casos pausados en `human_review`; su contrato se publicará con BE-T18A).
 **Aprobado:** Sí
+
+### CHANGE REQUEST CR-002 — `Ticket.intent` se añade en BE-T09
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T03)
+**Cambio:** BE-T03 debía incluir `Ticket.intent` (FK a `automation.Intent`), pero ese modelo nace en BE-T09. Crear ahora un `Intent` vacío solo para la FK violaría la regla 57 (no adelantar piezas sin requisito). El campo, nullable, se añadirá con su migración en BE-T09.
+**Impacto:** ninguno para FRONT (FE-003 no muestra la intención). BE-T09 debe incluir la migración `helpdesk` que añade `Ticket.intent`.
+**Aprobado:** Sí (decisión técnica del agente BACKEND; revisable en el PR)
 
 Plantilla:
 
@@ -430,6 +471,7 @@ Plantilla:
 - `helpdesk/migrations/0001_initial.py` — `Area`, `Category`, `Subcategory`, `AuditLog` — aplicada y reversible — BE-T03A
 - `helpdesk/migrations/0002_initial_catalogs.py` — 4 áreas, 4 categorías, 12 subcategorías (auditadas como SYSTEM) — aplicada y reversible — BE-T03A
 - `helpdesk/migrations/0003_role_permissions.py` — permisos de modelo por rol para catálogos y auditoría — aplicada y reversible — BE-T03A
+- `helpdesk/migrations/0004_tickets.py` — secuencia `helpdesk_ticket_code_seq`, `Ticket`, `Attachment` e índices — aplicada y reversible — BE-T03
 
 Formato:
 
@@ -452,6 +494,9 @@ Rutas web (vistas Django, ADR-007):
 
 - `/admin/helpdesk/{area,category,subcategory}/` — catálogos (alta, edición, activar/desactivar; sin borrado) — REVIEW — BE-T03A
 - `/admin/helpdesk/auditlog/` — auditoría, solo lectura — REVIEW — BE-T03A
+- `GET|POST /tickets/new/` — `helpdesk:ticket_create` — REVIEW — BE-T03 — CONTRACT-004
+- `GET /tickets/<code>/attachments/<id>/` — `helpdesk:attachment_download` — REVIEW — BE-T03 — CONTRACT-005
+- `/admin/helpdesk/{ticket,attachment}/` — solo lectura — REVIEW — BE-T03
 
 API: ninguna todavía (el webhook WhatsApp llegará con BE-T11).
 
@@ -481,6 +526,14 @@ Formato:
 **Entorno:** PostgreSQL 16 local, `config.settings.test`, sin `.env` (igual que CI)
 **Resultado:** PASS — 111 pruebas, cobertura 99 %
 **Fallos:** el primer intento falló por orden de pruebas (una prueba transaccional vaciaba los datos sembrados por migraciones); corregido con `serialized_rollback=True` en las pruebas de reversibilidad de migraciones.
+
+### TEST-RUN-003
+**Fecha:** 2026-10-13
+**Tarea:** BE-T03
+**Comando:** mismo que TEST-RUN-001 (ejecutado dos veces, más las pruebas transaccionales en orden inverso)
+**Entorno:** PostgreSQL 16 local, `config.settings.test`, sin `.env` (igual que CI)
+**Resultado:** PASS — 160 pruebas, cobertura 98,6 %. Incluye 12 hilos creando tickets a la vez sin códigos duplicados.
+**Fallos:** ninguno
 
 Formato:
 
@@ -570,10 +623,10 @@ SPEC aprobada: Sí
 SPEC versión: 5.2
 Front backlog definido: Sí
 Back backlog definido: Sí
-Código implementado: BE-T01 (incluye BE-T02) y BE-T03A en REVIEW
-Migraciones: accounts 0001, 0002; helpdesk 0001, 0002, 0003
-Endpoints: login, logout, role_redirect, home (vistas web); admin de catálogos y auditoría
-Pruebas: TEST-RUN-001, TEST-RUN-002 PASS
+Código implementado: BE-T01 (incluye BE-T02), BE-T03A y BE-T03 en REVIEW
+Migraciones: accounts 0001, 0002; helpdesk 0001-0004
+Endpoints: login, logout, role_redirect, home, ticket_create, attachment_download (vistas web); admin de catálogos, auditoría y tickets
+Pruebas: TEST-RUN-001, TEST-RUN-002, TEST-RUN-003 PASS
 Bloqueos: Ninguno
 ```
 
@@ -661,3 +714,48 @@ Bloqueos: Ninguno
 - Archivos: ver cierre de BE-T03A.
 - Pruebas: TEST-RUN-002 PASS.
 - Observaciones: desbloquea BE-T03 (tickets) en cuanto se apruebe.
+
+## BE-T03 — Creación de tickets — Cierre
+
+**Estado:** REVIEW (pasa a DONE cuando el PR se apruebe y CI esté en verde)
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- `helpdesk.Ticket` con todos los campos de SPEC §26 salvo `intent` (CR-002): estados y prioridades como `TextChoices` (§27), `version` para bloqueo optimista, plazos SLA vacíos hasta BE-T08, índices por usuario y por cola (estado + área).
+- `helpdesk.Attachment` (SPEC §26): archivo con nombre aleatorio en `attachments/AAAA/MM/`, nombre original, tipo MIME real, tamaño.
+- `TicketService.create(...)`: transaccional; código desde secuencia PostgreSQL; estado `NEW`, prioridad `MEDIUM`; área inicial de la categoría; infiere la categoría si solo llega la subcategoría; rechaza categoría/subcategoría inactivas o incoherentes; valida el adjunto antes de consumir número; auditoría `CREATE` del ticket y del adjunto.
+- `TicketService.add_attachment(...)`: valida y guarda un adjunto auditado.
+- `helpdesk.attachments.validate_upload`: PDF/PNG/JPG, máx. 5 MB, firma del contenido coherente con la extensión.
+- Vistas: `helpdesk:ticket_create` (CONTRACT-004) y `helpdesk:attachment_download` (CONTRACT-005).
+- Admin de tickets y adjuntos en solo lectura (`ReadOnlyAdmin`, compartido con auditoría).
+
+### Archivos creados/modificados
+- `apps/helpdesk/{models,tickets,attachments,forms,views,urls,admin}.py`
+- `apps/helpdesk/migrations/0004_tickets.py`
+- `apps/helpdesk/tests/{factories,test_tickets,test_attachments,test_ticket_views}.py`
+- `config/urls.py`, `conftest.py` (adjuntos de prueba en directorio temporal)
+- `templates/helpdesk/ticket_form.html` — **TEMPORAL (backend)**, para que FRONT la reemplace.
+
+### Criterio de aceptación
+- Sin códigos duplicados bajo concurrencia: verificado con 12 hilos simultáneos contra PostgreSQL.
+
+### Decisiones tomadas
+- ADR-020, ADR-021, ADR-022; CR-002.
+
+### Pendientes derivados
+- `Ticket.intent` → BE-T09 (CR-002).
+- `first_response_due_at` / `sla_due_at` → BE-T08.
+- Registro inicial en `TicketStatusHistory` (None → NEW) → BE-T07, cuando exista el modelo.
+- Restringir la descarga de adjuntos de Agentes a tickets de su área/asignación → BE-T04 (hoy cualquier rol de atención puede).
+- Redirigir tras crear al detalle del ticket → cuando existan BE-T05/FE-T05 (CHANGE REQUEST de CONTRACT-004).
+- Limpieza periódica de archivos huérfanos si una transacción externa revierte tras guardar el archivo → junto a los comandos periódicos (BE-T12).
+
+## 2026-10-13 — Claude (BACKEND) / BE-T03
+
+- Estado anterior: TODO.
+- Estado nuevo: REVIEW.
+- Trabajo realizado: modelos Ticket y Attachment, TicketService, validación de adjuntos, vistas de creación y descarga, contratos CONTRACT-004/005.
+- Archivos: ver cierre de BE-T03.
+- Pruebas: TEST-RUN-003 PASS.
+- Observaciones: FE-T03 queda desbloqueada para el agente FRONTEND; desbloquea BE-T04, BE-T05, BE-T06, BE-T07 y BE-T09.

@@ -15,3 +15,9 @@ def make_user(django_user_model):
         return user
 
     return _make_user
+
+
+@pytest.fixture(autouse=True)
+def _media_root(settings, tmp_path):
+    """Los adjuntos de las pruebas se escriben en un directorio temporal."""
+    settings.MEDIA_ROOT = tmp_path / "media"

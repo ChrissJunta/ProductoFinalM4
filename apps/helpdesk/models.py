@@ -1,8 +1,11 @@
+import uuid
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import RegexValidator
 from django.db import models
+from django.utils import timezone
 
 code_validator = RegexValidator(
     regex=r"^[A-Z][A-Z0-9_]*$",
@@ -134,3 +137,154 @@ class AuditLog(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Los registros de auditoría no se eliminan.")
+
+
+class Ticket(models.Model):
+    """Solicitud con seguimiento (SPEC §26 `Ticket`).
+
+    `intent` se añade con BE-T09 (CR-002). Los plazos SLA los calcula BE-T08.
+    """
+
+    class Channel(models.TextChoices):
+        WEB = "WEB", "Web"
+        WHATSAPP = "WHATSAPP", "WhatsApp"
+
+    class Status(models.TextChoices):
+        NEW = "NEW", "Nuevo"
+        CLASSIFIED = "CLASSIFIED", "Clasificado"
+        ASSIGNED = "ASSIGNED", "Asignado"
+        IN_PROGRESS = "IN_PROGRESS", "En proceso"
+        WAITING_USER = "WAITING_USER", "Esperando usuario"
+        RESOLVED = "RESOLVED", "Resuelto"
+        CLOSED = "CLOSED", "Cerrado"
+        ESCALATED = "ESCALATED", "Escalado"
+        REOPENED = "REOPENED", "Reabierto"
+        CANCELLED = "CANCELLED", "Cancelado"
+
+    class Priority(models.TextChoices):
+        LOW = "LOW", "Baja"
+        MEDIUM = "MEDIUM", "Media"
+        HIGH = "HIGH", "Alta"
+        CRITICAL = "CRITICAL", "Crítica"
+
+    class ClassificationSource(models.TextChoices):
+        USER = "USER", "Usuario"
+        RULES = "RULES", "Reglas"
+        LLM = "LLM", "LLM"
+        HUMAN = "HUMAN", "Humano"
+
+    ticket_code = models.CharField("código", max_length=20, unique=True, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="solicitante",
+        on_delete=models.PROTECT,
+        related_name="tickets",
+    )
+    channel = models.CharField("canal", max_length=16, choices=Channel.choices)
+    category = models.ForeignKey(
+        Category, verbose_name="categoría", null=True, blank=True, on_delete=models.PROTECT
+    )
+    subcategory = models.ForeignKey(
+        Subcategory, verbose_name="subcategoría", null=True, blank=True, on_delete=models.PROTECT
+    )
+    priority = models.CharField(
+        "prioridad", max_length=16, choices=Priority.choices, default=Priority.MEDIUM
+    )
+    status = models.CharField("estado", max_length=16, choices=Status.choices, default=Status.NEW)
+    assigned_area = models.ForeignKey(
+        Area, verbose_name="área asignada", null=True, blank=True, on_delete=models.PROTECT
+    )
+    assigned_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="responsable",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="assigned_tickets",
+    )
+    subject = models.CharField("asunto", max_length=200)
+    description = models.TextField("descripción", max_length=5000)
+    classification_source = models.CharField(
+        "origen de clasificación",
+        max_length=16,
+        choices=ClassificationSource.choices,
+        blank=True,
+        default="",
+    )
+    classification_score = models.DecimalField(
+        "confianza de clasificación", max_digits=4, decimal_places=3, null=True, blank=True
+    )
+    version = models.PositiveIntegerField("versión", default=1)
+    created_at = models.DateTimeField("creado", auto_now_add=True, db_index=True)
+    assigned_at = models.DateTimeField("asignado", null=True, blank=True)
+    first_response_at = models.DateTimeField("primera respuesta", null=True, blank=True)
+    resolved_at = models.DateTimeField("resuelto", null=True, blank=True)
+    closed_at = models.DateTimeField("cerrado", null=True, blank=True)
+    first_response_due_at = models.DateTimeField("vence primera respuesta", null=True, blank=True)
+    sla_due_at = models.DateTimeField("vence resolución", null=True, blank=True)
+    updated_at = models.DateTimeField("actualizado", auto_now=True)
+
+    audit_fields = (
+        "ticket_code",
+        "user_id",
+        "channel",
+        "category_id",
+        "subcategory_id",
+        "priority",
+        "status",
+        "assigned_area_id",
+        "subject",
+    )
+
+    class Meta:
+        verbose_name = "ticket"
+        verbose_name_plural = "tickets"
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(fields=["user", "-created_at"], name="helpdesk_ticket_user_idx"),
+            models.Index(fields=["status", "assigned_area"], name="helpdesk_ticket_queue_idx"),
+        ]
+
+    def __str__(self):
+        return self.ticket_code
+
+    def clean(self):
+        if self.subcategory_id and self.subcategory.category_id != self.category_id:
+            raise ValidationError(
+                {"subcategory": "La subcategoría no pertenece a la categoría elegida."}
+            )
+
+
+def attachment_upload_to(instance, filename):
+    # Nombre aleatorio: el nombre original solo se guarda como dato, nunca como ruta.
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    return f"attachments/{timezone.now():%Y/%m}/{uuid.uuid4().hex}.{ext}"
+
+
+class Attachment(models.Model):
+    """Adjunto de un ticket (SPEC §26 `Attachment`). Validación en `helpdesk.attachments`."""
+
+    ticket = models.ForeignKey(
+        Ticket, verbose_name="ticket", on_delete=models.PROTECT, related_name="attachments"
+    )
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="subido por",
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    file = models.FileField("archivo", upload_to=attachment_upload_to, max_length=255)
+    original_name = models.CharField("nombre original", max_length=255)
+    content_type = models.CharField("tipo MIME", max_length=100)
+    size_bytes = models.PositiveIntegerField("tamaño (bytes)")
+    created_at = models.DateTimeField("subido", auto_now_add=True)
+
+    audit_fields = ("ticket_id", "original_name", "content_type", "size_bytes")
+
+    class Meta:
+        verbose_name = "adjunto"
+        verbose_name_plural = "adjuntos"
+        ordering = ["created_at", "id"]
+
+    def __str__(self):
+        return self.original_name
