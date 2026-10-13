@@ -703,6 +703,19 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Origen:** FRONT (solicitud de coordinación; sin implementación BACK)
 **Estado:** Pendiente de contrato aprobado. BE-T03A/BE-T09 están REVIEW; Django admin disponible no equivale a vistas propias FE-T09.
 **Solicitud concreta:** BACK debe publicar URL names y rutas GET de listado/alta/edición para áreas, categorías, subcategorías, intenciones, acciones, routing y SLA, con plantilla, contexto (objetos/page_obj/filtros/choices/form), permisos administrativos y errores 403/404. Publicar endpoints POST de guardar y desactivar/reactivar lógicamente (sin borrado), campos y validación de cada formulario, CSRF, redirects, mensajes y concurrencia cuando corresponda. Áreas: agentes autorizados (CR-003); intenciones: keywords textarea (CR-006); routing: relaciones, prioridad, orden y validación; SLA: unidades y reglas editables. Si acciones o SLA quedan fuera de FE-T09, explicitarlo en el contrato.
+**Campos observados en modelos para que BACK confirme su exposición (no son contrato de formulario):**
+
+| Entidad | Campos que necesita confirmar el formulario contratado |
+|---|---|
+| Área | code, name, email, agents, is_active |
+| Categoría | code, name, default_area, is_active |
+| Subcategoría | category, code, name, is_active |
+| Intención | code, name, automation_level, requires_authentication, requires_llm, requires_human, keywords, is_active |
+| Acción | intent, action_type, provider_method, response_template, fallback_action, is_active |
+| Routing | intent, category, subcategory, area, priority, requires_validation, order, is_active |
+| SLA | category, priority, first_response_minutes, resolution_minutes, business_hours_only, is_active |
+
+**Contexto/formulario solicitado:** listado con objetos/page_obj y filtros aplicados; alta/edición con form ligado y errores por campo/no campo, instancia al editar y opciones autorizadas en cada relación. Confirmar si se permite editar code, cómo guardar agents con auditoría y cuál POST/URL name cambia is_active. No publicar rutas hipotéticas como si existieran.
 **Consumidor:** FE-T09. No deducir endpoints de los modelos/admin ni construir lógica de catálogo en FRONT.
 **Aprobado:** Pendiente
 
@@ -1691,3 +1704,12 @@ Bloqueos: Ninguno
 - Django check y makemigrations --check --dry-run pasan; Ruff check/format (97 archivos) y ambos JS pasan. Suite completa con cobertura ejecutándose: no se atribuyen aún las 629 anunciadas por Claude a esta ejecución local.
 - PR #3/#4/#5 actualizados preservando validaciones históricas (483 de aquella revisión) y aclarando FE-T02 ya implementada #8, detalle/acciones #9/#10 y asignación #6. PR #7 mantiene DRAFT para revisión conjunta; no merge/push main ni force push.
 - Seguimiento Cloud horario activo según UI; primera ejecución remota sigue sin verificar. Sin monitor duplicado.
+
+## 2026-10-13 08:58 — ChatGPT (FRONTEND) / Integración vigente — Validación final — America/Guayaquil
+
+- Base backend `4b46b28`: **629 passed en 551.55 s**, cobertura **98.53 %** (umbral80 superado), ejecutado en Cloud con PostgreSQL16.15 y `source /workspace/.mesa-cloud/env.sh; .venv/bin/pytest -q --cov --cov-fail-under=80` (settings dev de ese auxiliar; no se atribuye ejecución en settings test). Log real: /workspace/.mesa-cloud/latest-suite.log. Sin fallos ni omisiones reportadas por pytest.
+- Regresión Chromium 13 pasos y auditoría axe de login/inicio descritas arriba pasan; smoke del servidor actualizado: login200, error genérico, CSRF403, logoutGET405 e inicio protegido. Django/migraciones/Ruff/JS pasan. Datos de desarrollo:0usuarios/0tickets; auxiliares con datos sintéticos fuera del checkout y bases temporales destruidas.
+- CI pasó en a67a19e (run38408328176); este cierre solo añade documentación FRONT y precisa solicitud005, verificar CI del HEAD final publicado. Registros y filas BACK conservados literalmente, contratos sin colisiones.
+- PR #8 consta MERGED en main-r0dfx3 (no main) por integración de Claude; PR #3/#4/#5/#6/#9/#10 siguen conservados. PR #7 DRAFT reúne entrega revisable, sin merge/push main. Diferencia contra último BACK: exclusivamente solicitudes005/006, estados TODO FRONT bloqueados y registros FRONT de esta revisión.
+- Próximo paso FRONT: contrato administrativo aprobado para FE-T09; luego métricas FE-T10 cuando BE-T10 publique contrato. Asistente CONTRACT-014/CR-007 necesita asignación explícita de tarea/alcance antes de reemplazar plantilla o agregar navegación FRONT. No nuevas tareas IN_PROGRESS sin contrato.
+- Start_skill guardado actualizado para reanudación Cloud; requiere revisar/guardar/publicar en ajustes para activar ese borrador. Entorno publicado previamente y scheduler horario activo por UI; primera ejecución remota no verificada.
