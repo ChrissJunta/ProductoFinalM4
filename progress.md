@@ -468,6 +468,14 @@ Convenciones para todas las vistas:
 **Qué botones mostrar:** FRONT no decide. Cuando se publique el contrato del detalle (BE-T05), su contexto incluirá `allowed_targets` (lista de estados a los que el usuario actual puede llevar el ticket, calculada con `helpdesk.workflow.allowed_targets`). Solo deben mostrarse esas acciones.
 **Aprobado:** Sí
 
+### CONTRACT-FRONT-001 — Contexto de detalle para FE-T07 — Pendiente
+**Fecha:** 2026-10-12 — America/Guayaquil
+**Origen:** FRONT (coordinación; no implementación FE-T07)
+**Estado:** Pendiente de publicación BACK / BE-T05
+**Contrato disponible:** CONTRACT-006 publica acciones POST, pero aún no existe contrato GET de detalle con `ticket.version`, `allowed_targets`, historial y acciones autorizadas para ese usuario.
+**Solicitud:** BACK debe publicar plantilla, url name y contexto del detalle antes de que FRONT muestre acciones. No inferir transiciones ni permisos desde el rol ni generar botones a partir de SPEC §32.
+**Consumidores:** FE-T05/FE-T07. No bloquea FE-T01/FE-T03.
+**Aprobado:** Pendiente
 ### CONTRACT-007 — Alertas (FE-007 / FE-T08)
 **Fecha:** 2026-10-13
 **Origen:** BACK (BE-T08) → consumidor FE-T08
@@ -779,6 +787,39 @@ Añadir siempre al final, sin borrar entradas anteriores.
 - Observaciones: la ejecución inicial limitada a accounts pasó 72 pruebas pero no alcanzó el umbral global (77.22 %, helpdesk no ejecutado); suite completa resuelve la selección y supera 80 %. El helper de navegador necesitó cerrar conexiones del servidor antes de eliminar la BD temporal; corregido y revalidado con salida 0. No cambios en pruebas BACK.
 - Coordinación: CONTRACT-001/002/003 aprobados habilitan FRONT aunque BE-T01 siga REVIEW. No se cambia estado BACK ni se considera aprobado/merged PR #1. Un PR FE-T01 contra `main-r0dfx3`, sin merge automático. Los componentes de §18 sin consumidor habilitado (paginación, SLA, conversación) se implementarán con sus tareas/contratos.
 - Publicación: entorno publicado confirmado por UI del usuario; implementación corre enteramente en Cloud. Git push dry-run autorizado; creación de PR bloqueada por CONNECT 403 a `api.github.com`. Dominio añadido al borrador de red para revisión/aplicación. Estado en ese momento: sin scheduler configurado. Actualización: UI confirmó seguimiento Cloud ACTIVO cada hora, America/Guayaquil, id `6acd9bd4f1648190a92625ce9eefe1d5`; primera ejecución aún no verificada.
+
+---
+
+## 2026-10-12 21:42 — ChatGPT (FRONTEND) / FE-T03 — Inicio — America/Guayaquil
+
+- Estado anterior: TODO, desbloqueada por CONTRACT-004/005.
+- Estado nuevo: IN_PROGRESS.
+- Trabajo previsto: `templates/helpdesk/ticket_form.html`, JS vanilla mínimo en `static/`, enlace a la vista aprobada de creación y registros FRONT de este archivo.
+- Rama: `feature/fe-t03-crear-ticket`, sobre FE-T01 para reutilizar base/componentes sin merges; backend `d91333f`. El diff de la tarea se revisará separado de FE-T01.
+- Contratos: formulario y category_tree de CONTRACT-004; CONTRACT-005 leído, su UI de descarga corresponde a FE-T05 y no se adelanta.
+- No tocar: BACK, config, dependencias, CI, pruebas ni estados BACK. Sin datos reales ni secretos de producción.
+
+---
+
+## 2026-10-12 21:49 — ChatGPT (FRONTEND) / FE-T01 — Sincronización — America/Guayaquil
+
+- Estado: REVIEW, sin cambios BACK.
+- Actualización: `main-r0dfx3` avanzó a `9bd4b58` (BE-T07, CONTRACT-006). Se incorporó a la rama FRONT propia y se resolvió el conflicto de progress.md conservando íntegramente registros BACK y FRONT; sin force push ni merge a main.
+- Publicación: PR #2 abierto en https://github.com/ChrissJunta/ProductoFinalM4/pull/2; rama FE-T01 `7532bd5`. GitHub confirma MERGEABLE y CI backend PASS tras sincronizar.
+- Pruebas sobre nueva base: 394 PASS, cobertura 98.83 %, Django check y migraciones sin cambios; login y sesión en Chromium real revalidados.
+- Acceso: API GitHub ya permite crear/consultar PR. Actualización UI: seguimiento Cloud ACTIVO cada hora, America/Guayaquil, id `6acd9bd4f1648190a92625ce9eefe1d5`; primera ejecución/acceso GitHub/continuación del chat pendientes de validar. No duplicar ni depender de heartbeat local.
+
+## 2026-10-12 21:49 — ChatGPT (FRONTEND) / FE-T03 — Cierre — America/Guayaquil
+
+- Estado anterior: IN_PROGRESS.
+- Estado nuevo: REVIEW.
+- Base backend: `9bd4b58`, con todos los registros recientes de Claude preservados. Rama `feature/fe-t03-crear-ticket` reutiliza FE-T01; PR #3 separado, base actual `feature/fe-t01-login`, dependiente de PR #2; originalmente se abrió contra `main-r0dfx3` y se ajustó para dejar el diff exclusivamente FE-T03. El commit FE-T03 contiene solo su formulario, JS, enlaces y registros FRONT; el diff actual excluye la base FRONT compartida gracias a la base FE-T01; retarget solo tras revisión humana de PR #2.
+- Archivos: `templates/helpdesk/ticket_form.html`, `templates/components/navbar.html`, `templates/home.html`, `static/js/ticket-form.js`, registros FRONT de `progress.md`.
+- Implementado: multipart y CSRF, campos/longitudes según CONTRACT-004, errores de backend accesibles, preservación de valores no sensibles, adjunto opcional, ayuda de formatos/tamaño y filtrado opcional de subcategorías con `json_script` y JS vanilla. Formulario usable sin JS; backend conserva autenticación, permisos, categoría efectiva, código, estado y prioridad.
+- Pruebas: 394 PASS, cobertura 98.83 %, ruff check/format, Django check, makemigrations --check --dry-run, node --check PASS. Chromium 360/768/1280: creación real con PDF, rechazo de EXE, validación servidor con noValidate, autoescape, errores de campo, filtros dependientes, cambio de categoría, flash success y descarga real CONTRACT-005; creación sin JS con inferencia de categoría BACK PASS.
+- Validación usa BD temporal y archivos sintéticos, eliminados al terminar. El helper necesitó aislar consultas ORM del event loop del navegador; corregido fuera del repo, sin tocar pruebas BACK.
+- Migraciones/endpoints nuevos: ninguno. CONTRACT-005 se verifica pero la UI de descarga se reserva a FE-T05. No se implementan acciones FE-T07: contexto pendiente CONTRACT-FRONT-001 en sección 12.
+- Pendiente: revisión humana de FRONT y base backend; no DONE ni merge automático. Ninguna nueva tarea se toma sin contrato vigente y registro FRONT.
 
 ---
 
