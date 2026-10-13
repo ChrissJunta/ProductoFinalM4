@@ -1922,3 +1922,8 @@ Bloqueos: Ninguno
 
 ### Pendientes derivados
 - Ajustar `ROUTES`/`map_*` cuando la universidad entregue el contrato real del SGA (sin cambios fuera de `sga.py`).
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T05 — Revisión humana CONTRACT-015 — REVIEW
+
+- Tarjeta exclusivamente cuando ai_review existe; muestra propuesta/candidatos/confianza y POST accept/reject, correct solo si can_correct. Catálogo exclusivamente ai_review.intents, CSRF y URL name ai:ticket_review. No decisión de autonomía ni permisos calculados FRONT.
+- Extensión del detalle autorizada FE01..10; asistente FE-T12 separado sin implementación en esta ejecución. Pruebas conjuntas pendientes de cierre.
