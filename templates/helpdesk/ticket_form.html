@@ -1,10 +1,67 @@
-{# TEMPORAL (backend): plantilla mínima para pruebas. La reemplaza el FRONTEND según CONTRACT-004 en progress.md. #}
-<!doctype html>
-<html lang="es"><head><meta charset="utf-8"><title>Nueva solicitud</title></head>
-<body>
-<form method="post" enctype="multipart/form-data">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">Enviar</button>
-</form>
-</body></html>
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Nueva solicitud{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <section class="col-12 col-lg-9 col-xl-8" aria-labelledby="ticket-title">
+    <a class="d-inline-block mb-3" href="{% url 'accounts:role_redirect' %}">Volver al inicio</a>
+    <div class="card border-0 shadow-sm p-3 p-md-4">
+      <div class="card-body">
+        <h1 id="ticket-title" class="h3">Nueva solicitud</h1>
+        <p class="text-secondary">Cuéntanos qué necesitas. Los campos marcados con * son obligatorios.</p>
+        {% if form.errors %}
+          <div class="alert alert-danger" role="alert">
+            <p class="fw-semibold mb-1">No fue posible guardar la solicitud.</p>
+            <p class="mb-0">Revisa los campos indicados y vuelve a intentarlo.</p>
+            {% if form.non_field_errors %}<ul class="mb-0 mt-2">{% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+          </div>
+        {% endif %}
+        <form method="post" action="{% url 'helpdesk:ticket_create' %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label for="{{ form.subject.id_for_label }}" class="form-label">Asunto *</label>
+            <input type="text" class="form-control{% if form.subject.errors %} is-invalid{% endif %}" id="{{ form.subject.id_for_label }}" name="{{ form.subject.html_name }}" value="{{ form.subject.value|default_if_none:'' }}" required maxlength="{{ form.subject.field.max_length }}" aria-describedby="subject-help{% if form.subject.errors %} {{ form.subject.id_for_label }}_errors{% endif %}" {% if form.subject.errors %}aria-invalid="true"{% endif %}>
+            <div id="subject-help" class="form-text">Resume tu solicitud en hasta 200 caracteres.</div>
+            {% include 'components/field_errors.html' with field=form.subject only %}
+          </div>
+          <div class="mb-3">
+            <label for="{{ form.description.id_for_label }}" class="form-label">Descripción *</label>
+            <textarea class="form-control{% if form.description.errors %} is-invalid{% endif %}" id="{{ form.description.id_for_label }}" name="{{ form.description.html_name }}" rows="6" required maxlength="{{ form.description.field.max_length }}" aria-describedby="description-help{% if form.description.errors %} {{ form.description.id_for_label }}_errors{% endif %}" {% if form.description.errors %}aria-invalid="true"{% endif %}>{{ form.description.value|default_if_none:'' }}</textarea>
+            <div id="description-help" class="form-text">Incluye los detalles necesarios (máximo 5000 caracteres). No compartas contraseñas ni información sensible.</div>
+            {% include 'components/field_errors.html' with field=form.description only %}
+          </div>
+          <div class="row">
+            <div class="col-12 col-md-6 mb-3">
+              <label for="{{ form.category.id_for_label }}" class="form-label">Categoría <span class="text-secondary small">(opcional)</span></label>
+              <select class="form-select{% if form.category.errors %} is-invalid{% endif %}" id="{{ form.category.id_for_label }}" name="{{ form.category.html_name }}" {% if form.category.errors %}aria-invalid="true" aria-describedby="{{ form.category.id_for_label }}_errors"{% endif %}>
+                {% for value, label in form.category.field.choices %}<option value="{{ value }}"{% if form.category.value|stringformat:'s' == value|stringformat:'s' %} selected{% endif %}>{% if value %}{{ label }}{% else %}Sin categoría{% endif %}</option>{% endfor %}
+              </select>
+              {% include 'components/field_errors.html' with field=form.category only %}
+            </div>
+            <div class="col-12 col-md-6 mb-3">
+              <label for="{{ form.subcategory.id_for_label }}" class="form-label">Subcategoría <span class="text-secondary small">(opcional)</span></label>
+              <select class="form-select{% if form.subcategory.errors %} is-invalid{% endif %}" id="{{ form.subcategory.id_for_label }}" name="{{ form.subcategory.html_name }}" aria-describedby="subcategory-help{% if form.subcategory.errors %} {{ form.subcategory.id_for_label }}_errors{% endif %}" {% if form.subcategory.errors %}aria-invalid="true"{% endif %}>
+                {% for value, label in form.subcategory.field.choices %}<option value="{{ value }}"{% if form.subcategory.value|stringformat:'s' == value|stringformat:'s' %} selected{% endif %}>{% if value %}{{ label }}{% else %}Sin subcategoría{% endif %}</option>{% endfor %}
+              </select>
+              <div id="subcategory-help" class="form-text">Puedes dejarla vacía. Si eliges solo una subcategoría, el sistema determina su categoría.</div>
+              {% include 'components/field_errors.html' with field=form.subcategory only %}
+            </div>
+          </div>
+          <div class="mb-4">
+            <label for="{{ form.attachment.id_for_label }}" class="form-label">Adjunto <span class="text-secondary small">(opcional)</span></label>
+            <input type="file" class="form-control{% if form.attachment.errors %} is-invalid{% endif %}" id="{{ form.attachment.id_for_label }}" name="{{ form.attachment.html_name }}" accept=".pdf,.png,.jpg,.jpeg" aria-describedby="attachment-help{% if form.attachment.errors %} {{ form.attachment.id_for_label }}_errors{% endif %}" {% if form.attachment.errors %}aria-invalid="true"{% endif %}>
+            <div id="attachment-help" class="form-text">PDF, PNG o JPG/JPEG, máximo 5 MB. Tras un error, selecciona de nuevo el archivo. El servidor valida su contenido.</div>
+            {% include 'components/field_errors.html' with field=form.attachment only %}
+          </div>
+          <div class="d-flex flex-wrap gap-3 align-items-center">
+            <button type="submit" class="btn btn-primary">Enviar solicitud</button>
+            <a href="{% url 'accounts:role_redirect' %}" class="btn btn-outline-secondary">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+</div>
+{{ category_tree|json_script:'category-tree' }}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/ticket-form.js' %}" defer></script>{% endblock %}
