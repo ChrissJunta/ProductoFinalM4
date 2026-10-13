@@ -1,8 +1,14 @@
-{% extends "base.html" %}
-{# Plantilla TEMPORAL del backend (CONTRACT-018). FRONT la reemplaza en FE-T11. #}
+{% extends 'base.html' %}
+{% load tz %}
+{% block title %}Vinculación de WhatsApp{% endblock %}
 {% block content %}
-<h1 class="h4">WhatsApp</h1>
-{% if is_verified %}<p>Vinculado: {{ phone }} (desde {{ verified_at }})</p>{% else %}<p>Sin vincular.</p>{% endif %}
-{% if code %}<p data-testid="link-code">Envía este código por WhatsApp: <strong>{{ code }}</strong> (vence {{ code_expires_at|time:"H:i" }}).</p>{% endif %}
-<form method="post">{% csrf_token %}<button name="action" value="generate">Generar código</button>{% if is_verified %} <button name="action" value="unlink">Desvincular</button>{% endif %}</form>
+<h1 class="h3">Vinculación de WhatsApp</h1>
+<p class="text-secondary">El canal WhatsApp funciona en modo simulado para este MVP. No se envían mensajes a Meta.</p>
+<section class="card card-body mb-4" aria-labelledby="whatsapp-status"><h2 id="whatsapp-status" class="h5">Estado de vinculación</h2>
+{% if is_verified %}<p class="mb-1">Número verificado: <strong>{{ phone }}</strong></p><p class="small text-secondary">Verificado el {{ verified_at|localtime|date:'d/m/Y H:i' }}.</p>
+{% else %}<p>No tienes un número verificado. Genera un código y envíalo al número de la mesa de ayuda mediante el canal simulado.</p>{% endif %}
+</section>
+{% if code %}<section class="card card-body mb-4" aria-labelledby="code-title"><h2 id="code-title" class="h5">Código de vinculación</h2><p data-testid="link-code">Envía este código por WhatsApp al número de la mesa: <strong class="fs-3 d-block text-primary">{{ code }}</strong></p><p>Vence el {{ code_expires_at|localtime|date:'d/m/Y H:i' }}. Tiene una vigencia de {{ code_minutes }} minutos.</p><p class="small text-secondary mb-0">El código se muestra una sola vez. No lo compartas con otras personas. Si lo pierdes o vence, genera otro.</p></section>{% endif %}
+<div class="d-flex flex-wrap gap-3"><form method="post" action="{% url 'accounts:whatsapp' %}">{% csrf_token %}<input type="hidden" name="action" value="generate"><button class="btn btn-primary" type="submit">Generar código</button></form>
+{% if is_verified %}<form method="post" action="{% url 'accounts:whatsapp' %}">{% csrf_token %}<input type="hidden" name="action" value="unlink"><button class="btn btn-outline-primary" type="submit">Desvincular número</button></form>{% endif %}</div>
 {% endblock %}

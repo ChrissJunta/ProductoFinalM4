@@ -110,8 +110,8 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | FE-T08 | REVIEW (alertas implementadas y validadas; CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-12 |
 | FE-T09 | REVIEW (administración CONTRACT-016 implementada) | ChatGPT | BE-T03A, BE-T09 | 2026-10-13 |
 | FE-T10 | REVIEW (métricas CONTRACT-017 implementadas) | ChatGPT | BE-T10 | 2026-10-13 |
-| FE-T11 | TODO (desbloqueada: CONTRACT-018; hay plantilla TEMPORAL) | ChatGPT | BE-T11A | 2026-10-13 |
-| FE-T12 | TODO (asistente CONTRACT-014 pendiente fuera de alcance FE01..10; tarjeta CONTRACT-015 ya en FE-T05) | ChatGPT | BE-T14, BE-T18A | 2026-10-13 |
+| FE-T11 | REVIEW (vinculación CONTRACT-018 implementada) | ChatGPT | BE-T11A | 2026-10-13 |
+| FE-T12 | REVIEW (asistente CONTRACT-014; revisión CONTRACT-015 reutilizada FE-T05) | ChatGPT | BE-T14, BE-T18A | 2026-10-13 |
 
 ---
 
@@ -2032,3 +2032,18 @@ Bloqueos: Ninguno
 - Datos solo sintéticos en bases temporales eliminadas; helpers/media/evidencia fuera del repo, proveedores fake/local/simulado, sin secretos de producción. Django check/makemigrations sin cambios, Ruff check/format152archivos y sintaxis JS pasan. Checkpointer de desarrollo no se inicializó con datos reales.
 - CONTRACT-FRONT005/006 respondidas por016/017: ya no bloquean FE-T09/10. Nueva petición007 precisa extensión metrics.whatsapp no documentada en017; no UI inferida. FE-T11(018) y asistente FE-T12(014) quedan fuera del alcance actualFE01..10: plantillas temporales BACK conservadas; tarjeta015 implementada una sola vez enFE-T05 para no duplicar trabajo. Fuente oficial pendiente, sistema provisional; integración no sustituye UAT humana ni proveedores reales.
 - Seguimiento Cloud único horario activo según UI, primera ejecución remota no verificada. Actualización de setup/arranque se guarda en borrador para revisar/guardar/publicar; no monitor duplicado.
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T11 — IN_PROGRESS — America/Guayaquil
+
+- Autorización expresa del usuario amplía alcance a vinculación018 y asistente014. Base BACK08cb87e y tareas FRONT previas preservadas. WhatsApp simulado ADR049; solo templates/static y registros FRONT, sin backend ni secretos reales.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T11 — REVIEW
+
+- Pantalla institucional: estado/número/fecha verificados, código de una sola vista y vencimiento suministrados BACK, generar y desvincular POST con CSRF y URL accounts:whatsapp. Navegación autenticada y modo simulado explícito, sin número institucional inventado ni credenciales JS. Funciona sin JS. Validación conjunta pendiente de registrar.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T12 — IN_PROGRESS — America/Guayaquil
+
+- Alcance ampliado expresamente por usuario. Implementar exchange/form/examples de014, sin inventar historial persistente: contrato solo última consulta una vez tras PRG. Tarjeta015 ya existente FE05, no duplicar.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T12 — REVIEW
+
+- Formulario ligado con errores, última pregunta/respuesta escapadas, saltos de línea y enlace a ticket exclusivamente exchange.ticket_code. Ejemplos POST CSRF funcionales sin JS; navegación/inicio solo Usuario. Sin historial/contexto/autonomía inferidos ni JS con secretos. Tarjeta015 reutilizada, sin duplicar. Validación conjunta pendiente de registrar.
