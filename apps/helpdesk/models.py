@@ -234,6 +234,8 @@ class Ticket(models.Model):
         "status",
         "assigned_area_id",
         "subject",
+        "first_response_due_at",
+        "sla_due_at",
     )
 
     class Meta:
@@ -324,3 +326,111 @@ class TicketStatusHistory(models.Model):
 
     def __str__(self):
         return f"{self.ticket_id}: {self.previous_status or '—'} → {self.new_status}"
+
+
+class SLAPolicy(models.Model):
+    """Plazos por prioridad y, opcionalmente, por categoría (SPEC §26, §34).
+
+    Sin categoría = política general. Se administra como un catálogo
+    (escritura auditada vía `helpdesk.catalogs`, sin borrado físico).
+    """
+
+    category = models.ForeignKey(
+        Category,
+        verbose_name="categoría",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        help_text="Vacío = política general para todas las categorías.",
+    )
+    priority = models.CharField("prioridad", max_length=16, choices=Ticket.Priority.choices)
+    first_response_minutes = models.PositiveIntegerField("primera respuesta (min)")
+    resolution_minutes = models.PositiveIntegerField("resolución (min)")
+    business_hours_only = models.BooleanField("solo horario laboral", default=True)
+    is_active = models.BooleanField("activa", default=True)
+    created_at = models.DateTimeField("creada", auto_now_add=True)
+    updated_at = models.DateTimeField("actualizada", auto_now=True)
+
+    audit_fields = (
+        "category_id",
+        "priority",
+        "first_response_minutes",
+        "resolution_minutes",
+        "business_hours_only",
+        "is_active",
+    )
+
+    class Meta:
+        verbose_name = "política SLA"
+        verbose_name_plural = "políticas SLA"
+        ordering = ["category__name", "priority"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["category", "priority"],
+                condition=models.Q(is_active=True),
+                nulls_distinct=False,
+                name="helpdesk_slapolicy_active_unique",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(resolution_minutes__gte=models.F("first_response_minutes")),
+                name="helpdesk_slapolicy_resolution_gte_first_response",
+            ),
+        ]
+
+    def __str__(self):
+        scope = self.category.name if self.category_id else "General"
+        return f"{scope} · {self.get_priority_display()}"
+
+    def clean(self):
+        if (
+            self.first_response_minutes is not None
+            and self.resolution_minutes is not None
+            and self.resolution_minutes < self.first_response_minutes
+        ):
+            raise ValidationError(
+                {"resolution_minutes": "La resolución no puede ser menor que la primera respuesta."}
+            )
+
+
+class Alert(models.Model):
+    """Alerta operativa (SPEC §26, FE-007). Una sola abierta por tipo y ticket."""
+
+    class Type(models.TextChoices):
+        SLA_WARNING = "SLA_WARNING", "SLA por vencer"
+        SLA_BREACHED = "SLA_BREACHED", "SLA vencido"
+        ESCALATED = "ESCALATED", "Escalado"
+
+    class Severity(models.TextChoices):
+        INFO = "INFO", "Informativa"
+        WARNING = "WARNING", "Advertencia"
+        CRITICAL = "CRITICAL", "Crítica"
+
+    class Status(models.TextChoices):
+        OPEN = "OPEN", "Abierta"
+        RESOLVED = "RESOLVED", "Resuelta"
+
+    ticket = models.ForeignKey(
+        Ticket, verbose_name="ticket", on_delete=models.PROTECT, related_name="alerts"
+    )
+    alert_type = models.CharField("tipo", max_length=32, choices=Type.choices)
+    severity = models.CharField("severidad", max_length=16, choices=Severity.choices)
+    message = models.CharField("mensaje", max_length=255)
+    status = models.CharField("estado", max_length=16, choices=Status.choices, default=Status.OPEN)
+    created_at = models.DateTimeField("creada", auto_now_add=True, db_index=True)
+    resolved_at = models.DateTimeField("resuelta", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "alerta"
+        verbose_name_plural = "alertas"
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["ticket", "alert_type"],
+                condition=models.Q(status="OPEN"),
+                name="helpdesk_alert_one_open_per_type",
+            )
+        ]
+        indexes = [models.Index(fields=["status", "alert_type"], name="helpdesk_alert_queue_idx")]
+
+    def __str__(self):
+        return f"{self.get_alert_type_display()} · {self.ticket_id}"

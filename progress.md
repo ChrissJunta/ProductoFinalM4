@@ -95,7 +95,7 @@ Reglas:
 | FE-T05 | TODO | - | BE-T05, BE-T07 | - |
 | FE-T06 | TODO | - | BE-T04, BE-T06 | - |
 | FE-T07 | TODO (acciones disponibles: CONTRACT-006; el detalle llega con BE-T05) | ChatGPT | BE-T07 | 2026-10-13 |
-| FE-T08 | TODO | - | BE-T08 | - |
+| FE-T08 | TODO (desbloqueada: CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-13 |
 | FE-T09 | TODO | - | BE-T03A, BE-T09 | - |
 | FE-T10 | TODO | - | BE-T10 | - |
 | FE-T11 | TODO | - | BE-T11A | - |
@@ -114,7 +114,7 @@ Reglas:
 | BE-T05 | TODO | - | BE-T03 | - |
 | BE-T06 | TODO | - | BE-T03 | - |
 | BE-T07 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03 | 2026-10-13 |
-| BE-T08 | TODO | - | BE-T03, BE-T07 | - |
+| BE-T08 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03, BE-T07 | 2026-10-13 |
 | BE-T09 | TODO | - | BE-T03 | - |
 | BE-T10 | TODO | - | BE-T03, BE-T08 | - |
 | BE-T11 | TODO | - | BE-T05 | - |
@@ -233,6 +233,10 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-023 | 2026-10-13 | El rol Administrador no ejecuta transiciones de tickets (no figura en la tabla §32.1); un superusuario tampoco | Administrador configura (§9.4); operar tickets es de Agente/Supervisor | `helpdesk.workflow` |
 | ADR-024 | 2026-10-13 | Hasta BE-T05, el «mensaje de resolución» obligatorio (fila 11) se guarda como motivo del cambio de estado | No hay conversación todavía; no se pierde el dato | `TicketStatusHistory.reason` |
 | ADR-025 | 2026-10-13 | Los plazos automáticos (cierre/cancelación) cuentan desde la **última** entrada al estado según `TicketStatusHistory` | Un ticket que vuelve a RESOLVED reinicia su plazo de confirmación | `close_stale_tickets` |
+| ADR-026 | 2026-10-13 | Las 4 políticas SLA iniciales (SPEC §34) se crean con `business_hours_only=True` | Una mesa de ayuda institucional no atiende de noche ni en fin de semana; con 24×7, CRITICAL (15 min) vencería de madrugada | Administrable en `/admin/helpdesk/slapolicy/` |
+| ADR-027 | 2026-10-13 | Política SLA: primero la de la categoría, si no la general (sin categoría); como máximo una activa por (categoría, prioridad) | Permite excepciones por categoría sin duplicar la general | `sla.policy_for`, restricción única parcial |
+| ADR-028 | 2026-10-13 | `SLA_WARNING`/`SLA_BREACHED` se evalúan sobre el plazo de **resolución** (`sla_due_at`); al vencer, `check_sla` escala automáticamente si el ticket está en ASSIGNED o IN_PROGRESS (filas 6 y 10) | SPEC §34.2 y §38.1 | `check_sla` |
+| ADR-029 | 2026-10-13 | Los plazos se fijan al crear el ticket y no cambian si luego se edita la política; el % consumido usa la política vigente para decidir si contar horario laboral | SPEC: «el SLA se fija al crear el ticket» | `sla.apply_due_dates`, `sla.sla_status` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -461,6 +465,26 @@ Convenciones para todas las vistas:
 **Qué botones mostrar:** FRONT no decide. Cuando se publique el contrato del detalle (BE-T05), su contexto incluirá `allowed_targets` (lista de estados a los que el usuario actual puede llevar el ticket, calculada con `helpdesk.workflow.allowed_targets`). Solo deben mostrarse esas acciones.
 **Aprobado:** Sí
 
+### CONTRACT-007 — Alertas (FE-007 / FE-T08)
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T08) → consumidor FE-T08
+**URL name:** `helpdesk:alert_list` → `/alerts/`
+**Plantilla:** `helpdesk/alerts.html` (hoy existe una versión `TEMPORAL (backend)` que FRONT debe reemplazar)
+**Métodos:** GET. Solo rol **Supervisor** (otros roles → 403; sin sesión → 302 a login).
+**Parámetros GET:** `status` = `OPEN` (por defecto) | `RESOLVED` | `ALL`; `type` = `SLA_WARNING` | `SLA_BREACHED` | `ESCALATED` | vacío (todos); `page` (25 por página). Valores desconocidos se ignoran.
+**Contexto:**
+
+| Variable | Tipo | Descripción |
+|---|---|---|
+| `alerts` | lista de `Alert` | Alertas de la página. Campos: `alert_type` y `get_alert_type_display` («SLA por vencer», «SLA vencido», «Escalado»), `severity` / `get_severity_display` (`INFO`, `WARNING`, `CRITICAL`), `message`, `status` / `get_status_display`, `created_at`, `resolved_at`, `ticket.ticket_code`, `ticket.subject`, `ticket.get_status_display`, `ticket.get_priority_display`, `ticket.assigned_area.name` (puede ser `None`), `ticket.sla_due_at`. |
+| `page_obj` | `Page` | Paginación estándar de Django (`has_next`, `next_page_number`, `paginator.num_pages`…). Conservar `status` y `type` en los enlaces. |
+| `filters` | `dict` | `{"status": "OPEN"\|"RESOLVED"\|"ALL", "type": "<tipo>" o ""}` aplicados. |
+| `status_choices`, `type_choices` | `list[tuple]` | `(valor, etiqueta)` para construir los filtros. |
+| `open_counts` | `dict` | Alertas **abiertas** por tipo: `{"SLA_WARNING": n, "SLA_BREACHED": n, "ESCALATED": n}` (para los indicadores de FE-007). |
+
+**Estados SLA para badges (FE-T08 en bandeja y detalle):** el backend expondrá en los contratos de BE-T04/BE-T05 un objeto `sla` por ticket calculado con `helpdesk.sla.sla_status`: `state` (`NONE`, `OK`, `WARNING`, `BREACHED`, `STOPPED`), `due_at`, `remaining_minutes` (negativo si vencido, en minutos laborables si la política es de horario laboral) y `consumed_ratio`. FRONT no calcula SLA.
+**Aprobado:** Sí
+
 ## 12.2 Solicitudes de cambio
 
 ### CHANGE REQUEST CR-001 — Agente LangGraph
@@ -501,6 +525,8 @@ Plantilla:
 - `helpdesk/migrations/0003_role_permissions.py` — permisos de modelo por rol para catálogos y auditoría — aplicada y reversible — BE-T03A
 - `helpdesk/migrations/0004_tickets.py` — secuencia `helpdesk_ticket_code_seq`, `Ticket`, `Attachment` e índices — aplicada y reversible — BE-T03
 - `helpdesk/migrations/0005_ticket_status_history.py` — `TicketStatusHistory` — aplicada y reversible — BE-T07
+- `helpdesk/migrations/0006_sla_and_alerts.py` — `SLAPolicy`, `Alert` y restricciones — aplicada y reversible — BE-T08
+- `helpdesk/migrations/0007_initial_sla_policies.py` — 4 políticas generales (SPEC §34) auditadas como SYSTEM y permisos por rol — aplicada y reversible — BE-T08
 
 Formato:
 
@@ -528,6 +554,9 @@ Rutas web (vistas Django, ADR-007):
 - `/admin/helpdesk/{ticket,attachment}/` — solo lectura — REVIEW — BE-T03
 - `POST /tickets/<code>/{status,resolve,escalate,confirm,reject-resolution,reopen,cancel}/` — `helpdesk:ticket_*` — REVIEW — BE-T07 — CONTRACT-006
 - Comando `python manage.py close_stale_tickets [--dry-run]` — REVIEW — BE-T07 (cron cada hora, SPEC §38.1)
+- `GET /alerts/` — `helpdesk:alert_list` — REVIEW — BE-T08 — CONTRACT-007
+- `/admin/helpdesk/slapolicy/` (gestión auditada, sin borrado) y `/admin/helpdesk/alert/` (solo lectura) — REVIEW — BE-T08
+- Comando `python manage.py check_sla` — REVIEW — BE-T08 (cron cada 5 min, SPEC §38.1)
 
 API: ninguna todavía (el webhook WhatsApp llegará con BE-T11).
 
@@ -573,6 +602,14 @@ Formato:
 **Entorno:** PostgreSQL 16 local, `config.settings.test`, sin `.env` (igual que CI)
 **Resultado:** PASS — 394 pruebas, cobertura 99 % (`workflow.py`, vistas y comando al 100 %). Incluye la matriz 17 transiciones × 7 actores, las 73 transiciones fuera de la tabla y una prueba concurrente de bloqueo optimista.
 **Fallos:** el primer intento falló en PostgreSQL (`FOR UPDATE cannot be applied to the nullable side of an outer join`); corregido con `select_for_update(of=("self",))`.
+
+### TEST-RUN-005
+**Fecha:** 2026-10-13
+**Tarea:** BE-T08
+**Comando:** mismo que TEST-RUN-001 (dos ejecuciones completas)
+**Entorno:** PostgreSQL 16 local, `config.settings.test`, sin `.env` (igual que CI)
+**Resultado:** PASS — 451 pruebas, cobertura 99 % (`sla.py`, `alerts.py`, vistas y workflow al 100 %). Incluye cruces de fin de semana, noches, feriados, inversa suma/diferencia de minutos laborables, umbral del 80 % y escalamiento automático.
+**Fallos:** primer intento con 3 expectativas mal calculadas en las propias pruebas (2880 min laborables = 5 días + 180 min → vence el lunes siguiente a las 11:00); el código era correcto y se corrigieron las pruebas. Además se actualizaron 4 pruebas previas cuyo comportamiento cambia a propósito (el ticket ahora tiene SLA al crearse; nuevos permisos por rol).
 
 Formato:
 
@@ -623,7 +660,7 @@ Añadir siempre al final, sin borrar entradas anteriores.
 - Pruebas: suite completa `pytest --cov --cov-report=term-missing --cov-fail-under=80`: 160 PASS, cobertura 98.61 %; ruff check/format PASS. Chromium real: login por correo, error genérico, autoescape, contraseña no repoblada, CSRF, logout POST, teclado y anchos 360/768/1280 PASS. Helpers de validación fuera del checkout.
 - Observaciones: la ejecución inicial limitada a accounts pasó 72 pruebas pero no alcanzó el umbral global (77.22 %, helpdesk no ejecutado); suite completa resuelve la selección y supera 80 %. El helper de navegador necesitó cerrar conexiones del servidor antes de eliminar la BD temporal; corregido y revalidado con salida 0. No cambios en pruebas BACK.
 - Coordinación: CONTRACT-001/002/003 aprobados habilitan FRONT aunque BE-T01 siga REVIEW. No se cambia estado BACK ni se considera aprobado/merged PR #1. Un PR FE-T01 contra `main-r0dfx3`, sin merge automático. Los componentes de §18 sin consumidor habilitado (paginación, SLA, conversación) se implementarán con sus tareas/contratos.
-- Publicación: entorno publicado confirmado por UI del usuario; implementación corre enteramente en Cloud. Git push dry-run autorizado; creación de PR bloqueada por CONNECT 403 a `api.github.com`. Dominio añadido al borrador de red para revisión/aplicación. No hay scheduler Cloud expuesto: seguimiento cada 10 min aún sin configurar.
+- Publicación: entorno publicado confirmado por UI del usuario; implementación corre enteramente en Cloud. Git push dry-run autorizado; creación de PR bloqueada por CONNECT 403 a `api.github.com`. Dominio añadido al borrador de red para revisión/aplicación. Estado en ese momento: sin scheduler configurado. Actualización: UI confirmó seguimiento Cloud ACTIVO cada hora, America/Guayaquil, id `6acd9bd4f1648190a92625ce9eefe1d5`; primera ejecución aún no verificada.
 
 ---
 
@@ -675,10 +712,10 @@ SPEC aprobada: Sí
 SPEC versión: 5.2
 Front backlog definido: Sí
 Back backlog definido: Sí
-Código implementado: BE-T01 (incluye BE-T02), BE-T03A, BE-T03 y BE-T07 en REVIEW
-Migraciones: accounts 0001, 0002; helpdesk 0001-0005
+Código implementado: BE-T01 (incluye BE-T02), BE-T03A, BE-T03, BE-T07 y BE-T08 en REVIEW
+Migraciones: accounts 0001, 0002; helpdesk 0001-0007
 Endpoints: login, logout, role_redirect, home, ticket_create, attachment_download (vistas web); admin de catálogos, auditoría y tickets
-Pruebas: TEST-RUN-001 a TEST-RUN-004 PASS
+Pruebas: TEST-RUN-001 a TEST-RUN-005 PASS
 Bloqueos: Ninguno
 ```
 
@@ -842,7 +879,7 @@ Bloqueos: Ninguno
 - Reemplazar las plantillas temporales backend y realizar validación visual/responsive al implementar FE-T01.
 - Registro de inicio solo local y sin commit: no constituye implementación ni publicación en GitHub, ni reproduce la entrada de la computadora del usuario.
 - Confirmar aprobación de PR #1 antes de considerar la base backend aprobada; pruebas locales verdes no equivalen a aprobación/merge ni a CI de GitHub.
-- Publicar el entorno desde la UI y configurar por separado una automatización si se desea seguimiento periódico; esta preparación no programa ejecuciones futuras.
+- Registro histórico de preparación: publicación y programación pendientes en ese momento. Resuelto posteriormente según UI: entorno publicado y seguimiento Cloud ACTIVO cada hora (id `6acd9bd4f1648190a92625ce9eefe1d5`); primera ejecución remota pendiente de validación.
 
 ## FE-T01 — Login y sesión — Cierre FRONT
 
@@ -855,7 +892,7 @@ Bloqueos: Ninguno
 - Implementado: base, navegación y mensajes reutilizables de SPEC §18, campos login con labels/autocomplete, error genérico y CSRF, logout POST e inicio provisional por rol. Sin JavaScript adicional ni lógica de permisos FRONT.
 - Migraciones/endpoints nuevos: ninguno. Solo consume vistas publicadas por BACK.
 - Pruebas efectivas y archivos: ver historial FRONT en sección 16. Datos sintéticos exclusivamente en BD temporal, eliminada al cerrar validación; sin usuarios reales ni secretos de producción.
-- Pendientes: revisión humana del FRONT/backend y creación del PR cuando la API GitHub sea accesible. Nunca merge automático ni push a main.
+- Pendientes: revisión humana del FRONT/backend. PR #2 ya creado y conflicto resuelto; nunca merge automático ni push a main.
 ## BE-T07 — Workflow y estados — Cierre
 
 **Estado:** REVIEW (pasa a DONE cuando el PR se apruebe y CI esté en verde)
@@ -894,7 +931,7 @@ Bloqueos: Ninguno
 - ADR-023, ADR-024, ADR-025.
 
 ### Pendientes derivados
-- Crear `Alert` de tipo `ESCALATED` al escalar (filas 6 y 10) → BE-T08, cuando exista `Alert`.
+- ~~Crear `Alert` de tipo `ESCALATED` al escalar (filas 6 y 10) → BE-T08~~ — resuelto en BE-T08.
 - Exponer `allowed_targets` y el historial en el contexto del detalle → BE-T05 (contrato del detalle).
 - Restringir `AGENT` (filas 1, 3 y 8) a tickets de su área → BE-T04.
 - `WAITING_USER → IN_PROGRESS` automático cuando el usuario responda → BE-T05 (al registrar su mensaje).
@@ -907,3 +944,55 @@ Bloqueos: Ninguno
 - Archivos: ver cierre de BE-T07.
 - Pruebas: TEST-RUN-004 PASS.
 - Observaciones: desbloquea BE-T08 (SLA y alertas) y las acciones de FE-T07.
+
+## BE-T08 — SLA y alertas — Cierre
+
+**Estado:** REVIEW (pasa a DONE cuando el PR se apruebe y CI esté en verde)
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- `helpdesk.SLAPolicy` (SPEC §26): por prioridad y opcionalmente por categoría; una activa por (categoría, prioridad); resolución ≥ primera respuesta; administrable como catálogo (auditado, sin borrado).
+- `helpdesk.Alert` (SPEC §26): tipos `SLA_WARNING`, `SLA_BREACHED`, `ESCALATED`; una abierta por tipo y ticket (restricción en BD).
+- `helpdesk.sla`: calendario laboral (`BUSINESS_HOURS`, `HOLIDAYS`, `TIME_ZONE`): `add_business_minutes`, `business_minutes_between`; modo 24×7; `policy_for`; `apply_due_dates`; `sla_status` (estado, vencimiento, minutos restantes, % consumido).
+- `TicketService.create` fija `first_response_due_at` y `sla_due_at` desde `created_at`.
+- `helpdesk.alerts`: `open_alert` (idempotente, tolera carreras) y `resolve_alerts`.
+- Workflow: al escalar abre alerta `ESCALATED`; al salir de `ESCALATED` la resuelve; al resolver/cerrar/cancelar resuelve todas las alertas del ticket.
+- Comando `check_sla`: alerta al 80 % (`SLA_WARNING_RATIO`), alerta de vencimiento y escalamiento automático; idempotente.
+- Vista `helpdesk:alert_list` (CONTRACT-007) y admin de políticas y alertas.
+
+### Archivos creados/modificados
+- `apps/helpdesk/{sla,alerts,models,tickets,workflow,views,urls,admin}.py`
+- `apps/helpdesk/management/commands/check_sla.py`
+- `apps/helpdesk/migrations/0006_sla_and_alerts.py`, `0007_initial_sla_policies.py`
+- `apps/helpdesk/tests/{test_sla,test_check_sla}.py` (+ ajustes en `test_permissions`, `test_tickets`)
+- `config/settings/base.py` (`BUSINESS_HOURS`, `HOLIDAYS` por variable de entorno, `SLA_WARNING_RATIO`)
+- `templates/helpdesk/alerts.html` — **TEMPORAL (backend)**.
+
+### Criterio de aceptación
+- Alertas correctas al aproximarse (≥ 80 %) y al vencer: probado con reloj controlado.
+- Cálculo correcto cruzando fines de semana y fuera de horario: probado (viernes → lunes, noche, sábado, feriados, inversa).
+
+### Operación (cron, SPEC §38.1)
+```cron
+*/5 * * * *  cd /ruta/proyecto && .venv/bin/python manage.py check_sla
+```
+
+### Decisiones tomadas
+- ADR-026, ADR-027, ADR-028, ADR-029.
+
+### Pendientes derivados
+- Alertas de **primera respuesta** (`first_response_due_at`): el plazo ya se calcula, pero `first_response_at` lo fija la primera respuesta del agente → BE-T05.
+- Exponer `sla_status` en bandeja y detalle → contratos de BE-T04 / BE-T05.
+- Recalcular plazos si cambia la prioridad → cuando exista el cambio de prioridad (BE-T06/BE-T09).
+- Pausar el SLA en `WAITING_USER`: la SPEC no lo pide; el reloj sigue corriendo. Decidir si se quiere (CHANGE REQUEST).
+- Alertas de «fallos operativos» (FE-007) → BE-T12 (worker WhatsApp).
+
+## 2026-10-13 — Claude (BACKEND) / BE-T08
+
+- Estado anterior: TODO.
+- Estado nuevo: REVIEW.
+- Trabajo realizado: políticas SLA, calendario laboral, plazos al crear, alertas, `check_sla` con escalamiento automático, vista de alertas, CONTRACT-007.
+- Archivos: ver cierre de BE-T08.
+- Pruebas: TEST-RUN-005 PASS.
+- Observaciones: FE-T08 queda desbloqueada; desbloquea BE-T10 (métricas).

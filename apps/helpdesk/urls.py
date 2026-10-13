@@ -6,6 +6,7 @@ app_name = "helpdesk"
 
 urlpatterns = [
     path("tickets/new/", views.ticket_create, name="ticket_create"),
+    path("alerts/", views.alert_list, name="alert_list"),
     path("tickets/<str:code>/status/", views.ticket_transition, name="ticket_status"),
     path(
         "tickets/<str:code>/resolve/",

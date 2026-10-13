@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import connection, transaction
 from django.utils import timezone
 
-from . import audit, workflow
+from . import audit, sla, workflow
 from .attachments import validate_upload
 from .audit import Action
 from .models import Attachment, Ticket
@@ -66,6 +66,9 @@ class TicketService:
         )
         ticket.full_clean()
         ticket.save()
+        # Los plazos se cuentan desde created_at, que se fija al guardar.
+        if sla.apply_due_dates(ticket):
+            ticket.save(update_fields=["first_response_due_at", "sla_due_at"])
         workflow.record_initial_status(ticket, actor=user)
         audit.record(
             Action.CREATE,
