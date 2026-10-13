@@ -820,6 +820,19 @@ Añadir siempre al final, sin borrar entradas anteriores.
 
 ---
 
+## 2026-10-13 01:27 — ChatGPT (FRONTEND) / FE-T01 — Branding y contraste — America/Guayaquil
+
+- Estado: REVIEW; corrección FRONT autorizada por usuario. No se crea otro PR FE-T01.
+- Logo: cherry-pick únicamente del commit de asset `c51bbd0`, rama institucional proporcionada por usuario. PNG original sin edición, 3000×3000, 105687 bytes, SHA256 `a47e0d829d9305a77183f1a2a95cb4a55776118161520737ed4b57ef8ef41fa4`; `object-fit: contain`, dimensiones cuadradas y alt «Universidad Indoamérica».
+- Branding: morado principal `#3C235F`, naranja acento `#EA600A`, fondos blancos/neutros. Botones/enlaces/foco/paginación en morado; naranja reservado a logo/bordes decorativos porque naranja/blanco = 3.40:1. Tipografía de sistema provisional: el usuario no proporcionó fuente oficial; no se deduce del logo.
+- Defectos corregidos: axe-core detectó texto secundario 4.44:1 y pestañas 4.26:1 sobre `#F8F9FA`; se ajustan colores compartidos. Morado/blanco = 13.14:1 y texto secundario/neutro = 5.81:1.
+- Archivos: `static/img/LOGO-UTI-2.png`, `static/css/mesa.css`, `templates/auth/login.html`, `templates/components/navbar.html`, registros FRONT.
+- Validación efectiva: Chromium 360/768/1280, logo no deformado y fondo real de botón morado, login/correo/error genérico/CSRF/logout/teclado PASS; axe-core 4.11.0 (integridad SHA512 verificada) WCAG2A/AA/2.1AA/2.2AA sin violaciones en login/error/inicio. Auditoría automatizada no sustituye revisión humana completa.
+- Observaciones de Claude recibidas a través del usuario/repositorio, no comunicación directa: mergeability de ramas hermanas no demuestra integración. Se preparará rama conjunta `feature/integracion-mvp` autorizada explícitamente, validando navbar/progress y conservando registros BACK/FRONT; prohibido merge/push main hasta validación del usuario.
+- Cambio remoto detectado: `main-r0dfx3` avanzó a `5ac611b` al integrar ramas FRONT por Claude. PR #1 sigue OPEN; PR #2 consta MERGED hacia esa rama, no hacia main. Esta corrección de FE-T01 se revisará en la rama/PR draft conjunto, preservando los PR por tarea existentes.
+
+---
+
 # 17. Regla anti-repetición
 
 Antes de implementar cualquier funcionalidad, buscar en este archivo:
