@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{# TEMPORAL (backend): funcional para verificar el flujo; FRONT la rehace en FE-T05/FE-T07 según CONTRACT-010/011/012. #}
+{% load tz %}
+{% block title %}{{ ticket.ticket_code }}{% endblock %}
+{% block content %}
+<nav aria-label="Ruta" class="mb-3"><a href="{% url 'helpdesk:ticket_list' %}">← Volver a tickets</a></nav>
+
+<section class="card border-0 shadow-sm mb-4" aria-labelledby="ticket-title">
+  <div class="card-body">
+    <p class="text-secondary small mb-1">{{ ticket.ticket_code }} · {{ ticket.get_channel_display }}</p>
+    <h1 id="ticket-title" class="h4">{{ ticket.subject }}</h1>
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      {% include 'components/ticket_badge.html' with label=ticket.get_status_display only %}
+      {% include 'components/ticket_badge.html' with label=ticket.get_priority_display only %}
+    </div>
+    <dl class="row small mb-3">
+      <dt class="col-sm-3">Categoría</dt><dd class="col-sm-9">{{ ticket.category.name|default:'Sin categoría' }}{% if ticket.subcategory %} / {{ ticket.subcategory.name }}{% endif %}</dd>
+      <dt class="col-sm-3">Área</dt><dd class="col-sm-9">{{ ticket.assigned_area.name|default:'Sin área' }}</dd>
+      <dt class="col-sm-3">Responsable</dt><dd class="col-sm-9">{% if ticket.assigned_user %}{{ ticket.assigned_user.get_full_name|default:ticket.assigned_user.username }}{% else %}Sin responsable{% endif %}</dd>
+      <dt class="col-sm-3">Solicitante</dt><dd class="col-sm-9">{{ ticket.user.get_full_name|default:ticket.user.username }}</dd>
+      <dt class="col-sm-3">Creado</dt><dd class="col-sm-9">{{ ticket.created_at|localtime|date:'d/m/Y H:i' }}</dd>
+      <dt class="col-sm-3">Primera respuesta</dt><dd class="col-sm-9">{% if ticket.first_response_at %}{{ ticket.first_response_at|localtime|date:'d/m/Y H:i' }}{% elif ticket.first_response_due_at %}Pendiente · vence {{ ticket.first_response_due_at|localtime|date:'d/m/Y H:i' }}{% else %}—{% endif %}</dd>
+      <dt class="col-sm-3">SLA de resolución</dt><dd class="col-sm-9">{% include 'components/sla_badge.html' with sla=sla only %}</dd>
+    </dl>
+    <h2 class="h6">Descripción</h2>
+    <p class="mb-0" style="white-space: pre-line">{{ ticket.description }}</p>
+  </div>
+</section>
+
+{% if actions or assign.can_assign %}
+<section class="card border-0 shadow-sm mb-4" aria-labelledby="acciones">
+  <div class="card-body">
+    <h2 id="acciones" class="h5">Acciones</h2>
+    {% for action in actions %}
+      <form method="post" action="{{ action.url }}" class="border rounded p-2 mb-2">
+        {% csrf_token %}
+        <input type="hidden" name="version" value="{{ ticket.version }}">
+        {% if action.generic %}<input type="hidden" name="to_status" value="{{ action.target }}">{% endif %}
+        {% if action.reason_required %}
+          <label class="form-label small" for="reason-{{ forloop.counter }}">Motivo / mensaje (obligatorio)</label>
+          <textarea class="form-control form-control-sm mb-2" id="reason-{{ forloop.counter }}" name="reason" rows="2" maxlength="2000" required></textarea>
+        {% endif %}
+        <button type="submit" class="btn btn-sm btn-outline-primary">{{ action.label }}</button>
+      </form>
+    {% endfor %}
+    {% if assign.can_assign %}
+      <form method="post" action="{% url 'helpdesk:ticket_assign' ticket.ticket_code %}" class="border rounded p-2 row g-2 align-items-end">
+        {% csrf_token %}
+        <input type="hidden" name="version" value="{{ ticket.version }}">
+        <div class="col-sm-5">
+          <label class="form-label small" for="assign-area">Área</label>
+          <select class="form-select form-select-sm" id="assign-area" name="area" required>
+            {% for area in assign.areas %}<option value="{{ area.id }}" {% if area.id == assign.current_area_id %}selected{% endif %}>{{ area.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-5">
+          <label class="form-label small" for="assign-user">Responsable</label>
+          <select class="form-select form-select-sm" id="assign-user" name="assignee">
+            <option value="">Sin responsable</option>
+            {% for area in assign.areas %}<optgroup label="{{ area.name }}">{% for agent in area.agents %}<option value="{{ agent.id }}" {% if agent.id == assign.current_assignee_id %}selected{% endif %}>{{ agent.name }}</option>{% endfor %}</optgroup>{% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-2"><button type="submit" class="btn btn-sm btn-primary w-100">Asignar</button></div>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+<section class="card border-0 shadow-sm mb-4" aria-labelledby="historial">
+  <div class="card-body">
+    <h2 id="historial" class="h5">Conversación e historial</h2>
+    <ol class="list-unstyled mb-0">
+      {% for item in timeline %}
+        <li class="border-bottom py-2">
+          <div class="small text-secondary">{{ item.created_at|localtime|date:'d/m/Y H:i' }}
+          {% if item.kind == 'message' %}· [{% if item.channel == 'WHATSAPP' %}WhatsApp{% else %}Web{% endif %}] {{ item.message.get_sender_type_display }}{% if item.message.sender %} ({{ item.message.sender.get_full_name|default:item.message.sender.username }}){% endif %}{% if item.message.message_type != 'TEXT' %} · {{ item.message.get_message_type_display }}{% endif %}
+          {% else %}· [Sistema] Estado: {{ item.entry.get_previous_status_display|default:'—' }} → {{ item.entry.get_new_status_display }}{% if item.entry.actor %} ({{ item.entry.actor.username }}){% endif %}{% endif %}</div>
+          {% if item.kind == 'message' %}
+            <p class="mb-1" style="white-space: pre-line">{{ item.message.content }}</p>
+            {% for att in item.message.attachments.all %}<a class="small" href="{% url 'helpdesk:attachment_download' ticket.ticket_code att.id %}">📎 {{ att.original_name }}</a> {% endfor %}
+          {% elif item.entry.reason %}<p class="small mb-0">Motivo: {{ item.entry.reason }}</p>{% endif %}
+        </li>
+      {% empty %}<li>Sin movimientos.</li>{% endfor %}
+    </ol>
+    {% if attachments %}
+      <h3 class="h6 mt-3">Adjuntos del ticket</h3>
+      <ul class="small">{% for att in attachments %}<li><a href="{% url 'helpdesk:attachment_download' ticket.ticket_code att.id %}">{{ att.original_name }}</a> ({{ att.size_bytes|filesizeformat }})</li>{% endfor %}</ul>
+    {% endif %}
+  </div>
+</section>
+
+{% if can_reply %}
+<section class="card border-0 shadow-sm" aria-labelledby="responder">
+  <div class="card-body">
+    <h2 id="responder" class="h5">Responder</h2>
+    <form method="post" action="{% url 'helpdesk:ticket_message' ticket.ticket_code %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <label class="form-label" for="id_content">Mensaje</label>
+      <textarea class="form-control mb-2" id="id_content" name="content" rows="3" maxlength="5000" required></textarea>
+      <label class="form-label small" for="id_attachment">Adjunto (PDF, PNG o JPG, máx. 5 MB)</label>
+      <input class="form-control form-control-sm mb-2" type="file" id="id_attachment" name="attachment" accept=".pdf,.png,.jpg,.jpeg">
+      {% if can_request_info %}<div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="id_request_info" name="request_info"><label class="form-check-label" for="id_request_info">Solicitar información al usuario (pasa a «Esperando usuario»)</label></div>{% endif %}
+      <button type="submit" class="btn btn-primary">Enviar</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

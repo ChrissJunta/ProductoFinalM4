@@ -2,6 +2,8 @@ from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
 
+from apps.helpdesk.queries import dashboard
+
 from .roles import Role, get_role
 
 # Pantalla de inicio de cada rol (SPEC §10). Cada tarea FRONT que implemente la
@@ -27,4 +29,5 @@ def role_redirect(request):
 
 @login_required
 def home(request):
-    return render(request, "home.html")
+    """FE-002 / CONTRACT-013: inicio con tickets recientes y resumen."""
+    return render(request, "home.html", dashboard(request.user))

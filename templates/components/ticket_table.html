@@ -6,7 +6,7 @@
   <tbody>
   {% for row in rows %}
     <tr>
-      <th scope="row" class="fw-normal"><span class="fw-semibold">{{ row.ticket.ticket_code }}</span><div>{{ row.ticket.subject }}</div></th>
+      <th scope="row" class="fw-normal"><a class="fw-semibold" href="{% url 'helpdesk:ticket_detail' row.ticket.ticket_code %}">{{ row.ticket.ticket_code }}</a><div>{{ row.ticket.subject }}</div></th>
       <td>{% include 'components/ticket_badge.html' with label=row.ticket.get_status_display only %}</td>
       <td>{{ row.ticket.get_priority_display }}</td>
       <td>{{ row.ticket.category.name|default:'Sin categoría' }}</td>

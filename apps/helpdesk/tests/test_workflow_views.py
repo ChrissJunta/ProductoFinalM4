@@ -161,7 +161,7 @@ def test_safe_next_is_respected_and_external_ignored(client, agent, ticket):
         url,
         {"to_status": "IN_PROGRESS", "version": ticket.version, "next": "https://evil.example/"},
     )
-    assert r2.url == reverse("accounts:role_redirect")
+    assert r2.url == reverse("helpdesk:ticket_detail", args=[ticket.ticket_code])  # CR-005
 
 
 def test_get_not_allowed_and_login_required(client, agent, ticket):
