@@ -36,6 +36,14 @@ class CatalogModel(models.Model):
 class Area(CatalogModel):
     code = models.CharField("código", max_length=32, unique=True, validators=[code_validator])
     email = models.EmailField("correo", blank=True)
+    # CR-003: agentes que atienden el área (define qué tickets ve cada agente, BE-T04).
+    agents = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        verbose_name="agentes",
+        blank=True,
+        related_name="agent_areas",
+        limit_choices_to={"groups__name": "Agente"},
+    )
 
     audit_fields = ("code", "name", "email", "is_active")
 

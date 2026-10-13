@@ -1,6 +1,7 @@
-"""Control de acceso vertical (por rol) y horizontal (por propietario).
+"""Control de acceso vertical (por rol).
 
-Toda validación de permisos ocurre en backend (SPEC §8.5, §56.15).
+El control horizontal (qué tickets puede ver cada usuario) vive en
+`apps.helpdesk.queries` (BE-T04). Toda validación ocurre en backend (SPEC §8.5, §56.15).
 """
 
 from functools import wraps
@@ -9,7 +10,7 @@ from django.contrib.auth.mixins import AccessMixin
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 
-from .roles import STAFF_ROLES, get_role, has_role
+from .roles import has_role
 
 
 def role_required(*roles):
@@ -40,18 +41,3 @@ class RoleRequiredMixin(AccessMixin):
         if not has_role(request.user, *self.allowed_roles):
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
-
-
-def is_owner(user, owner_id):
-    return user.is_authenticated and user.pk == owner_id
-
-
-def check_owner_or_staff(user, owner_id):
-    """Control horizontal básico.
-
-    Un Usuario solo accede a recursos propios. Los roles de atención pasan este
-    control; su restricción por área/asignación corresponde a BE-T04.
-    """
-    if is_owner(user, owner_id) or get_role(user) in STAFF_ROLES:
-        return
-    raise PermissionDenied

@@ -1,4 +1,4 @@
-"""Matriz de permisos vertical (rol) y horizontal (propietario)."""
+"""Matriz de permisos vertical (rol). La horizontal se prueba en helpdesk/test_queries.py."""
 
 import pytest
 from django.contrib.auth.models import AnonymousUser
@@ -7,7 +7,7 @@ from django.http import HttpResponse
 from django.test import RequestFactory
 from django.views import View
 
-from apps.accounts.permissions import RoleRequiredMixin, check_owner_or_staff, role_required
+from apps.accounts.permissions import RoleRequiredMixin, role_required
 from apps.accounts.roles import Role
 
 pytestmark = pytest.mark.django_db
@@ -72,27 +72,3 @@ def test_role_required_mixin(make_user, role):
 def test_role_required_mixin_redirects_anonymous():
     response = SupervisorView.as_view()(_request(AnonymousUser()))
     assert response.status_code == 302
-
-
-def test_owner_can_access_own_resource(make_user):
-    owner = make_user("duenio", role=Role.USUARIO)
-    check_owner_or_staff(owner, owner.pk)
-
-
-def test_user_cannot_access_other_users_resource(make_user):
-    owner = make_user("duenio", role=Role.USUARIO)
-    other = make_user("otro", role=Role.USUARIO)
-    with pytest.raises(PermissionDenied):
-        check_owner_or_staff(other, owner.pk)
-
-
-@pytest.mark.parametrize("role", [Role.AGENTE, Role.SUPERVISOR, Role.ADMINISTRADOR])
-def test_staff_roles_pass_horizontal_check(make_user, role):
-    owner = make_user("duenio", role=Role.USUARIO)
-    check_owner_or_staff(make_user("staff", role=role), owner.pk)
-
-
-def test_anonymous_fails_horizontal_check(make_user):
-    owner = make_user("duenio")
-    with pytest.raises(PermissionDenied):
-        check_owner_or_staff(AnonymousUser(), owner.pk)

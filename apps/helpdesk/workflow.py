@@ -16,7 +16,7 @@ from django.utils import timezone
 
 from apps.accounts.roles import Role, get_role
 
-from . import alerts, audit
+from . import alerts, audit, queries
 from .models import Alert, Ticket, TicketStatusHistory
 
 S = Ticket.Status
@@ -103,7 +103,8 @@ def actor_kinds(ticket, user):
     if user.is_authenticated and ticket.user_id == user.pk:
         kinds.add(Actor.OWNER)
     role = get_role(user)
-    if role == Role.AGENTE:
+    if role == Role.AGENTE and queries.can_view_ticket(user, ticket):
+        # Un agente solo actúa sobre tickets de sus áreas, asignados a él o sin área (BE-T04).
         kinds.add(Actor.AGENT)
         if ticket.assigned_user_id == user.pk:
             kinds.add(Actor.ASSIGNED_AGENT)
