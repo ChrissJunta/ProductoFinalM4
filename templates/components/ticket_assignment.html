@@ -1,0 +1,20 @@
+    {% if assign.can_assign %}
+      <form method="post" action="{% url 'helpdesk:ticket_assign' ticket.ticket_code %}" class="border rounded p-2 row g-2 align-items-end">
+        {% csrf_token %}
+        <input type="hidden" name="version" value="{{ ticket.version }}">
+        <div class="col-sm-5">
+          <label class="form-label small" for="assign-area">Área</label>
+          <select class="form-select form-select-sm" id="assign-area" name="area" required>
+            {% for area in assign.areas %}<option value="{{ area.id }}" {% if area.id == assign.current_area_id %}selected{% endif %}>{{ area.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-5">
+          <label class="form-label small" for="assign-user">Responsable</label>
+          <select class="form-select form-select-sm" id="assign-user" name="assignee">
+            <option value="">Sin responsable</option>
+            {% for area in assign.areas %}<optgroup label="{{ area.name }}">{% for agent in area.agents %}<option value="{{ agent.id }}" {% if agent.id == assign.current_assignee_id %}selected{% endif %}>{{ agent.name }}</option>{% endfor %}</optgroup>{% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-2"><button type="submit" class="btn btn-sm btn-primary w-100">Asignar</button></div>
+      </form>
+    {% endif %}
