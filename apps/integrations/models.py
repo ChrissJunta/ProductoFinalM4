@@ -93,3 +93,18 @@ class WhatsAppLinkCode(models.Model):
 
     def __str__(self):
         return f"Código de {self.user} ({'usado' if self.used_at else 'vigente'})"
+
+
+class WhatsAppLinkAttempt(models.Model):
+    """Intento fallido de vinculación, en BD para que el límite valga entre procesos y
+    ejecuciones del worker (hallazgo de seguridad de BE-T20; SPEC §35.1)."""
+
+    phone = models.CharField(max_length=32, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = "intento fallido de vinculación"
+        verbose_name_plural = "intentos fallidos de vinculación"
+
+    def __str__(self):
+        return f"{self.phone} · {self.created_at:%Y-%m-%d %H:%M}"

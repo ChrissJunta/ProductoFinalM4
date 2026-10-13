@@ -1,5 +1,6 @@
 """Webhook de WhatsApp (SPEC §47.2, BE-T11): verificación GET y eventos POST firmados."""
 
+import hmac
 import json
 import logging
 
@@ -20,9 +21,8 @@ def whatsapp_webhook(request):
         return HttpResponse("WhatsApp no configurado.", status=503)
     if request.method == "GET":
         params = request.GET
-        if (
-            params.get("hub.mode") == "subscribe"
-            and params.get("hub.verify_token") == settings.WHATSAPP_VERIFY_TOKEN
+        if params.get("hub.mode") == "subscribe" and hmac.compare_digest(
+            params.get("hub.verify_token", ""), settings.WHATSAPP_VERIFY_TOKEN
         ):
             return HttpResponse(params.get("hub.challenge", ""), content_type="text/plain")
         return HttpResponseForbidden("Token de verificación inválido.")

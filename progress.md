@@ -141,7 +141,7 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | BE-T18 | REVIEW (pendiente de revisión del PR) | Claude | BE-T16, BE-T17 | 2026-10-13 |
 | BE-T18A | REVIEW (web; la entrada WhatsApp llega con BE-T11/T12 simulados) | Claude | BE-T13..BE-T18 | 2026-10-13 |
 | BE-T19 | REVIEW (adaptador + SGA simulado; contrato real del SGA pendiente) | Claude | BE-T15 | 2026-10-13 |
-| BE-T20 | IN_PROGRESS (seguridad, carga y benchmark hechos; aceptación final CA-001..010 y UAT tras WhatsApp) | Claude | BE-T01..BE-T19, BE-T18A | 2026-10-13 |
+| BE-T20 | REVIEW (CA-001..010 PASS, seguridad sin críticos/altos abiertos, carga y benchmark documentados; falta UAT con usuarios reales) | Claude | BE-T01..BE-T19, BE-T18A | 2026-10-13 |
 
 Notas v5.2:
 
@@ -288,6 +288,8 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-064 | 2026-10-13 | WhatsApp simulado (ADR-049) con el contrato de Meta: webhook GET (`hub.challenge`) y POST con firma `X-Hub-Signature-256`, idempotencia por id de mensaje en `IntegrationInbox`, worker `process_integration_queue` (`skip_locked`, backoff 1/2/4/8 min, FAILED a los 5 intentos), salida por `IntegrationOutbox` con `SimulatedClient` (registra sin enviar) o `CloudAPIClient` (`WHATSAPP_MODE=cloud` + credenciales). Simulador `whatsapp_simulate` | Pasar a Meta real solo requiere credenciales | `integrations.whatsapp` |
 | ADR-065 | 2026-10-13 | Vinculación: código de 6 dígitos (HMAC con `SECRET_KEY`, un solo uso, 10 min, generar uno invalida el anterior), máx. 5 fallos por número y hora; un número pertenece a una sola cuenta (la anterior se desvincula); cambiar el teléfono anula la verificación (`User.save`); todo auditado | SPEC §35.1 | `whatsapp.linking`, `accounts.User` |
 | ADR-066 | 2026-10-13 | Mensaje entrante de un usuario verificado con un ticket en `WAITING_USER` → se agrega a ese ticket (reanuda, §32.1 fila 8); si no → agente. La respuesta del personal en un ticket de canal WhatsApp sale por la cola al número verificado | «Web y WhatsApp comparten ticket e histórico» | `whatsapp.processing`, `conversations.add_message` |
+| ADR-067 | 2026-10-13 | `config/settings/prod.py` sin valores por defecto (DEBUG siempre False; exige `DJANGO_ALLOWED_HOSTS`, `SECRET_KEY` aleatoria de 50+ caracteres y rechaza secretos de desarrollo de WhatsApp); `wsgi.py`/`asgi.py` lo usan por defecto. `dev.py` lee `.env` antes de aplicar sus valores por defecto | Hallazgo ALTO de la revisión de seguridad de BE-T20 | `config/settings` |
+| ADR-068 | 2026-10-13 | Fallos de vinculación de WhatsApp en BD (`WhatsAppLinkAttempt`): 5 por número y hora y 100 globales por hora; el contador de login por cuenta usa el usuario real (usuario y correo comparten contador); `verify_token` con comparación de tiempo constante | Hallazgos MEDIOS/BAJO de la revisión de seguridad | `whatsapp.linking`, `accounts.views` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -905,6 +907,7 @@ Plantilla:
 - `ai/migrations/0001_initial.py` — `AIModelConfig`, `AIPromptVersion`, `AIUsage`, `AIDecision` — aplicada y reversible — BE-T16/BE-T18
 - `ai/migrations/0002_initial_config.py` — modelos fake primario/respaldo por operación, prompts v1 y permisos por rol (auditado) — aplicada y reversible — BE-T16/BE-T18
 - `automation/migrations/0005_tune_keywords.py` — palabras clave ajustadas con el conjunto de desarrollo — aplicada y reversible — BE-T17
+- `integrations/migrations/0002_link_attempts.py` — `WhatsAppLinkAttempt` — aplicada y reversible — BE-T20 (seguridad)
 - `integrations/migrations/0001_whatsapp_queues.py` — `IntegrationInbox`, `IntegrationOutbox`, `WhatsAppLinkCode` — aplicada y reversible — BE-T11/T11A/T12
 - Tablas propias del checkpointer LangGraph (`checkpoints`, `checkpoint_blobs`, `checkpoint_writes`, `checkpoint_migrations`): las crea `PostgresSaver.setup()` en el primer uso, no son migraciones Django — BE-T18A
 
@@ -1084,6 +1087,12 @@ Formato:
 **Comando:** mismo que TEST-RUN-001 (dos ejecuciones completas sin `.env`) + E2E del repositorio + `whatsapp_simulate` manual
 **Resultado:** PASS — 800 pruebas, cobertura 99 %; E2E 12 pasos sin 5xx. Manual: número sin vincular → instrucciones; código → vinculado; «¿Cuánto debo?» → solo total; id repetido → duplicado ignorado.
 **Fallos:** `refresh_from_db` no actualizaba el teléfono recordado y la anulación de verificación podía saltarse; corregido con prueba.
+
+### TEST-RUN-015
+**Fecha:** 2026-10-13
+**Tarea:** BE-T20 — correcciones de la revisión de seguridad
+**Comando:** mismo que TEST-RUN-001 (dos ejecuciones sin `.env`) + E2E
+**Resultado:** PASS — 805 pruebas, cobertura 99 %; E2E 12 pasos sin 5xx.
 
 Formato:
 
@@ -1995,6 +2004,13 @@ Bloqueos: Ninguno
 | CA-009 Consulta de estado | solo tickets propios | igual | `test_ca009_ticket_status_only_own_tickets`, `test_ca001_ca002_ca009_over_whatsapp` | PASS |
 | CA-010 Conversación contextual | «¿Y mañana?» usa la intención previa | memoria por canal | `test_ca010_contextual_follow_up`, `test_context_expires_and_is_per_channel` | PASS |
 
-**Resto de BE-T20:** integración y E2E (TEST-RUN-014), seguridad (TEST-RUN-013 y revisión independiente, ver abajo), carga y benchmark IA (TEST-RUN-013).
+**Resto de BE-T20:** integración y E2E (TEST-RUN-014), seguridad (TEST-RUN-013 y revisión independiente), carga y benchmark IA (TEST-RUN-013).
+
+**Revisión de seguridad independiente (2026-10-13, agente revisor, solo lectura):**
+- 0 críticos. **1 ALTO corregido** (ADR-067): en producción los valores de `dev.py` (SECRET_KEY, DEBUG=True, secreto del webhook) tapaban a los del `.env`, permitiendo firmar eventos de WhatsApp falsos y habilitando `seed_demo`. Verificado con pruebas de settings en subproceso.
+- **2 MEDIOS corregidos** (ADR-068): fuerza bruta de códigos de vinculación (contador en caché local reiniciado por cada ejecución del worker) y doble contador de login (usuario/correo).
+- **BAJO corregido:** comparación del `verify_token` en tiempo constante.
+- **BAJO pendiente de decisión de negocio:** el Agente ve la cola de triaje «Sin área» con tickets de cualquier tema (diseño de BE-T04, CR-003).
+- Revisado sin hallazgos: autorización horizontal/vertical, CSRF, XSS, redirecciones, adjuntos, SQL, firma del webhook, herramientas del agente, datos enviados al LLM, secretos en el repositorio.
 **Pendiente:** UAT con usuarios reales de la universidad (requiere personas, no automatizable) y objetivo IA de SPEC §50, que depende del proveedor LLM real (ADR-010).
 
