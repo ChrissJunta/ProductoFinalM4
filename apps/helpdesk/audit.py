@@ -11,6 +11,7 @@ class Action:
     UPDATE = "UPDATE"
     ACTIVATE = "ACTIVATE"
     DEACTIVATE = "DEACTIVATE"
+    STATUS_CHANGE = "STATUS_CHANGE"
 
 
 def entity_type_of(instance):

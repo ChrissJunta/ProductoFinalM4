@@ -1,4 +1,4 @@
-"""TicketService (SPEC §33). BE-T03 implementa la creación y los adjuntos."""
+"""TicketService (SPEC §33): creación, adjuntos y cambios de estado."""
 
 import os
 
@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import connection, transaction
 from django.utils import timezone
 
-from . import audit
+from . import audit, workflow
 from .attachments import validate_upload
 from .audit import Action
 from .models import Attachment, Ticket
@@ -66,6 +66,7 @@ class TicketService:
         )
         ticket.full_clean()
         ticket.save()
+        workflow.record_initial_status(ticket, actor=user)
         audit.record(
             Action.CREATE,
             ticket,
@@ -76,6 +77,9 @@ class TicketService:
         if attachment is not None:
             TicketService.add_attachment(ticket, attachment, uploaded_by=user)
         return ticket
+
+    # Cambiar estado / resolver / cerrar / reabrir: ver helpdesk.workflow (SPEC §32).
+    change_status = staticmethod(workflow.transition)
 
     @staticmethod
     @transaction.atomic

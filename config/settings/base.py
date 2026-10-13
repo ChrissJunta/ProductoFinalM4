@@ -113,3 +113,8 @@ SESSION_COOKIE_SECURE = env.bool("DJANGO_SECURE_COOKIES", default=not DEBUG)
 CSRF_COOKIE_SECURE = env.bool("DJANGO_SECURE_COOKIES", default=not DEBUG)
 X_FRAME_OPTIONS = "DENY"
 SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Workflow de tickets (SPEC §32.1). Constantes, no tablas.
+WAITING_USER_TIMEOUT_DAYS = 7  # WAITING_USER → CANCELLED sin respuesta del usuario
+AUTO_CLOSE_DAYS = 3  # RESOLVED → CLOSED sin confirmación del usuario
+REOPEN_WINDOW_DAYS = 7  # CLOSED → REOPENED solo dentro de este plazo desde el cierre

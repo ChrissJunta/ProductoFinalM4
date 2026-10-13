@@ -94,7 +94,7 @@ Reglas:
 | FE-T04 | TODO | - | BE-T04 | - |
 | FE-T05 | TODO | - | BE-T05, BE-T07 | - |
 | FE-T06 | TODO | - | BE-T04, BE-T06 | - |
-| FE-T07 | TODO | - | BE-T07 | - |
+| FE-T07 | TODO (acciones disponibles: CONTRACT-006; el detalle llega con BE-T05) | ChatGPT | BE-T07 | 2026-10-13 |
 | FE-T08 | TODO | - | BE-T08 | - |
 | FE-T09 | TODO | - | BE-T03A, BE-T09 | - |
 | FE-T10 | TODO | - | BE-T10 | - |
@@ -113,7 +113,7 @@ Reglas:
 | BE-T04 | TODO | - | BE-T03 | - |
 | BE-T05 | TODO | - | BE-T03 | - |
 | BE-T06 | TODO | - | BE-T03 | - |
-| BE-T07 | TODO | - | BE-T03 | - |
+| BE-T07 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03 | 2026-10-13 |
 | BE-T08 | TODO | - | BE-T03, BE-T07 | - |
 | BE-T09 | TODO | - | BE-T03 | - |
 | BE-T10 | TODO | - | BE-T03, BE-T08 | - |
@@ -230,6 +230,9 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-020 | 2026-10-13 | `ticket_code` = `HD-AAAA-NNNNNN` con una secuencia PostgreSQL global (`helpdesk_ticket_code_seq`); el número no se reinicia cada año | `nextval` es atómico: sin duplicados bajo concurrencia y sin tabla de contadores con bloqueo | `helpdesk.tickets.next_ticket_code` |
 | ADR-021 | 2026-10-13 | Al crear, `assigned_area` = área por defecto de la categoría; estado `NEW`, prioridad `MEDIUM` | Enrutamiento mínimo hasta BE-T09 (RoutingRule) | `TicketService.create` |
 | ADR-022 | 2026-10-13 | Tipo de adjunto por firma del contenido (magic bytes) + extensión; se ignora el tipo MIME declarado por el navegador; nombre en disco aleatorio | Evitar archivos disfrazados y rutas con datos del usuario | `helpdesk.attachments` |
+| ADR-023 | 2026-10-13 | El rol Administrador no ejecuta transiciones de tickets (no figura en la tabla §32.1); un superusuario tampoco | Administrador configura (§9.4); operar tickets es de Agente/Supervisor | `helpdesk.workflow` |
+| ADR-024 | 2026-10-13 | Hasta BE-T05, el «mensaje de resolución» obligatorio (fila 11) se guarda como motivo del cambio de estado | No hay conversación todavía; no se pierde el dato | `TicketStatusHistory.reason` |
+| ADR-025 | 2026-10-13 | Los plazos automáticos (cierre/cancelación) cuentan desde la **última** entrada al estado según `TicketStatusHistory` | Un ticket que vuelve a RESOLVED reinicia su plazo de confirmación | `close_stale_tickets` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -433,6 +436,31 @@ Convenciones para todas las vistas:
 **Datos del adjunto disponibles** (cuando se publique el contrato de detalle): `original_name`, `content_type`, `size_bytes`, `created_at`.
 **Aprobado:** Sí
 
+### CONTRACT-006 — Acciones de estado (FE-005 / FE-T07)
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T07) → consumidor FE-T07
+**Métodos:** solo POST (GET → 405), sin plantilla, requieren sesión y `{% csrf_token %}`. Solo el dueño del ticket o un rol de atención puede llamarlas.
+
+| URL name | Ruta | Destino | Notas |
+|---|---|---|---|
+| `helpdesk:ticket_status` | `/tickets/<code>/status/` | el indicado en `to_status` | Genérica. `to_status` = código de estado (`WAITING_USER`, `CLASSIFIED`, …). |
+| `helpdesk:ticket_resolve` | `/tickets/<code>/resolve/` | `RESOLVED` | `reason` obligatorio (mensaje de resolución). |
+| `helpdesk:ticket_escalate` | `/tickets/<code>/escalate/` | `ESCALATED` | `reason` obligatorio. |
+| `helpdesk:ticket_confirm` | `/tickets/<code>/confirm/` | `CLOSED` | Solo desde `RESOLVED` (usuario confirma). |
+| `helpdesk:ticket_reject_resolution` | `/tickets/<code>/reject-resolution/` | `IN_PROGRESS` | Solo desde `RESOLVED`; `reason` obligatorio. |
+| `helpdesk:ticket_reopen` | `/tickets/<code>/reopen/` | `REOPENED` | Dentro de 7 días desde el cierre. |
+| `helpdesk:ticket_cancel` | `/tickets/<code>/cancel/` | `CANCELLED` | `reason` obligatorio. |
+
+**POST esperado:** `version` (entero, obligatorio: la `ticket.version` que se mostró), `reason` (texto, máx. 2000; obligatorio según la acción), `next` (opcional: URL interna a la que volver), `to_status` (solo en la genérica), `csrfmiddlewaretoken`.
+**Respuestas:**
+- éxito → 302 a `next` (si es interna) o a `accounts:role_redirect`, con mensaje `success`: `"Ticket HD-…: estado cambiado a <Estado>."`;
+- transición no válida, motivo faltante o fuera de plazo → 302 igual, con mensaje `error` (textos de SPEC §19, p. ej. `"Debe indicar un motivo para este cambio de estado."`);
+- versión desactualizada → 302 con mensaje `error`: `"El ticket fue actualizado por otro usuario."`;
+- rol no permitido o ticket ajeno → 403; ticket inexistente → 404; falta `version` o `to_status` inválido → 400.
+
+**Qué botones mostrar:** FRONT no decide. Cuando se publique el contrato del detalle (BE-T05), su contexto incluirá `allowed_targets` (lista de estados a los que el usuario actual puede llevar el ticket, calculada con `helpdesk.workflow.allowed_targets`). Solo deben mostrarse esas acciones.
+**Aprobado:** Sí
+
 ## 12.2 Solicitudes de cambio
 
 ### CHANGE REQUEST CR-001 — Agente LangGraph
@@ -472,6 +500,7 @@ Plantilla:
 - `helpdesk/migrations/0002_initial_catalogs.py` — 4 áreas, 4 categorías, 12 subcategorías (auditadas como SYSTEM) — aplicada y reversible — BE-T03A
 - `helpdesk/migrations/0003_role_permissions.py` — permisos de modelo por rol para catálogos y auditoría — aplicada y reversible — BE-T03A
 - `helpdesk/migrations/0004_tickets.py` — secuencia `helpdesk_ticket_code_seq`, `Ticket`, `Attachment` e índices — aplicada y reversible — BE-T03
+- `helpdesk/migrations/0005_ticket_status_history.py` — `TicketStatusHistory` — aplicada y reversible — BE-T07
 
 Formato:
 
@@ -497,6 +526,8 @@ Rutas web (vistas Django, ADR-007):
 - `GET|POST /tickets/new/` — `helpdesk:ticket_create` — REVIEW — BE-T03 — CONTRACT-004
 - `GET /tickets/<code>/attachments/<id>/` — `helpdesk:attachment_download` — REVIEW — BE-T03 — CONTRACT-005
 - `/admin/helpdesk/{ticket,attachment}/` — solo lectura — REVIEW — BE-T03
+- `POST /tickets/<code>/{status,resolve,escalate,confirm,reject-resolution,reopen,cancel}/` — `helpdesk:ticket_*` — REVIEW — BE-T07 — CONTRACT-006
+- Comando `python manage.py close_stale_tickets [--dry-run]` — REVIEW — BE-T07 (cron cada hora, SPEC §38.1)
 
 API: ninguna todavía (el webhook WhatsApp llegará con BE-T11).
 
@@ -534,6 +565,14 @@ Formato:
 **Entorno:** PostgreSQL 16 local, `config.settings.test`, sin `.env` (igual que CI)
 **Resultado:** PASS — 160 pruebas, cobertura 98,6 %. Incluye 12 hilos creando tickets a la vez sin códigos duplicados.
 **Fallos:** ninguno
+
+### TEST-RUN-004
+**Fecha:** 2026-10-13
+**Tarea:** BE-T07
+**Comando:** mismo que TEST-RUN-001 (dos ejecuciones completas)
+**Entorno:** PostgreSQL 16 local, `config.settings.test`, sin `.env` (igual que CI)
+**Resultado:** PASS — 394 pruebas, cobertura 99 % (`workflow.py`, vistas y comando al 100 %). Incluye la matriz 17 transiciones × 7 actores, las 73 transiciones fuera de la tabla y una prueba concurrente de bloqueo optimista.
+**Fallos:** el primer intento falló en PostgreSQL (`FOR UPDATE cannot be applied to the nullable side of an outer join`); corregido con `select_for_update(of=("self",))`.
 
 Formato:
 
@@ -636,10 +675,10 @@ SPEC aprobada: Sí
 SPEC versión: 5.2
 Front backlog definido: Sí
 Back backlog definido: Sí
-Código implementado: BE-T01 (incluye BE-T02), BE-T03A y BE-T03 en REVIEW
-Migraciones: accounts 0001, 0002; helpdesk 0001-0004
+Código implementado: BE-T01 (incluye BE-T02), BE-T03A, BE-T03 y BE-T07 en REVIEW
+Migraciones: accounts 0001, 0002; helpdesk 0001-0005
 Endpoints: login, logout, role_redirect, home, ticket_create, attachment_download (vistas web); admin de catálogos, auditoría y tickets
-Pruebas: TEST-RUN-001, TEST-RUN-002, TEST-RUN-003 PASS
+Pruebas: TEST-RUN-001 a TEST-RUN-004 PASS
 Bloqueos: Ninguno
 ```
 
@@ -759,7 +798,7 @@ Bloqueos: Ninguno
 ### Pendientes derivados
 - `Ticket.intent` → BE-T09 (CR-002).
 - `first_response_due_at` / `sla_due_at` → BE-T08.
-- Registro inicial en `TicketStatusHistory` (None → NEW) → BE-T07, cuando exista el modelo.
+- ~~Registro inicial en `TicketStatusHistory` (None → NEW) → BE-T07~~ — resuelto en BE-T07.
 - Restringir la descarga de adjuntos de Agentes a tickets de su área/asignación → BE-T04 (hoy cualquier rol de atención puede).
 - Redirigir tras crear al detalle del ticket → cuando existan BE-T05/FE-T05 (CHANGE REQUEST de CONTRACT-004).
 - Limpieza periódica de archivos huérfanos si una transacción externa revierte tras guardar el archivo → junto a los comandos periódicos (BE-T12).
@@ -817,3 +856,54 @@ Bloqueos: Ninguno
 - Migraciones/endpoints nuevos: ninguno. Solo consume vistas publicadas por BACK.
 - Pruebas efectivas y archivos: ver historial FRONT en sección 16. Datos sintéticos exclusivamente en BD temporal, eliminada al cerrar validación; sin usuarios reales ni secretos de producción.
 - Pendientes: revisión humana del FRONT/backend y creación del PR cuando la API GitHub sea accesible. Nunca merge automático ni push a main.
+## BE-T07 — Workflow y estados — Cierre
+
+**Estado:** REVIEW (pasa a DONE cuando el PR se apruebe y CI esté en verde)
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- `helpdesk.workflow.TRANSITIONS`: las 17 transiciones de SPEC §32.1 como datos (origen, destino, actores permitidos, motivo obligatorio). Toda otra transición está prohibida.
+- Actores: `SYSTEM` (proceso backend, `actor=None`), `OWNER` (solicitante), `AGENT`, `ASSIGNED_AGENT`, `SUPERVISOR`. Administrador no opera tickets (ADR-023).
+- `workflow.transition(ticket, target, *, actor, reason, expected_version)` (= `TicketService.change_status`): bloquea la fila, comprueba versión (bloqueo optimista), regla, actor, motivo y condiciones; aplica efectos; incrementa `version`; escribe `TicketStatusHistory` y `AuditLog` (`STATUS_CHANGE`); todo en una transacción.
+- Condiciones: `ASSIGNED` exige área o responsable; reapertura solo dentro de `REOPEN_WINDOW_DAYS`.
+- Efectos: `assigned_at`, `resolved_at`, `closed_at`; reabrir limpia resolución/cierre; rechazo de resolución limpia `resolved_at` y conserva el SLA; `REOPENED → ASSIGNED` vuelve al último responsable solo si sigue activo.
+- `workflow.allowed_targets(ticket, user)`: estados alcanzables por el usuario (para que FRONT muestre solo acciones válidas).
+- Errores con mensajes de SPEC §19: `InvalidTransition`, `TransitionForbidden` (403), `ReasonRequired`, `StaleTicket`.
+- `TicketService.create` ahora registra la entrada inicial `— → NEW` al crearse.
+- Vistas POST de SPEC §47.1 (CONTRACT-006) y comando `close_stale_tickets` (filas 9 y 14).
+- Constantes en settings: `WAITING_USER_TIMEOUT_DAYS=7`, `AUTO_CLOSE_DAYS=3`, `REOPEN_WINDOW_DAYS=7`.
+
+### Archivos creados/modificados
+- `apps/helpdesk/{workflow,models,tickets,audit,forms,views,urls}.py`
+- `apps/helpdesk/management/commands/close_stale_tickets.py`
+- `apps/helpdesk/migrations/0005_ticket_status_history.py`
+- `apps/helpdesk/tests/{test_workflow,test_workflow_views,test_close_stale_tickets}.py`
+- `config/settings/base.py`
+
+### Criterio de aceptación
+- Transiciones inválidas o no permitidas al rol rechazadas: matriz completa probada (17 × 7 actores + 73 transiciones fuera de tabla).
+- Actualización concurrente detectada: dos hilos con la misma versión → uno gana, el otro recibe `StaleTicket`.
+
+### Operación (cron, SPEC §38.1)
+```cron
+0 * * * *  cd /ruta/proyecto && .venv/bin/python manage.py close_stale_tickets
+```
+
+### Decisiones tomadas
+- ADR-023, ADR-024, ADR-025.
+
+### Pendientes derivados
+- Crear `Alert` de tipo `ESCALATED` al escalar (filas 6 y 10) → BE-T08, cuando exista `Alert`.
+- Exponer `allowed_targets` y el historial en el contexto del detalle → BE-T05 (contrato del detalle).
+- Restringir `AGENT` (filas 1, 3 y 8) a tickets de su área → BE-T04.
+- `WAITING_USER → IN_PROGRESS` automático cuando el usuario responda → BE-T05 (al registrar su mensaje).
+
+## 2026-10-13 — Claude (BACKEND) / BE-T07
+
+- Estado anterior: TODO.
+- Estado nuevo: REVIEW.
+- Trabajo realizado: máquina de estados, historial, bloqueo optimista, acciones POST, comando de cierre automático, CONTRACT-006.
+- Archivos: ver cierre de BE-T07.
+- Pruebas: TEST-RUN-004 PASS.
+- Observaciones: desbloquea BE-T08 (SLA y alertas) y las acciones de FE-T07.
