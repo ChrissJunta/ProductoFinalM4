@@ -1,6 +1,22 @@
-{# TEMPORAL (backend): plantilla mínima para pruebas. La reemplaza el FRONTEND según CONTRACT-009 en progress.md. #}
-<!doctype html>
-<html lang="es"><head><meta charset="utf-8"><title>Tickets</title></head>
-<body>
-<ul>{% for row in rows %}<li>{{ row.ticket.ticket_code }} · {{ row.ticket.subject }} · {{ row.ticket.get_status_display }} · SLA {{ row.sla.state }}</li>{% empty %}<li>Sin tickets</li>{% endfor %}</ul>
-</body></html>
+{% extends 'base.html' %}
+{% load tz %}
+{% block title %}Bandeja de atención{% endblock %}
+{% block content %}
+<h1 class="h3 mb-2">Bandeja de atención</h1>
+<p class="text-secondary mb-4">Consulta las solicitudes autorizadas y su prioridad de atención.</p>
+<nav aria-label="Vistas de la bandeja" class="mb-4">
+  <ul class="nav nav-pills gap-2 flex-wrap">
+    {% for item in tabs %}<li class="nav-item"><a class="nav-link{% if item.key == tab %} active{% endif %}" href="{% url 'helpdesk:agent_inbox' %}?tab={{ item.key|urlencode }}"{% if item.key == tab %} aria-current="page"{% endif %}>{{ item.label }}{% if item.count != None %} <span class="badge text-bg-light ms-1">{{ item.count }}</span>{% endif %}</a></li>{% endfor %}
+  </ul>
+</nav>
+{% url 'helpdesk:agent_inbox' as filter_action %}
+{% include 'components/ticket_filters.html' %}
+{% get_current_timezone as current_timezone %}
+<p class="small text-secondary">Las pestañas muestran conteos antes de aplicar filtros adicionales. Fechas en {{ current_timezone }}. El SLA se actualiza al abrir o filtrar esta vista.</p>
+{% if rows %}
+  {% include 'components/ticket_table.html' with rows=rows user_role=user_role only %}
+  {% include 'components/pagination.html' with page_obj=page_obj only %}
+{% else %}
+  <section class="card border-0 shadow-sm p-4" aria-labelledby="empty-title"><h2 id="empty-title" class="h5">Sin tickets</h2><p class="mb-0 text-secondary">No hay solicitudes en esta vista con los filtros seleccionados.</p></section>
+{% endif %}
+{% endblock %}
