@@ -16,5 +16,11 @@ def get_provider():
 
         return LocalProvider()
     if name == "sga":
-        raise ImproperlyConfigured("SGAProvider aún no está disponible (BE-T19).")
+        from .sga import SGAProvider
+
+        if not settings.SGA_BASE_URL:
+            raise ImproperlyConfigured("INSTITUTIONAL_PROVIDER=sga requiere SGA_BASE_URL.")
+        return SGAProvider(
+            settings.SGA_BASE_URL, token=settings.SGA_TOKEN, timeout=settings.SGA_TIMEOUT
+        )
     raise ImproperlyConfigured(f"INSTITUTIONAL_PROVIDER desconocido: {name!r}.")

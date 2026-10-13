@@ -140,7 +140,7 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | BE-T17 | REVIEW (pendiente de revisión del PR) | Claude | BE-T16 | 2026-10-13 |
 | BE-T18 | REVIEW (pendiente de revisión del PR) | Claude | BE-T16, BE-T17 | 2026-10-13 |
 | BE-T18A | REVIEW (web; la entrada WhatsApp llega con BE-T11/T12 simulados) | Claude | BE-T13..BE-T18 | 2026-10-13 |
-| BE-T19 | TODO | - | BE-T15 | - |
+| BE-T19 | REVIEW (adaptador + SGA simulado; contrato real del SGA pendiente) | Claude | BE-T15 | 2026-10-13 |
 | BE-T20 | TODO | - | BE-T01..BE-T19, BE-T18A | - |
 
 Notas v5.2:
@@ -281,6 +281,7 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-057 | 2026-10-13 | Revisión humana: aceptar, corregir (solo ticket NEW: nueva intención → categoría, routing y SLA recalculados, `classification_source=HUMAN`, auditado) o rechazar. Solo Agente/Supervisor con el ticket visible; el Administrador no opera tickets (ADR-023). Si el hilo ya no existe (memoria tras reinicio), la decisión se aplica igual y se anota | Trazabilidad y robustez | `runner.resume_agent`, CONTRACT-015 |
 | ADR-058 | 2026-10-13 | Administración propia en `/manage/` (CONTRACT-016) con un registro único de entidades; escritura solo vía `helpdesk.catalogs` (auditada), sin borrado; `code` inmutable tras crear; relaciones limitadas a opciones activas (más la actual al editar); sin bloqueo optimista (solo Administrador; auditoría completa) | Desbloquea FE-T09 sin duplicar lógica del admin de Django | `helpdesk.catalog_admin`, `manage_views` |
 | ADR-059 | 2026-10-13 | Métricas (CONTRACT-017): universo = tickets creados en el periodo (fechas locales, extremos incluidos, por defecto 30 días, máx. 1 año); tiempos en minutos de reloj; SLA cumple/incumple/en curso/sin SLA; cumplimiento = cumple/(cumple+incumple). Solo Supervisor (§47.1). Incluye métricas IA de §49 | Definiciones explícitas para que FRONT no calcule | `helpdesk.metrics` |
+| ADR-060 | 2026-10-13 | `SGAProvider` usa un contrato HTTP **supuesto** (`/estudiantes/{id}/horario|calificaciones|estado-cuenta|matricula|asignaturas`, campos en español) aislado en `sga.ROUTES` y `map_*`; se ajusta en un solo lugar cuando el SGA publique el suyo. Timeout por petición (`SGA_TIMEOUT`), 1 reintento ante 5xx/timeout/red, 404 → `StudentNotFound`, otro 4xx sin reintento, JSON o formato inválido → `ProviderError`. Token Bearer opcional (`SGA_TOKEN`) | SPEC §41 «no inventar endpoints reales»; LocalProvider y SGAProvider cumplen el mismo contrato | `integrations.institutional.sga`, `sga_mock` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -935,6 +936,7 @@ Rutas web (vistas Django, ADR-007):
 - `/admin/ai/{aimodelconfig,aipromptversion}/` (auditado, sin borrado) y `/admin/ai/{aiusage,aidecision}/` (solo lectura) — REVIEW — BE-T16/BE-T18
 - `/manage/` y `/manage/<entity>/[new/|<pk>/|<pk>/toggle/]` — `manage:*` — REVIEW — CONTRACT-016
 - `GET /metrics/` — `helpdesk:metrics` — REVIEW — BE-T10 — CONTRACT-017
+- Comando `python manage.py run_sga_mock [--port 8099] [--token …]` — SGA simulado para desarrollo — REVIEW — BE-T19
 - Comandos `python manage.py evaluate_intents [--split dev|test|all] [--errors]` y `python manage.py agent_graph [--check]` — REVIEW — BE-T17/BE-T18A
 
 API: ninguna todavía (el webhook WhatsApp llegará con BE-T11).
@@ -1042,6 +1044,13 @@ Formato:
 **Comando:** mismo que TEST-RUN-001 (dos ejecuciones completas sin `.env`) + E2E del repositorio en Chromium
 **Resultado:** PASS — 741 pruebas, cobertura 99 %; E2E 12 pasos sin 5xx.
 **Fallos:** al nombrar `apps/helpdesk/manage.py`, pytest-django lo tomó por el `manage.py` del proyecto y rompió las importaciones; renombrado a `catalog_admin.py`.
+
+### TEST-RUN-012
+**Fecha:** 2026-10-13
+**Tarea:** BE-T19
+**Comando:** mismo que TEST-RUN-001 (dos ejecuciones completas sin `.env`)
+**Resultado:** PASS — 763 pruebas, cobertura 99 % (`sga.py` 100 %), incluye peticiones HTTP reales contra el SGA simulado.
+**Fallos:** ninguno.
 
 Formato:
 
@@ -1886,3 +1895,20 @@ Bloqueos: Ninguno
 
 - Estado anterior: CONTRACT-FRONT-005/006 pendientes; BE-T10 TODO.
 - Estado nuevo: REVIEW; FE-T09 y FE-T10 desbloqueadas; FE-T12 creada (aprobado por el responsable: «Avanza»).
+
+## BE-T19 — SGAProvider mock/contrato — Cierre
+
+**Estado:** REVIEW
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- `SGAProvider` (adaptador HTTP con `urllib`, sin dependencias nuevas): mapping, timeouts, reintento y manejo 4xx/5xx (ADR-060).
+- SGA simulado (`sga_mock`, comando `run_sga_mock`) que sirve los datos locales en el formato supuesto, con códigos especiales para provocar 500, 503 transitorio, lentitud, cuerpo no JSON y formato inesperado.
+- Selección por `INSTITUTIONAL_PROVIDER=sga` + `SGA_BASE_URL`/`SGA_TOKEN`/`SGA_TIMEOUT`.
+
+### Criterio de aceptación
+- «LocalProvider y SGAProvider mock cumplen el mismo contrato»: probado método a método con resultados idénticos; el agente responde igual vía SGA y convierte una caída del SGA en ticket.
+
+### Pendientes derivados
+- Ajustar `ROUTES`/`map_*` cuando la universidad entregue el contrato real del SGA (sin cambios fuera de `sga.py`).

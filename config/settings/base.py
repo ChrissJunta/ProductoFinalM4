@@ -130,6 +130,9 @@ SLA_WARNING_RATIO = 0.8  # SLA_WARNING al consumir el 80 % del plazo (§34.2)
 
 # Integración institucional (SPEC §39-§41). «local» = datos simulados; «sga» llega con BE-T19.
 INSTITUTIONAL_PROVIDER = env("INSTITUTIONAL_PROVIDER", default="local")
+SGA_BASE_URL = env("SGA_BASE_URL", default="")  # solo con INSTITUTIONAL_PROVIDER=sga (BE-T19)
+SGA_TOKEN = env("SGA_TOKEN", default="")
+SGA_TIMEOUT = env.float("SGA_TIMEOUT", default=5.0)  # segundos por petición
 
 # IA (SPEC §42-§46). LLM_PROVIDER elige la familia de proveedor (ADR-010 abierto: «fake»
 # en desarrollo y CI); los modelos primario/respaldo se configuran en AIModelConfig.
