@@ -30,3 +30,4 @@
 .mesa-form :is(input, select, textarea):focus-visible { outline: 3px solid #3C235F; outline-offset: 2px; }
 .mesa-form :is(input, select, textarea):disabled { background: #e9ecef; }
 .mesa-form [aria-invalid="true"] { border-color: #b02a37; }
+.btn-outline-primary { --bs-btn-color: #3C235F; --bs-btn-border-color: #3C235F; --bs-btn-hover-color: #fff; --bs-btn-hover-bg: #3C235F; --bs-btn-hover-border-color: #3C235F; --bs-btn-active-color: #fff; --bs-btn-active-bg: #3C235F; --bs-btn-active-border-color: #3C235F; --bs-btn-disabled-color: #3C235F; --bs-btn-disabled-border-color: #3C235F; --bs-btn-focus-shadow-rgb: 60,35,95; }
