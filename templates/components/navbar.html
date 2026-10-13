@@ -7,6 +7,7 @@
       <a class="nav-link" href="{% url 'helpdesk:ticket_create' %}">Nueva solicitud</a>
       <a class="nav-link" href="{% url 'helpdesk:ticket_list' %}">{% if user_role == 'Usuario' %}Mis tickets{% else %}Tickets{% endif %}</a>
       {% if user_role == 'Agente' or user_role == 'Supervisor' %}<a class="nav-link" href="{% url 'helpdesk:agent_inbox' %}">Bandeja</a>{% endif %}
+      {% if user_role == 'Administrador' %}<a class="nav-link" href="{% url 'manage:index' %}">Administración</a>{% endif %}
       {% if user_role == 'Supervisor' %}<a class="nav-link" href="{% url 'helpdesk:alert_list' %}">Alertas</a>{% endif %}
       <span class="small text-secondary account-label">{{ user.get_full_name|default:user.username }}{% if user_role %} · {{ user_role }}{% endif %}</span>
       <form method="post" action="{% url 'accounts:logout' %}">

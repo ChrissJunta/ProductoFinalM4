@@ -1,12 +1,9 @@
-{% extends "base.html" %}
-{# Plantilla TEMPORAL del backend (CONTRACT-016). FRONT la reemplaza en FE-T09. #}
+{% extends 'base.html' %}
+{% block title %}{{ entity_label }}{% endblock %}
 {% block content %}
-<h1 class="h4">{{ entity_label }}</h1>
-<p><a href="{{ create_url }}">Nuevo/a {{ entity_label_singular }}</a></p>
-<form method="get"><input name="q" value="{{ filters.q }}"><select name="status">{% for v, l in status_choices %}<option value="{{ v }}"{% if v == filters.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select><button>Filtrar</button></form>
-<table class="table"><thead><tr>{% for c in columns %}<th>{{ c }}</th>{% endfor %}<th>Estado</th><th></th></tr></thead><tbody>
-{% for row in rows %}<tr>{% for v in row.values %}<td>{{ v }}</td>{% endfor %}<td>{{ row.is_active|yesno:"Activo,Inactivo" }}</td>
-<td><a href="{{ row.edit_url }}">Editar</a>
-<form method="post" action="{{ row.toggle_url }}" class="d-inline">{% csrf_token %}<input type="hidden" name="active" value="{{ row.is_active|yesno:'0,1' }}"><button>{{ row.is_active|yesno:"Desactivar,Activar" }}</button></form></td></tr>{% endfor %}
-</tbody></table>
+{% include 'components/manage_nav.html' %}
+<div class="d-flex flex-wrap justify-content-between gap-2 mb-3"><h1 class="h3">{{ entity_label }}</h1><a class="btn btn-primary" href="{% url 'manage:create' entity %}">Crear {{ entity_label_singular }}</a></div>
+<form class="card card-body mb-4" method="get" action="{% url 'manage:list' entity %}" aria-label="Filtrar catálogo"><div class="row g-3 align-items-end"><div class="col-md-6"><label class="form-label" for="catalog-search">Buscar por código o nombre</label><input class="form-control" id="catalog-search" name="q" value="{{ filters.q }}"></div><div class="col-md-3"><label class="form-label" for="catalog-status">Estado</label><select class="form-select" id="catalog-status" name="status">{% for value, label in status_choices %}<option value="{{ value }}"{% if value == filters.status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div><div class="col-md-3 d-flex gap-2"><button class="btn btn-primary" type="submit">Filtrar</button><a class="btn btn-outline-secondary" href="{% url 'manage:list' entity %}">Limpiar</a></div></div></form>
+{% if rows %}<div class="table-responsive border rounded bg-white" role="region" aria-label="Catálogo; tabla desplazable horizontalmente" tabindex="0"><table class="table align-middle mb-0"><caption class="caption-top px-3">{{ page_obj.paginator.count }} registros · 20 por página</caption><thead><tr>{% for column in columns %}<th scope="col">{{ column }}</th>{% endfor %}<th scope="col">Estado</th><th scope="col">Acciones</th></tr></thead><tbody>{% for row in rows %}<tr>{% for value in row.values %}<td>{{ value }}</td>{% endfor %}<td>{{ row.is_active|yesno:'Activo,Inactivo' }}</td><td><div class="d-flex flex-wrap gap-2"><a class="btn btn-sm btn-outline-primary" href="{% url 'manage:edit' entity row.pk %}" aria-label="Editar {{ row.object }}">Editar</a><form method="post" action="{% url 'manage:toggle' entity row.pk %}">{% csrf_token %}<input type="hidden" name="active" value="{{ row.is_active|yesno:'0,1' }}"><button class="btn btn-sm btn-outline-secondary" type="submit" aria-label="{{ row.is_active|yesno:'Desactivar,Activar' }} {{ row.object }}">{{ row.is_active|yesno:'Desactivar,Activar' }}</button></form></div></td></tr>{% endfor %}</tbody></table></div>{% include 'components/pagination.html' %}
+{% else %}<p class="card card-body">No hay registros que coincidan con los filtros.</p>{% endif %}
 {% endblock %}

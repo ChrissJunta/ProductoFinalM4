@@ -24,3 +24,9 @@
 .btn { min-height: 2.5rem; }
 
 .mesa-preserve-lines { white-space: pre-line; overflow-wrap: anywhere; }
+
+.mesa-form :is(input:not([type="checkbox"]):not([type="hidden"]), select, textarea) { display: block; width: 100%; padding: .5rem .75rem; font: inherit; color: var(--bs-body-color); background: white; border: 1px solid #767676; border-radius: .375rem; }
+.mesa-form textarea { min-height: 8rem; }
+.mesa-form :is(input, select, textarea):focus-visible { outline: 3px solid #3C235F; outline-offset: 2px; }
+.mesa-form :is(input, select, textarea):disabled { background: #e9ecef; }
+.mesa-form [aria-invalid="true"] { border-color: #b02a37; }
