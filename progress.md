@@ -100,7 +100,7 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | ID | Estado | Responsable/Agente | Dependencia | Última actualización |
 |---|---|---|---|---|
 | FE-T01 | REVIEW (implementada y validada en Cloud; pendiente de revisión) | ChatGPT | BE-T01 | 2026-10-12 |
-| FE-T02 | TODO (desbloqueada: CONTRACT-013) | ChatGPT | BE-T03, BE-T04 | 2026-10-13 |
+| FE-T02 | REVIEW (CONTRACT-013; resumen y recientes implementados) | ChatGPT | BE-T03, BE-T04 | 2026-10-13 |
 | FE-T03 | REVIEW (implementada y validada en Cloud; pendiente de revisión) | ChatGPT | BE-T03, BE-T03A | 2026-10-12 |
 | FE-T04 | REVIEW (listado validado en Cloud; CONTRACT-008) | ChatGPT | BE-T04 | 2026-10-12 |
 | FE-T05 | TODO (desbloqueada: CONTRACT-010/011; hay plantilla TEMPORAL funcional) | ChatGPT | BE-T05, BE-T07 | 2026-10-13 |
@@ -1472,3 +1472,8 @@ Bloqueos: Ninguno
 - `.env.example` sugiere `TIME_ZONE=America/Guayaquil`.
 - Verificación: TEST-RUN-007 (535 pruebas) y E2E-RUN-001 (navegador real, 5 roles). Guía paso a paso en `README.md` («Cómo verificar el MVP»), usuarios demo con `seed_demo`.
 - Para FRONT: contratos 010-013 publicados; ver sección 3.2 sobre los dos archivos FRONT tocados por BACK y la plantilla temporal del detalle.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T02 — REVIEW
+
+- Inicio con contadores suministrados por BACK, hasta cinco tickets recientes y enlaces contratados. Sin consultas ni cálculo de permisos FRONT.
+- Django check sin incidencias; suite PostgreSQL conjunta en ejecución. Validación funcional conjunta pendiente antes de main.
