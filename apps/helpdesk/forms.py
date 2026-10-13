@@ -51,3 +51,10 @@ def category_tree():
         }
         for c in categories
     ]
+
+
+class TransitionForm(forms.Form):
+    """POST de las acciones de estado (CONTRACT-006)."""
+
+    version = forms.IntegerField(min_value=1)
+    reason = forms.CharField(max_length=2000, required=False)

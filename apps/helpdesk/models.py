@@ -288,3 +288,39 @@ class Attachment(models.Model):
 
     def __str__(self):
         return self.original_name
+
+
+class TicketStatusHistory(models.Model):
+    """Historial de cambios de estado (SPEC §26, §32.2). Lo escribe `helpdesk.workflow`."""
+
+    ticket = models.ForeignKey(
+        Ticket, verbose_name="ticket", on_delete=models.PROTECT, related_name="status_history"
+    )
+    previous_status = models.CharField(
+        "estado anterior", max_length=16, choices=Ticket.Status.choices, blank=True, default=""
+    )
+    new_status = models.CharField("estado nuevo", max_length=16, choices=Ticket.Status.choices)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="actor",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="Vacío cuando la transición la ejecuta el sistema.",
+    )
+    reason = models.TextField("motivo", blank=True, default="")
+    created_at = models.DateTimeField("fecha", auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = "cambio de estado"
+        verbose_name_plural = "historial de estados"
+        ordering = ["created_at", "id"]
+        indexes = [
+            models.Index(
+                fields=["ticket", "new_status", "-created_at"], name="helpdesk_hist_entry_idx"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.ticket_id}: {self.previous_status or '—'} → {self.new_status}"
