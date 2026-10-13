@@ -1,9 +1,24 @@
-:root { --bs-primary: #174c87; }
-.btn-primary { --bs-btn-bg: #174c87; --bs-btn-border-color: #174c87; --bs-btn-hover-bg: #103965; --bs-btn-hover-border-color: #103965; }
-.text-primary { color: #174c87 !important; }
-.skip-link { position: absolute; top: -5rem; left: 1rem; z-index: 100; padding: .75rem 1rem; background: #fff; color: #174c87; }
+:root {
+  --bs-primary: #3c235f;
+  --bs-primary-rgb: 60, 35, 95;
+  --mesa-accent: #ea600a;
+  --bs-secondary-rgb: 89, 99, 109;
+  --bs-link-color: #3c235f;
+  --bs-link-color-rgb: 60, 35, 95;
+  --bs-link-hover-color: #2b1749;
+  --bs-link-hover-color-rgb: 43, 23, 73;
+}
+.btn-primary { --bs-btn-bg: #3c235f; --bs-btn-border-color: #3c235f; --bs-btn-hover-bg: #2b1749; --bs-btn-hover-border-color: #2b1749; --bs-btn-active-bg: #24103d; --bs-btn-active-border-color: #24103d; --bs-btn-disabled-bg: #3c235f; --bs-btn-disabled-border-color: #3c235f; --bs-btn-focus-shadow-rgb: 60, 35, 95; }
+.text-primary { color: #3c235f !important; }
+.brand-header { border-top: .25rem solid var(--mesa-accent); }
+.brand-logo { width: 4.5rem; height: 4.5rem; object-fit: contain; flex-shrink: 0; }
+.login-logo { display: block; width: 10rem; height: 10rem; object-fit: contain; margin: 0 auto 1.5rem; }
+.brand-card { border-top: .25rem solid var(--mesa-accent) !important; }
+.pagination { --bs-pagination-color: #3c235f; --bs-pagination-hover-color: #2b1749; --bs-pagination-focus-color: #2b1749; --bs-pagination-active-bg: #3c235f; --bs-pagination-active-border-color: #3c235f; --bs-pagination-focus-box-shadow: 0 0 0 .25rem rgba(60, 35, 95, .18); }
+.skip-link { position: absolute; top: -5rem; left: 1rem; z-index: 100; padding: .75rem 1rem; background: #fff; color: #3c235f; }
 .skip-link:focus { top: 1rem; }
-:focus-visible { outline: 3px solid #174c87; outline-offset: 3px; }
+:focus-visible { outline: 3px solid #3c235f; outline-offset: 3px; }
+.form-control:focus, .form-select:focus { border-color: #3c235f; box-shadow: 0 0 0 .25rem rgba(60, 35, 95, .18); }
 .account-label { overflow-wrap: anywhere; }
 .form-control, .form-select { min-height: 2.75rem; }
 .btn { min-height: 2.5rem; }
