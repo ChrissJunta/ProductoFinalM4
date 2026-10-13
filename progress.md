@@ -103,7 +103,7 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | FE-T02 | REVIEW (CONTRACT-013; resumen y recientes implementados) | ChatGPT | BE-T03, BE-T04 | 2026-10-13 |
 | FE-T03 | REVIEW (implementada y validada en Cloud; pendiente de revisión) | ChatGPT | BE-T03, BE-T03A | 2026-10-12 |
 | FE-T04 | REVIEW (listado validado en Cloud; CONTRACT-008) | ChatGPT | BE-T04 | 2026-10-12 |
-| FE-T05 | TODO (desbloqueada: CONTRACT-010/011; hay plantilla TEMPORAL funcional) | ChatGPT | BE-T05, BE-T07 | 2026-10-13 |
+| FE-T05 | REVIEW (detalle y conversación CONTRACT-010/011) | ChatGPT | BE-T05, BE-T07 | 2026-10-13 |
 | FE-T06 | REVIEW (lectura validada; asignación desbloqueada: CONTRACT-012) | ChatGPT | BE-T04, BE-T06 | 2026-10-13 |
 | FE-T07 | TODO (desbloqueada: CONTRACT-006 + `actions` de CONTRACT-010) | ChatGPT | BE-T07 | 2026-10-13 |
 | FE-T08 | REVIEW (alertas implementadas y validadas; CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-12 |
@@ -1477,3 +1477,8 @@ Bloqueos: Ninguno
 
 - Inicio con contadores suministrados por BACK, hasta cinco tickets recientes y enlaces contratados. Sin consultas ni cálculo de permisos FRONT.
 - Django check sin incidencias; suite PostgreSQL conjunta en ejecución. Validación funcional conjunta pendiente antes de main.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T05 — REVIEW
+
+- Sustituida identificación temporal: detalle, historial cronológico WEB/WhatsApp, descargas autorizadas y respuesta multipart con CSRF, límite visible y permiso can_reply. Autoescape conservado.
+- Acciones y asignación separadas en componente para tareas propias; no se modificó lógica BACK. Validación PostgreSQL y navegador conjunta antes de main.
