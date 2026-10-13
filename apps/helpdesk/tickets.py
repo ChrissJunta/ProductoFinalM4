@@ -6,6 +6,8 @@ from django.core.exceptions import ValidationError
 from django.db import connection, transaction
 from django.utils import timezone
 
+from apps.automation.services import AutomationService
+
 from . import assignment, audit, sla, workflow
 from .attachments import validate_upload
 from .audit import Action
@@ -35,14 +37,15 @@ class TicketService:
         subject,
         description,
         channel=Ticket.Channel.WEB,
+        intent=None,
         category=None,
         subcategory=None,
         attachment=None,
     ):
         """Crea un ticket en estado NEW y registra la auditoría inicial.
 
-        El código, el estado, la prioridad y el área los decide el backend;
-        el área inicial es la de la categoría (BE-T09 añadirá routing).
+        El código, el estado, la prioridad y el área los decide el backend: el área
+        inicial es la de la categoría, salvo que una regla de routing diga otra cosa.
         """
         if attachment is not None:
             validate_upload(attachment)
@@ -61,9 +64,12 @@ class TicketService:
             subcategory=subcategory,
             subject=subject.strip(),
             description=description.strip(),
+            intent=intent,
             assigned_area=category.default_area if category else None,
             classification_source=Ticket.ClassificationSource.USER if category else "",
         )
+        # Routing configurable (BE-T09): puede fijar área y prioridad antes de calcular el SLA.
+        rule = AutomationService.route_ticket(ticket)
         ticket.full_clean()
         ticket.save()
         # Los plazos se cuentan desde created_at, que se fija al guardar.
@@ -75,6 +81,11 @@ class TicketService:
             ticket,
             actor=user,
             new=audit.snapshot(ticket, Ticket.audit_fields),
+            metadata=(
+                {"routing_rule_id": rule.pk, "requires_validation": rule.requires_validation}
+                if rule
+                else None
+            ),
         )
 
         if attachment is not None:

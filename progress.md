@@ -107,7 +107,7 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | FE-T06 | REVIEW (lectura validada; asignación desbloqueada: CONTRACT-012) | ChatGPT | BE-T04, BE-T06 | 2026-10-13 |
 | FE-T07 | TODO (desbloqueada: CONTRACT-006 + `actions` de CONTRACT-010) | ChatGPT | BE-T07 | 2026-10-13 |
 | FE-T08 | REVIEW (alertas implementadas y validadas; CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-12 |
-| FE-T09 | TODO | - | BE-T03A, BE-T09 | - |
+| FE-T09 | TODO (modelos listos; hoy se administra en Django admin) | ChatGPT | BE-T03A, BE-T09 | 2026-10-13 |
 | FE-T10 | TODO | - | BE-T10 | - |
 | FE-T11 | TODO | - | BE-T11A | - |
 
@@ -126,7 +126,7 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | BE-T06 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03 | 2026-10-13 |
 | BE-T07 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03 | 2026-10-13 |
 | BE-T08 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03, BE-T07 | 2026-10-13 |
-| BE-T09 | TODO | - | BE-T03 | - |
+| BE-T09 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03 | 2026-10-13 |
 | BE-T10 | TODO | - | BE-T03, BE-T08 | - |
 | BE-T11 | TODO | - | BE-T05 | - |
 | BE-T11A | TODO | - | BE-T01, BE-T11 | - |
@@ -257,6 +257,9 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-036 | 2026-10-13 | Asignación: Supervisor a cualquier área/agente; Agente solo dentro de sus áreas (tomar o pasar a un compañero) y nunca un ticket ESCALATED; el responsable debe ser agente activo del área | SPEC §9.2 «reasignar cuando tenga permiso», §9.3, fila 12 | `assignment` |
 | ADR-037 | 2026-10-13 | Asignar avanza el estado a ASSIGNED desde NEW (vía CLASSIFIED), CLASSIFIED, REOPENED y ESCALATED, también si área/responsable no cambian; cada paso lo firma el usuario si la tabla §32.1 se lo permite, si no el sistema | Evita tickets asignados que quedan en NEW | `assignment.assign` |
 | ADR-038 | 2026-10-13 | `seed_demo`: datos de demostración solo con DEBUG (o `--force`), idempotente, creados con los servicios reales | Verificación manual reproducible | comando `seed_demo` |
+| ADR-039 | 2026-10-13 | Routing: gana la regla activa de menor `order`; intención/categoría/subcategoría vacías son comodín; se aplica al **crear** el ticket, antes del SLA (la prioridad enrutada define los plazos); los tickets existentes no se reenrutan al cambiar reglas | SPEC §28 y criterio «sin redeploy» | `AutomationService.route_ticket` |
+| ADR-040 | 2026-10-13 | Una sola `IntentAction` activa por intención; `provider_method` restringido al contrato de `InstitutionalDataProvider` (§39) | Configuración inequívoca y sin métodos inventados | `automation.IntentAction` |
+| ADR-041 | 2026-10-13 | Las plantillas N1 iniciales son textos genéricos de ejemplo: el Administrador debe reemplazarlas por la información oficial | No inventar datos institucionales (teléfonos, fechas) | `automation/0002_initial_catalog` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -696,7 +699,7 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Consumidores afectados:** FE-T05/FE-T07 (ningún cambio de plantilla: Django muestra la página 404 estándar).
 **Aprobado:** Sí
 
-### CHANGE REQUEST CR-002 — `Ticket.intent` se añade en BE-T09
+### CHANGE REQUEST CR-002 — `Ticket.intent` se añade en BE-T09 — **Aplicado** (helpdesk/0010, 2026-10-13)
 **Fecha:** 2026-10-13
 **Origen:** BACK (BE-T03)
 **Cambio:** BE-T03 debía incluir `Ticket.intent` (FK a `automation.Intent`), pero ese modelo nace en BE-T09. Crear ahora un `Intent` vacío solo para la FK violaría la regla 57 (no adelantar piezas sin requisito). El campo, nullable, se añadirá con su migración en BE-T09.
@@ -730,6 +733,9 @@ Plantilla:
 - `helpdesk/migrations/0007_initial_sla_policies.py` — 4 políticas generales (SPEC §34) auditadas como SYSTEM y permisos por rol — aplicada y reversible — BE-T08
 - `helpdesk/migrations/0008_area_agents.py` — `Area.agents` (CR-003) — aplicada y reversible — BE-T04
 - `helpdesk/migrations/0009_conversations.py` — `Conversation`, `TicketMessage`, `Attachment.message` — aplicada y reversible — BE-T05
+- `automation/migrations/0001_initial.py` — `Intent`, `IntentAction`, `RoutingRule` — aplicada y reversible — BE-T09
+- `automation/migrations/0002_initial_catalog.py` — 20 intenciones (SPEC §29), 20 acciones, 11 reglas, permisos por rol (auditado como SYSTEM) — aplicada y reversible — BE-T09
+- `helpdesk/migrations/0010_ticket_intent.py` — `Ticket.intent` (CR-002) — aplicada y reversible — BE-T09
 
 Formato:
 
@@ -767,6 +773,7 @@ Rutas web (vistas Django, ADR-007):
 - `POST /tickets/<code>/assign/` — `helpdesk:ticket_assign` — REVIEW — BE-T06 — CONTRACT-012
 - `GET /inicio/` — `accounts:home` con resumen — REVIEW — CONTRACT-013
 - Comando `python manage.py seed_demo [--force]` — solo desarrollo (ADR-038)
+- `/admin/automation/{intent,intentaction,routingrule}/` — configuración auditada, sin borrado — REVIEW — BE-T09
 
 API: ninguna todavía (el webhook WhatsApp llegará con BE-T11).
 
@@ -843,6 +850,13 @@ Formato:
 **Resultado:** PASS — 12 pasos con los 5 roles: login; «Mis tickets»; confirmar solución; responder con PDF (vuelve a «En proceso»); crear ticket y llegar al detalle; agente ve «Sin asignar», se asigna, atiende y resuelve; supervisor en alertas/historial; agente de otra área recibe 404; admin entra a `/admin/`; listado a 360 px sin desbordamiento. Sin respuestas 5xx.
 **Fallos:** en los primeros intentos fallaron aserciones del propio script (texto del aviso con saltos de línea; botón de cerrar sesión ausente en la página 404 de Django), no la aplicación.
 **Repetición final:** tras integrar la identidad institucional de FRONT (`feature/integracion-mvp`: logo Indoamérica, colores, contraste) se reinició el servidor (Django cachea plantillas y `--noreload` no las invalida) y se repitió E2E: PASS, 12 pasos, con logo y estilos nuevos.
+
+### TEST-RUN-008
+**Fecha:** 2026-10-13
+**Tarea:** BE-T09
+**Comando:** mismo que TEST-RUN-001 (dos ejecuciones completas)
+**Resultado:** PASS — 558 pruebas, cobertura 99 % (`automation/services.py` y admin al 100 %).
+**Fallos:** ninguno.
 
 Formato:
 
@@ -1108,9 +1122,9 @@ SPEC versión: 5.2
 Front backlog definido: Sí
 Back backlog definido: Sí
 Código implementado: BE-T01 (incluye BE-T02), BE-T03A, BE-T03, BE-T04, BE-T05, BE-T06, BE-T07 y BE-T08 en REVIEW; FRONT FE-T01, FE-T03, FE-T04, FE-T06 (lectura) y FE-T08 integrados
-Migraciones: accounts 0001, 0002; helpdesk 0001-0009
+Migraciones: accounts 0001, 0002; helpdesk 0001-0010; automation 0001, 0002
 Endpoints: login, logout, role_redirect, home, ticket_create, attachment_download (vistas web); admin de catálogos, auditoría y tickets
-Pruebas: TEST-RUN-001 a TEST-RUN-007 PASS; E2E-RUN-001 PASS
+Pruebas: TEST-RUN-001 a TEST-RUN-008 PASS; E2E-RUN-001 PASS
 Bloqueos: Ninguno
 ```
 
@@ -1472,3 +1486,31 @@ Bloqueos: Ninguno
 - `.env.example` sugiere `TIME_ZONE=America/Guayaquil`.
 - Verificación: TEST-RUN-007 (535 pruebas) y E2E-RUN-001 (navegador real, 5 roles). Guía paso a paso en `README.md` («Cómo verificar el MVP»), usuarios demo con `seed_demo`.
 - Para FRONT: contratos 010-013 publicados; ver sección 3.2 sobre los dos archivos FRONT tocados por BACK y la plantilla temporal del detalle.
+
+## BE-T09 — Routing y configuración — Cierre
+
+**Estado:** REVIEW (pasa a DONE cuando el PR se apruebe y CI esté en verde)
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- `automation.Intent` (nivel N0–N4, autenticación, LLM, humano), `IntentAction` (consulta al proveedor, plantilla N1, crear ticket, revisión humana; acción de respaldo) y `RoutingRule` (intención/categoría/subcategoría → área, prioridad, validación, orden), con desactivación lógica y auditoría.
+- Catálogo inicial de SPEC §29 con acciones y reglas hacia las áreas existentes (ADR-041 sobre plantillas).
+- `AutomationService.route_ticket` / `matching_rule` (ADR-039), aplicado en `TicketService.create` (que ahora acepta `intent`); el audit de creación guarda la regla aplicada y si requiere validación.
+- `Ticket.intent` (CR-002 aplicado).
+- Admin auditado de intenciones, acciones y reglas; permisos por rol.
+
+### Criterio de aceptación
+- «Routing correcto sin redeploy cuando cambia configuración»: probado cambiando una regla (vía el mismo servicio auditado que usa el admin) y creando el siguiente ticket.
+
+### Pendientes derivados
+- Quién fija `Ticket.intent`: BE-T13 (Intent Engine por reglas) y BE-T17/BE-T18A (IA/LangGraph). Hoy los tickets web llegan sin intención y se enrutan por categoría.
+- Pantallas propias de administración → FE-T09.
+
+## 2026-10-13 — Claude (BACKEND) / BE-T09
+
+- Estado anterior: TODO.
+- Estado nuevo: REVIEW.
+- Trabajo realizado: intenciones, acciones, reglas de routing, catálogo SPEC §29, routing en la creación de tickets, `Ticket.intent`.
+- Pruebas: TEST-RUN-008 PASS.
+- Observaciones: desbloquea BE-T13 (Intent Engine).
