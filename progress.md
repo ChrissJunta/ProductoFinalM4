@@ -109,7 +109,7 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | FE-T07 | REVIEW (acciones autorizadas CONTRACT-006/010) | ChatGPT | BE-T07 | 2026-10-13 |
 | FE-T08 | REVIEW (alertas implementadas y validadas; CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-12 |
 | FE-T09 | REVIEW (administración CONTRACT-016 implementada) | ChatGPT | BE-T03A, BE-T09 | 2026-10-13 |
-| FE-T10 | TODO (desbloqueada: CONTRACT-017 responde CONTRACT-FRONT-006; hay plantilla TEMPORAL) | ChatGPT | BE-T10 | 2026-10-13 |
+| FE-T10 | REVIEW (métricas CONTRACT-017 implementadas) | ChatGPT | BE-T10 | 2026-10-13 |
 | FE-T11 | TODO (al final, WhatsApp simulado: ADR-049) | ChatGPT | BE-T11A | 2026-10-13 |
 | FE-T12 | TODO (nueva: asistente CONTRACT-014 + tarjeta de revisión humana CONTRACT-015; hay plantilla TEMPORAL del asistente) | ChatGPT | BE-T14, BE-T18A | 2026-10-13 |
 
@@ -1932,3 +1932,8 @@ Bloqueos: Ninguno
 
 - Sustituidas plantillas temporales: panel, listado/filtros/paginación20, alta/edición con ModelForm ligado, errores/ayuda, agents múltiple, keywords textarea y código disabled del BACK. Activación/desactivación POST CSRF, sin borrado. URLs por nombre manage; navegación solo Administrador.
 - Sin modificar servicios/catalogs ni modelos/permisos; pendiente validación conjunta y humana.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T10 — REVIEW
+
+- Filtros ModelForm GET/errores, periodo aplicado, volúmenes/estados, ambos SLA, tiempos, reasignaciones/reaperturas, desgloses y métricas IA publicados. Ceros se conservan; None se presenta Sin datos. No cálculos FRONT ni exportaciones inferidas; costo sin moneda no se etiqueta como USD. Navegación solo Supervisor.
+- Pendiente validación conjunta y humana.
