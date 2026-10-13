@@ -108,9 +108,10 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | FE-T06 | REVIEW (lectura y asignación CONTRACT-009/012) | ChatGPT | BE-T04, BE-T06 | 2026-10-13 |
 | FE-T07 | REVIEW (acciones autorizadas CONTRACT-006/010) | ChatGPT | BE-T07 | 2026-10-13 |
 | FE-T08 | REVIEW (alertas implementadas y validadas; CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-12 |
-| FE-T09 | TODO (bloqueada: CONTRACT-FRONT-005; Django admin disponible) | ChatGPT | BE-T03A, BE-T09 | 2026-10-13 |
-| FE-T10 | TODO (bloqueada: BE-T10 / CONTRACT-FRONT-006) | - | BE-T10 | - |
-| FE-T11 | TODO | - | BE-T11A | - |
+| FE-T09 | TODO (desbloqueada: CONTRACT-016 responde CONTRACT-FRONT-005; hay plantillas TEMPORALES) | ChatGPT | BE-T03A, BE-T09 | 2026-10-13 |
+| FE-T10 | TODO (desbloqueada: CONTRACT-017 responde CONTRACT-FRONT-006; hay plantilla TEMPORAL) | ChatGPT | BE-T10 | 2026-10-13 |
+| FE-T11 | TODO (al final, WhatsApp simulado: ADR-049) | ChatGPT | BE-T11A | 2026-10-13 |
+| FE-T12 | TODO (nueva: asistente CONTRACT-014 + tarjeta de revisión humana CONTRACT-015; hay plantilla TEMPORAL del asistente) | ChatGPT | BE-T14, BE-T18A | 2026-10-13 |
 
 ---
 
@@ -128,7 +129,7 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | BE-T07 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03 | 2026-10-13 |
 | BE-T08 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03, BE-T07 | 2026-10-13 |
 | BE-T09 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03 | 2026-10-13 |
-| BE-T10 | TODO | - | BE-T03, BE-T08 | - |
+| BE-T10 | REVIEW (CONTRACT-017) | Claude | BE-T03, BE-T08 | 2026-10-13 |
 | BE-T11 | TODO (al final, simulado: ADR-049) | - | BE-T05 | 2026-10-13 |
 | BE-T11A | TODO (al final, simulado: ADR-049) | - | BE-T01, BE-T11 | 2026-10-13 |
 | BE-T12 | TODO (al final, simulado: ADR-049) | - | BE-T11 | 2026-10-13 |
@@ -278,6 +279,8 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-055 | 2026-10-13 | Si el grafo falla o supera `AGENT_MAX_STEPS` (12), el runner crea fuera del grafo un ticket N4 con alerta (o pide identificarse si no hay usuario) | «Ningún fallo IA pierde la solicitud» (BE-T18) | `runner._fallback` |
 | ADR-056 | 2026-10-13 | Los tickets del agente llevan categoría/subcategoría: la del LLM si su salida es válida o, si no, la de `automation.catalog.INTENT_CATEGORY` | SLA y filtros por categoría también para tickets automáticos | nodo `create_ticket` |
 | ADR-057 | 2026-10-13 | Revisión humana: aceptar, corregir (solo ticket NEW: nueva intención → categoría, routing y SLA recalculados, `classification_source=HUMAN`, auditado) o rechazar. Solo Agente/Supervisor con el ticket visible; el Administrador no opera tickets (ADR-023). Si el hilo ya no existe (memoria tras reinicio), la decisión se aplica igual y se anota | Trazabilidad y robustez | `runner.resume_agent`, CONTRACT-015 |
+| ADR-058 | 2026-10-13 | Administración propia en `/manage/` (CONTRACT-016) con un registro único de entidades; escritura solo vía `helpdesk.catalogs` (auditada), sin borrado; `code` inmutable tras crear; relaciones limitadas a opciones activas (más la actual al editar); sin bloqueo optimista (solo Administrador; auditoría completa) | Desbloquea FE-T09 sin duplicar lógica del admin de Django | `helpdesk.catalog_admin`, `manage_views` |
+| ADR-059 | 2026-10-13 | Métricas (CONTRACT-017): universo = tickets creados en el periodo (fechas locales, extremos incluidos, por defecto 30 días, máx. 1 año); tiempos en minutos de reloj; SLA cumple/incumple/en curso/sin SLA; cumplimiento = cumple/(cumple+incumple). Solo Supervisor (§47.1). Incluye métricas IA de §49 | Definiciones explícitas para que FRONT no calcule | `helpdesk.metrics` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -727,7 +730,48 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Sugerencia FRONT:** tarjeta «Revisión del asistente» en el detalle; en la bandeja, los tickets con alerta `HUMAN_REVIEW` ya aparecen en «Sin asignar»/«Alertas».
 **Aprobado:** Sí
 
-### CONTRACT-FRONT-005 — Pantallas administrativas FE-T09 — Pendiente
+### CONTRACT-016 — Administración de catálogos (FE-T09; responde CONTRACT-FRONT-005)
+**Fecha:** 2026-10-13
+**Origen:** BACK → consumidor FE-T09
+**Permisos:** solo rol **Administrador** (otros roles 403; sin sesión → login). Entidad desconocida u objeto inexistente → 404.
+**Entidades (`entity`):** `areas`, `categories`, `subcategories`, `intents`, `actions`, `routing`, `sla`.
+
+| URL name | Ruta | Método | Plantilla |
+|---|---|---|---|
+| `manage:index` | `/manage/` | GET | `manage/index.html` |
+| `manage:list` | `/manage/<entity>/` | GET | `manage/list.html` |
+| `manage:create` | `/manage/<entity>/new/` | GET, POST | `manage/form.html` |
+| `manage:edit` | `/manage/<entity>/<pk>/` | GET, POST | `manage/form.html` |
+| `manage:toggle` | `/manage/<entity>/<pk>/toggle/` | POST | — (302 al listado) |
+
+**Contexto `index`:** `entities` = lista de `{slug, label, active, total, url}`.
+**Contexto `list`:** `entity`, `entity_label`, `entity_label_singular`, `entities` (navegación `{slug, label}`), `columns` (encabezados), `rows` = `{pk, object, is_active, values (mismo orden que columns), edit_url, toggle_url}`, `page_obj` (20 por página), `filters` = `{q, status}` (`status`: `all` \| `active` \| `inactive`), `status_choices`, `create_url`. GET `q` busca por código/nombre (o campos equivalentes); `page`.
+**Contexto `form`:** `entity`, `entity_label`, `entity_label_singular`, `entities`, `form` (ModelForm ligado: errores por campo y `non_field_errors`), `object` (`None` al crear), `is_create`, `cancel_url`. Éxito → 302 a `manage:list` con mensaje.
+**Campos por entidad:** áreas `code, name, email, agents` (multiselección, solo agentes activos; se guarda auditado); categorías `code, name, default_area`; subcategorías `category, code, name`; intenciones `code, name, automation_level, requires_authentication, requires_llm, requires_human, keywords` (textarea, CR-006); acciones `intent, action_type, provider_method` (lista cerrada), `response_template, fallback_action`; routing `intent, category, subcategory, area, priority, requires_validation, order`; SLA `category, priority, first_response_minutes, resolution_minutes, business_hours_only`.
+**Reglas:** `code` deshabilitado al editar (ADR-058); `is_active` no está en el formulario: se cambia con `manage:toggle` (POST `active` = `1` \| `0`, CSRF). Conflictos de unicidad (p. ej. dos acciones activas para una intención) vuelven como error de formulario o mensaje. Sin borrado físico.
+**Aprobado:** Sí
+
+### CONTRACT-017 — Métricas operativas (FE-T10; responde CONTRACT-FRONT-006)
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T10) → consumidor FE-T10
+**URL name:** `helpdesk:metrics` → `/metrics/` · GET · solo **Supervisor** (otros 403). Plantilla `helpdesk/metrics.html` (TEMPORAL del backend).
+**Filtros GET (`form`):** `date_from`, `date_to` (AAAA-MM-DD; por defecto últimos 30 días; máx. 1 año; inválido → `metrics=None` y errores en `form`), `area` (id), `category` (id), `channel` (`WEB` \| `WHATSAPP`).
+**Contexto:** `form`, `period` = `{date_from, date_to}` (aplicado), `metrics` (`dict` o `None`):
+
+| Clave | Contenido |
+|---|---|
+| `total`, `open`, `resolved`, `closed`, `cancelled` | Conteos (abierto = no RESOLVED/CLOSED/CANCELLED). |
+| `by_status` | `[{status, label, count}]` en orden de estados. |
+| `sla_resolution`, `sla_first_response` | `{within, breached, pending, no_sla, compliance_pct}` (porcentaje con 1 decimal o `None`). |
+| `first_response_minutes`, `resolution_minutes` | `{count, avg, median, p90}` en minutos de reloj (`None` sin datos). |
+| `reassignments`, `reopenings` | Conteos de reasignaciones auditadas y reaperturas. |
+| `by_area`, `by_category`, `by_channel` | `[{id, label, total, open, resolved, closed, cancelled, sla_resolution}]`, ordenados por volumen; «Sin área»/«Sin categoría». |
+| `ai` | `{runs, by_level[{level, count}], automation_pct (N0+N1), llm_calls, llm_failures, invalid_outputs, pending_reviews, reviewed, corrected, latency_ms{count,avg,median,p90}, estimated_cost}`. |
+
+**Definiciones:** ADR-059 (universo por fecha de creación local `TIME_ZONE`; SLA y denominadores explícitos). Sin exportaciones en el MVP.
+**Aprobado:** Sí
+
+### CONTRACT-FRONT-005 — Pantallas administrativas FE-T09 — Respondida (CONTRACT-016)
 **Fecha:** 2026-10-13 — America/Guayaquil
 **Origen:** FRONT (solicitud de coordinación; sin implementación BACK)
 **Estado:** Pendiente de contrato aprobado. BE-T03A/BE-T09 están REVIEW; Django admin disponible no equivale a vistas propias FE-T09.
@@ -748,7 +792,7 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Consumidor:** FE-T09. No deducir endpoints de los modelos/admin ni construir lógica de catálogo en FRONT.
 **Aprobado:** Pendiente
 
-### CONTRACT-FRONT-006 — Métricas operativas FE-T10 — Pendiente
+### CONTRACT-FRONT-006 — Métricas operativas FE-T10 — Respondida (CONTRACT-017)
 **Fecha:** 2026-10-13 — America/Guayaquil
 **Origen:** FRONT (solicitud de coordinación; sin implementación BACK)
 **Estado:** Pendiente BE-T10 y contrato aprobado.
@@ -889,6 +933,8 @@ Rutas web (vistas Django, ADR-007):
 - Comando `python manage.py ask <usuario> "<mensaje>" [--channel WHATSAPP] [--anonymous]` — demostración del agente — REVIEW — BE-T14
 - `POST /tickets/<code>/review/` — `ai:ticket_review` — REVIEW — BE-T18A — CONTRACT-015
 - `/admin/ai/{aimodelconfig,aipromptversion}/` (auditado, sin borrado) y `/admin/ai/{aiusage,aidecision}/` (solo lectura) — REVIEW — BE-T16/BE-T18
+- `/manage/` y `/manage/<entity>/[new/|<pk>/|<pk>/toggle/]` — `manage:*` — REVIEW — CONTRACT-016
+- `GET /metrics/` — `helpdesk:metrics` — REVIEW — BE-T10 — CONTRACT-017
 - Comandos `python manage.py evaluate_intents [--split dev|test|all] [--errors]` y `python manage.py agent_graph [--check]` — REVIEW — BE-T17/BE-T18A
 
 API: ninguna todavía (el webhook WhatsApp llegará con BE-T11).
@@ -989,6 +1035,13 @@ Formato:
 **Resultado:** PASS — 701 pruebas ×2 sin `.env`, cobertura 99 % (incluye checkpointer PostgreSQL real con pausa, «reinicio» y reanudación).
 **Métricas base (conjunto de PRUEBA, 120 ejemplos, sin ajustar con él):** solo reglas: accuracy **0.683**, macro F1 **0.684**; reglas + FakeLLM: accuracy **0.767**, macro F1 **0.749**. En desarrollo (usado para ajustar palabras clave): reglas 0.986. La diferencia muestra el límite de las reglas: el proveedor LLM real (ADR-010) debe superar esta línea base.
 **Manual:** `ask` sobre la base de desarrollo con `AGENT_CHECKPOINTER=postgres`: horario, «¿Y mañana?» (CA-010), clasificación por LLM, solicitud ambigua y `#fallo-llm` (CA-007) pausados en revisión; reanudación con corrección desde otro proceso.
+
+### TEST-RUN-011
+**Fecha:** 2026-10-13
+**Tarea:** CONTRACT-016 (administración) + BE-T10 (métricas)
+**Comando:** mismo que TEST-RUN-001 (dos ejecuciones completas sin `.env`) + E2E del repositorio en Chromium
+**Resultado:** PASS — 741 pruebas, cobertura 99 %; E2E 12 pasos sin 5xx.
+**Fallos:** al nombrar `apps/helpdesk/manage.py`, pytest-django lo tomó por el `manage.py` del proyecto y rompió las importaciones; renombrado a `catalog_admin.py`.
 
 Formato:
 
@@ -1814,3 +1867,22 @@ Bloqueos: Ninguno
 - PR #8 consta MERGED en main-r0dfx3 (no main) por integración de Claude; PR #3/#4/#5/#6/#9/#10 siguen conservados. PR #7 DRAFT reúne entrega revisable, sin merge/push main. Diferencia contra último BACK: exclusivamente solicitudes005/006, estados TODO FRONT bloqueados y registros FRONT de esta revisión.
 - Próximo paso FRONT: contrato administrativo aprobado para FE-T09; luego métricas FE-T10 cuando BE-T10 publique contrato. Asistente CONTRACT-014/CR-007 necesita asignación explícita de tarea/alcance antes de reemplazar plantilla o agregar navegación FRONT. No nuevas tareas IN_PROGRESS sin contrato.
 - Start_skill guardado actualizado para reanudación Cloud; requiere revisar/guardar/publicar en ajustes para activar ese borrador. Entorno publicado previamente y scheduler horario activo por UI; primera ejecución remota no verificada.
+
+## CONTRACT-016 (administración) y BE-T10 (métricas) — Cierre
+
+**Estado:** REVIEW
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- `/manage/`: listado con búsqueda, estado y paginación; alta, edición y activar/desactivar para áreas (con agentes), categorías, subcategorías, intenciones (palabras clave), acciones, routing y SLA. Todo auditado; plantillas TEMPORALES mínimas para FE-T09.
+- `helpdesk.metrics` + `/metrics/`: totales, SLA de resolución y primera respuesta, tiempos (media, mediana, p90), reasignaciones, reaperturas, desgloses por área, categoría y canal, y métricas IA (automatización, uso y fallos del LLM, salidas inválidas, revisiones, latencia, costo).
+- Respuesta a CONTRACT-FRONT-005/006 y nueva tarea FE-T12 (asistente + revisión humana) para ChatGPT.
+
+### Criterio de aceptación
+- BE-T10 «coinciden con cálculos manuales de referencia»: probado con tickets de tiempos conocidos (cumplimiento 33.3 % / 66.7 %, mediana 30 min, etc.).
+
+## 2026-10-13 — Claude (BACKEND) / CONTRACT-016 + BE-T10
+
+- Estado anterior: CONTRACT-FRONT-005/006 pendientes; BE-T10 TODO.
+- Estado nuevo: REVIEW; FE-T09 y FE-T10 desbloqueadas; FE-T12 creada (aprobado por el responsable: «Avanza»).

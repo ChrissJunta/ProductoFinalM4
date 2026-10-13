@@ -37,8 +37,8 @@ Abrir http://127.0.0.1:8000/ e iniciar sesión.
 | `usuario` | Usuario | «Mis tickets» (4 tickets en distintos estados), crear solicitud con adjunto, responder, confirmar o rechazar una solución, reabrir. |
 | `agente_ti` | Agente (área TI) | «Bandeja» → «Sin asignar», abrir un ticket, asignárselo, iniciar atención, pedir información, resolver con mensaje. |
 | `agente_fin` | Agente (área Finanzas) | Solo ve tickets de Finanzas, los asignados a él y los sin área; un ticket de TI le da 404. |
-| `supervisor` | Supervisor | Ve todos los tickets, reasigna entre áreas, «Alertas» de SLA, escalados. |
-| `admin` | Administrador | `/admin/`: áreas (y sus agentes), categorías, políticas SLA, auditoría. |
+| `supervisor` | Supervisor | Ve todos los tickets, reasigna entre áreas, «Alertas» de SLA, escalados y `/metrics/` (métricas operativas e IA). |
+| `admin` | Administrador | `/manage/` (administración propia: áreas y agentes, categorías, intenciones, routing, SLA) y `/admin/` (auditoría). |
 
 Recorrido sugerido:
 1. `usuario` → «Mis tickets» → «Nota incorrecta en Cálculo I» → **Confirmar solución** (queda Cerrado).

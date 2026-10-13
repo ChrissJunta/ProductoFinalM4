@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{# Plantilla TEMPORAL del backend (CONTRACT-016). FRONT la reemplaza en FE-T09. #}
+{% block content %}
+<h1 class="h4">Administración</h1>
+<ul>{% for e in entities %}<li><a href="{{ e.url }}">{{ e.label }}</a> ({{ e.active }} activos de {{ e.total }})</li>{% endfor %}</ul>
+{% endblock %}

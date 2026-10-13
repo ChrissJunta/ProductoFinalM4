@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{# Plantilla TEMPORAL del backend (CONTRACT-017). FRONT la reemplaza en FE-T10. #}
+{% block content %}
+<h1 class="h4">Métricas</h1>
+<form method="get">{{ form.as_p }}<button type="submit">Aplicar</button></form>
+<p>Periodo: {{ period.date_from }} – {{ period.date_to }}</p>
+{% if metrics %}
+<ul>
+  <li>Total: {{ metrics.total }} · Abiertos: {{ metrics.open }} · Resueltos: {{ metrics.resolved }} · Cerrados: {{ metrics.closed }}</li>
+  <li>SLA resolución: {{ metrics.sla_resolution.compliance_pct|default:"—" }} %</li>
+  <li>Primera respuesta (mediana, min): {{ metrics.first_response_minutes.median|default:"—" }}</li>
+  <li>Resolución (mediana, min): {{ metrics.resolution_minutes.median|default:"—" }}</li>
+</ul>
+{% endif %}
+{% endblock %}
