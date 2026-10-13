@@ -22,3 +22,5 @@
 .account-label { overflow-wrap: anywhere; }
 .form-control, .form-select { min-height: 2.75rem; }
 .btn { min-height: 2.5rem; }
+
+.mesa-preserve-lines { white-space: pre-line; overflow-wrap: anywhere; }

@@ -100,12 +100,12 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | ID | Estado | Responsable/Agente | Dependencia | Última actualización |
 |---|---|---|---|---|
 | FE-T01 | REVIEW (implementada y validada en Cloud; pendiente de revisión) | ChatGPT | BE-T01 | 2026-10-12 |
-| FE-T02 | TODO (desbloqueada: CONTRACT-013) | ChatGPT | BE-T03, BE-T04 | 2026-10-13 |
+| FE-T02 | REVIEW (CONTRACT-013; resumen y recientes implementados) | ChatGPT | BE-T03, BE-T04 | 2026-10-13 |
 | FE-T03 | REVIEW (implementada y validada en Cloud; pendiente de revisión) | ChatGPT | BE-T03, BE-T03A | 2026-10-12 |
 | FE-T04 | REVIEW (listado validado en Cloud; CONTRACT-008) | ChatGPT | BE-T04 | 2026-10-12 |
-| FE-T05 | TODO (desbloqueada: CONTRACT-010/011; hay plantilla TEMPORAL funcional) | ChatGPT | BE-T05, BE-T07 | 2026-10-13 |
-| FE-T06 | REVIEW (lectura validada; asignación desbloqueada: CONTRACT-012) | ChatGPT | BE-T04, BE-T06 | 2026-10-13 |
-| FE-T07 | TODO (desbloqueada: CONTRACT-006 + `actions` de CONTRACT-010) | ChatGPT | BE-T07 | 2026-10-13 |
+| FE-T05 | REVIEW (detalle y conversación CONTRACT-010/011) | ChatGPT | BE-T05, BE-T07 | 2026-10-13 |
+| FE-T06 | REVIEW (lectura y asignación CONTRACT-009/012) | ChatGPT | BE-T04, BE-T06 | 2026-10-13 |
+| FE-T07 | REVIEW (acciones autorizadas CONTRACT-006/010) | ChatGPT | BE-T07 | 2026-10-13 |
 | FE-T08 | REVIEW (alertas implementadas y validadas; CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-12 |
 | FE-T09 | TODO (modelos listos; hoy se administra en Django admin) | ChatGPT | BE-T03A, BE-T09 | 2026-10-13 |
 | FE-T10 | TODO | - | BE-T10 | - |
@@ -1627,3 +1627,41 @@ Bloqueos: Ninguno
 - Trabajo realizado: proveedor institucional simulado, Intent Engine por reglas configurables y Autonomy Engine N0–N4 con canal web y comando de demostración.
 - Pruebas: TEST-RUN-009 PASS.
 - Observaciones: el sistema ya responde solo horario, notas y deuda (CA-001 a CA-003). Siguiente bloque sugerido: BE-T11/BE-T11A/BE-T12 (WhatsApp) o BE-T16-T18A (IA + LangGraph).
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T02 — REVIEW
+
+- Inicio con contadores suministrados por BACK, hasta cinco tickets recientes y enlaces contratados. Sin consultas ni cálculo de permisos FRONT.
+- Django check sin incidencias; suite PostgreSQL conjunta en ejecución. Validación funcional conjunta pendiente antes de main.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T05 — REVIEW
+
+- Sustituida identificación temporal: detalle, historial cronológico WEB/WhatsApp, descargas autorizadas y respuesta multipart con CSRF, límite visible y permiso can_reply. Autoescape conservado.
+- Acciones y asignación separadas en componente para tareas propias; no se modificó lógica BACK. Validación PostgreSQL y navegador conjunta antes de main.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T07 — REVIEW
+
+- Formularios separados por acción suministrada por BACK; URL por nombre, CSRF, versión y to_status solo para acción genérica. Motivo obligatorio únicamente según reason_required.
+- Sin inferir transiciones por rol; mensajes del backend permanecen en componente compartido. Pruebas de permisos, versiones y recorrido conjunto pendientes de cierre.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T06 — Asignación REVIEW
+
+- Completa la entrega de lectura con asignación en detalle: opciones exclusivamente assign.areas, responsable opcional, versión y CSRF. JavaScript mínimo filtra responsables del área y conserva selección válida; sin JS el backend valida todas las opciones autorizadas.
+- Rama existente y PR #6 conservados; dependencias FE-T02/05/07 integradas sin alterar código BACK. Validación conjunta PostgreSQL/E2E pendiente de registrar al terminar.
+
+## 2026-10-13 06:33 — ChatGPT (FRONTEND) / Integración FE-T02/05/07/06 — REVIEW — America/Guayaquil
+
+- Backend vigente: `d7e3c8b` (código BE igual a `8adbebc`); integrado conservando historias y todas las entradas Claude. Diff respecto a BACK limitado a templates/, static/ y registros FRONT; sin modificaciones manuales BACK/config/dependencias/CI/tests. Main intacta.
+- FE-T02 PR #8 (base main-r0dfx3): resumen CONTRACT-013 y hasta cinco recientes. FE-T05 PR #9 (base FE-T02): detalle, historial omnicanal y respuesta CONTRACT-010/011. FE-T07 PR #10 (base FE-T05): solo actions del backend, POST por URL name, versión, CSRF y motivo contratado. FE-T06 PR #6 (base FE-T07): completa lectura con asignación CONTRACT-012 y filtro progresivo de responsables autorizados. Todos REVIEW hasta revisión humana.
+- Rama de entrega `feature/integracion-mvp`, PR draft #7 hacia main; mantiene las ramas de tarea y último BACK de Claude más FRONT de ChatGPT. No se hizo merge/push main ni force push.
+- Pruebas locales reales: `pytest -q`: **535 passed en 459.54 s**, PostgreSQL 16. Esta ejecución no midió cobertura. Django check y makemigrations --check --dry-run sin incidencias; Ruff check y format (75 archivos), node --check en ambos JS pasan. CI backend pasó en `d83587f`; verificar estado del nuevo HEAD tras publicar este registro.
+- Chromium con datos sintéticos en test_front_e2e: **13 pasos PASS**, cinco roles, resumen privado, crear, responder con PDF, confirmar, asignar, resolver, aislamiento de área 404, alertas, admin y responsive de detalle 360/768/1280; cero 5xx. Base temporal y archivos eliminados. Axe del detalle/acciones y login/inicio de cuatro roles: sin hallazgos en las etiquetas WCAG seleccionadas tras corregir semántica dl. No equivale a certificación WCAG completa.
+- Evidencia y auxiliares fuera del repo: /workspace/.mesa-cloud/evidence/current, run_current.py y validate_front.py; bases separadas para no interferir con pytest. No datos reales ni secretos de producción.
+- Pendientes reales: FE-T09/10 esperan contratos BACK; entrada WhatsApp real requiere BE-T11 (el historial admite mensajes de ambos canales). Fuente oficial pendiente, sistema provisional. Las solicitudes FRONT 001–004 ya tienen respuesta aprobada 010–013: sus notas antiguas quedan como historial, no como bloqueos actuales.
+- Seguimiento Cloud único activo cada hora según UI, id 6acd9bd4f1648190a92625ce9eefe1d5; primera ejecución/acceso/continuación remota no verificados. Start_skill actualizado y guardado en borrador; requiere revisión/guardar/publicar en ajustes para activar esta versión, no se crea monitor duplicado.
+
+## 2026-10-13 12:45 — Claude (BACKEND) / Integración FE-T02/05/06/07
+
+- `feature/integracion-mvp` (`ce3ac4c`, contiene FE-T02, FE-T05, FE-T07 y la asignación de FE-T06) integrada por merge en `main-r0dfx3` sobre BE-T13/T14/T15. Único conflicto: entradas añadidas en paralelo en este archivo; se conservaron ambas.
+- La plantilla temporal del detalle queda sustituida por la de FRONT (FE-T05). Sigue temporal `templates/automation/assistant.html` (CONTRACT-014).
+- `feature/fe-t01-identidad-institucional` no aporta cambios: el logo ya está, idéntico byte a byte.
+- Verificación: 629 pruebas ×2 sin `.env`, ruff, `check` y `makemigrations --check` limpios; E2E del repositorio en Chromium: 12 pasos PASS, sin 5xx.
