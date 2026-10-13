@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block title %}Administración{% endblock %}
+{% block content %}
+<h1 class="h3">Administración de catálogos</h1><p class="text-secondary">Configura los catálogos autorizados. Los cambios quedan registrados por el backend.</p>
+<div class="row g-3">{% for item in entities %}<div class="col-sm-6 col-lg-4"><section class="card card-body h-100"><h2 class="h5"><a href="{% url 'manage:list' item.slug %}">{{ item.label }}</a></h2><p class="mb-0">{{ item.active }} activos de {{ item.total }} registros</p></section></div>{% endfor %}</div>
+{% endblock %}

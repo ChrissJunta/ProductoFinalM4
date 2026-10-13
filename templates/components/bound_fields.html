@@ -1,0 +1,10 @@
+{% if form.non_field_errors %}<div class="alert alert-danger" role="alert"><p class="fw-semibold mb-1">Revisa el formulario.</p>{{ form.non_field_errors }}</div>{% endif %}
+{% for field in form %}
+<div class="mb-3">
+  {% if field.field.widget.input_type == 'checkbox' %}{{ field }} <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+  {% else %}<label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} (obligatorio){% endif %}</label>{{ field }}{% endif %}
+  {% if field.help_text %}<p class="form-text" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</p>{% endif %}
+  {% if field.field.widget.allow_multiple_selected %}<p class="small text-secondary">Puedes seleccionar varias opciones usando Ctrl o Cmd; en móvil, usa el selector del dispositivo.</p>{% endif %}
+  {% if field.errors %}<div role="alert"><ul class="text-danger small mt-2" id="{{ field.auto_id }}_error">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul></div>{% endif %}
+</div>
+{% endfor %}

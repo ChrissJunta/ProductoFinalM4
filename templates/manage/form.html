@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}{% if is_create %}Crear{% else %}Editar{% endif %} {{ entity_label_singular }}{% endblock %}
+{% block content %}
+{% include 'components/manage_nav.html' %}
+<h1 class="h3">{% if is_create %}Crear {{ entity_label_singular }}{% else %}Editar {{ object }}{% endif %}</h1>
+<p class="text-secondary">Los campos obligatorios están indicados. El código se conserva al editar.</p>
+<form class="card card-body mesa-form" method="post" action="{% if is_create %}{% url 'manage:create' entity %}{% else %}{% url 'manage:edit' entity object.pk %}{% endif %}">
+{% csrf_token %}{% include 'components/bound_fields.html' %}
+<div class="d-flex flex-wrap gap-2"><button class="btn btn-primary" type="submit">Guardar</button><a class="btn btn-outline-secondary" href="{% url 'manage:list' entity %}">Cancelar</a></div>
+</form>
+{% endblock %}

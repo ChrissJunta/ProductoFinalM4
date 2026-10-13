@@ -1,0 +1,4 @@
+{% load tz %}
+<span class="badge text-wrap {% if sla.state == 'BREACHED' %}text-bg-danger{% elif sla.state == 'WARNING' %}text-bg-warning{% elif sla.state == 'OK' %}text-bg-success{% else %}text-bg-light border{% endif %}">{% if sla.state == 'BREACHED' %}Vencido{% elif sla.state == 'WARNING' %}Por vencer{% elif sla.state == 'OK' %}En plazo{% elif sla.state == 'STOPPED' %}SLA detenido{% else %}Sin SLA{% endif %}</span>
+{% if sla.due_at %}<div class="small mt-1">Vence: {{ sla.due_at|localtime|date:'d/m/Y H:i' }}</div>{% endif %}
+{% if sla.remaining_minutes != None %}<div class="small">Tiempo restante: {{ sla.remaining_minutes }} min</div>{% endif %}

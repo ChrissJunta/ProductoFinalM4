@@ -1,0 +1,70 @@
+{
+  "_comment": "Datos simulados del LocalProvider (SPEC §40). Ficticios: no corresponden a personas reales.",
+  "students": {
+    "EST-0001": {
+      "program": "Ingeniería de Software",
+      "current_period": "2026-2",
+      "currency": "USD",
+      "schedule": [
+        {"day": "lunes", "start": "07:00", "end": "09:00", "subject": "Cálculo I", "room": "A-201"},
+        {"day": "lunes", "start": "09:00", "end": "11:00", "subject": "Programación I", "room": "Lab-3"},
+        {"day": "martes", "start": "07:00", "end": "09:00", "subject": "Física I", "room": "B-105"},
+        {"day": "miercoles", "start": "07:00", "end": "09:00", "subject": "Cálculo I", "room": "A-201"},
+        {"day": "miercoles", "start": "11:00", "end": "13:00", "subject": "Comunicación Oral y Escrita", "room": "C-002"},
+        {"day": "jueves", "start": "09:00", "end": "11:00", "subject": "Programación I", "room": "Lab-3"},
+        {"day": "viernes", "start": "07:00", "end": "09:00", "subject": "Física I", "room": "B-105"}
+      ],
+      "grades": {
+        "2026-2": [
+          {"subject": "Cálculo I", "value": "0.00", "status": "En curso"},
+          {"subject": "Programación I", "value": "8.50", "status": "En curso"},
+          {"subject": "Física I", "value": "7.25", "status": "En curso"},
+          {"subject": "Comunicación Oral y Escrita", "value": "9.10", "status": "En curso"}
+        ],
+        "2026-1": [
+          {"subject": "Introducción a la Ingeniería", "value": "8.80", "status": "Aprobado"},
+          {"subject": "Álgebra Lineal", "value": "7.40", "status": "Aprobado"}
+        ]
+      },
+      "debt": [
+        {"concept": "Matrícula 2026-2", "amount": "350.00", "due_in_days": 5},
+        {"concept": "Derecho de laboratorio", "amount": "40.00", "due_in_days": 20}
+      ],
+      "enrollment": {
+        "2026-2": {"status": "Matriculado"},
+        "2026-1": {"status": "Finalizado"}
+      },
+      "subjects": {
+        "2026-2": [
+          {"code": "MAT-101", "name": "Cálculo I", "credits": 4},
+          {"code": "PRG-101", "name": "Programación I", "credits": 4},
+          {"code": "FIS-101", "name": "Física I", "credits": 3},
+          {"code": "COM-101", "name": "Comunicación Oral y Escrita", "credits": 2}
+        ]
+      }
+    },
+    "EST-0002": {
+      "program": "Administración de Empresas",
+      "current_period": "2026-2",
+      "currency": "USD",
+      "schedule": [
+        {"day": "martes", "start": "18:00", "end": "20:00", "subject": "Contabilidad I", "room": "D-101"},
+        {"day": "jueves", "start": "18:00", "end": "20:00", "subject": "Microeconomía", "room": "D-104"}
+      ],
+      "grades": {
+        "2026-2": [
+          {"subject": "Contabilidad I", "value": "6.90", "status": "En curso"},
+          {"subject": "Microeconomía", "value": "8.00", "status": "En curso"}
+        ]
+      },
+      "debt": [],
+      "enrollment": {"2026-2": {"status": "Matriculado"}},
+      "subjects": {
+        "2026-2": [
+          {"code": "CON-101", "name": "Contabilidad I", "credits": 4},
+          {"code": "ECO-101", "name": "Microeconomía", "credits": 3}
+        ]
+      }
+    }
+  }
+}

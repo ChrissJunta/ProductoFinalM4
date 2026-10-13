@@ -1,0 +1,22 @@
+{% if ai_review %}
+<section class="card border-0 shadow-sm mb-4" aria-labelledby="review-title">
+  <div class="card-body">
+    <h2 id="review-title" class="h5">Revisión del asistente</h2>
+    <p>Hay una clasificación pendiente de revisión humana.</p>
+    <dl class="row"><dt class="col-sm-4">Intención propuesta</dt><dd class="col-sm-8">{{ ai_review.intent_code|default:"Sin propuesta" }}</dd><dt class="col-sm-4">Confianza (0–1)</dt><dd class="col-sm-8">{% if ai_review.confidence != None %}{{ ai_review.confidence }}{% else %}Sin dato{% endif %}</dd></dl>
+    {% if ai_review.candidates %}<p class="mb-1">Intenciones candidatas:</p><ul>{% for candidate in ai_review.candidates %}<li>{{ candidate }}</li>{% endfor %}</ul>{% endif %}
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      <form method="post" action="{% url 'ai:ticket_review' ticket.ticket_code %}">{% csrf_token %}<input type="hidden" name="action" value="accept"><button class="btn btn-primary" type="submit">Aceptar clasificación</button></form>
+      <form method="post" action="{% url 'ai:ticket_review' ticket.ticket_code %}">{% csrf_token %}<input type="hidden" name="action" value="reject"><button class="btn btn-outline-primary" type="submit">Rechazar clasificación</button></form>
+    </div>
+    {% if ai_review.can_correct %}
+    <form method="post" action="{% url 'ai:ticket_review' ticket.ticket_code %}" class="border rounded p-3">
+      {% csrf_token %}<input type="hidden" name="action" value="correct">
+      <label class="form-label" for="review-intent">Intención corregida (obligatoria)</label>
+      <select class="form-select mb-3" id="review-intent" name="intent" required><option value="">Selecciona una intención</option>{% for code, name in ai_review.intents %}<option value="{{ code }}">{{ name }} ({{ code }})</option>{% endfor %}</select>
+      <button class="btn btn-outline-primary" type="submit">Corregir clasificación</button>
+    </form>
+    {% else %}<p class="small text-secondary mb-0">La corrección de intención no está disponible en el estado actual.</p>{% endif %}
+  </div>
+</section>
+{% endif %}

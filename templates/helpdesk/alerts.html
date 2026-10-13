@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load tz %}
+{% block title %}Alertas y SLA{% endblock %}
+{% block content %}
+<h1 class="h3 mb-2">Alertas y SLA</h1>
+<p class="text-secondary mb-4">Revisa solicitudes por vencer, vencidas y escaladas.</p>
+<section aria-label="Alertas abiertas" class="row g-3 mb-4">
+  <div class="col-12 col-md-4"><div class="card h-100 border-warning"><div class="card-body"><h2 class="h6">SLA por vencer</h2><p class="display-6 mb-1" data-count="SLA_WARNING">{{ open_counts.SLA_WARNING }}</p><p class="small text-secondary mb-0">Alertas abiertas</p></div></div></div>
+  <div class="col-12 col-md-4"><div class="card h-100 border-danger"><div class="card-body"><h2 class="h6">SLA vencido</h2><p class="display-6 mb-1" data-count="SLA_BREACHED">{{ open_counts.SLA_BREACHED }}</p><p class="small text-secondary mb-0">Alertas abiertas</p></div></div></div>
+  <div class="col-12 col-md-4"><div class="card h-100 border-secondary"><div class="card-body"><h2 class="h6">Escaladas</h2><p class="display-6 mb-1" data-count="ESCALATED">{{ open_counts.ESCALATED }}</p><p class="small text-secondary mb-0">Alertas abiertas</p></div></div></div>
+</section>
+<form method="get" action="{% url 'helpdesk:alert_list' %}" class="card card-body border-0 shadow-sm mb-4" aria-label="Filtrar alertas">
+  <div class="row g-3 align-items-end">
+    <div class="col-12 col-md-4">
+      <label for="filter-status" class="form-label">Estado de alerta</label>
+      <select id="filter-status" name="status" class="form-select">
+        {% for value, label in status_choices %}<option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        <option value="ALL"{% if filters.status == 'ALL' %} selected{% endif %}>Todas</option>
+      </select>
+    </div>
+    <div class="col-12 col-md-4">
+      <label for="filter-type" class="form-label">Tipo de alerta</label>
+      <select id="filter-type" name="type" class="form-select">
+        <option value=""{% if not filters.type %} selected{% endif %}>Todos los tipos</option>
+        {% for value, label in type_choices %}<option value="{{ value }}"{% if filters.type == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-md-4 d-flex flex-wrap gap-2"><button type="submit" class="btn btn-primary">Aplicar filtros</button><a class="btn btn-outline-secondary" href="{% url 'helpdesk:alert_list' %}">Limpiar</a></div>
+  </div>
+</form>
+{% get_current_timezone as current_timezone %}
+<p class="small text-secondary">Los indicadores cuentan todas las alertas abiertas, independientemente de los filtros. Fechas en {{ current_timezone }}.</p>
+{% if alerts %}
+<div class="table-responsive bg-white rounded border" role="region" aria-label="Resultados de alertas; tabla desplazable horizontalmente" tabindex="0">
+  <table class="table align-middle mb-0">
+    <caption class="caption-top px-3">{{ page_obj.paginator.count }} alertas coinciden con los filtros · 25 resultados por página</caption>
+    <thead class="table-light"><tr><th scope="col">Solicitud</th><th scope="col">Alerta</th><th scope="col">Estado de alerta</th><th scope="col">Área</th><th scope="col">Vencimiento SLA</th><th scope="col">Fechas</th></tr></thead>
+    <tbody>
+    {% for alert in alerts %}
+      <tr>
+        <th scope="row" class="fw-normal"><span class="fw-semibold">{{ alert.ticket.ticket_code }}</span><div>{{ alert.ticket.subject }}</div><div class="d-flex flex-wrap gap-1 mt-2">{% include 'components/ticket_badge.html' with label=alert.ticket.get_status_display only %}{% include 'components/ticket_badge.html' with label=alert.ticket.get_priority_display only %}</div></th>
+        <td><span class="badge text-wrap {% if alert.severity == 'CRITICAL' %}text-bg-danger{% elif alert.severity == 'WARNING' %}text-bg-warning{% else %}text-bg-info{% endif %}">{{ alert.get_alert_type_display }}</span><p class="small mb-1 mt-2">{{ alert.get_severity_display }}</p><p class="small mb-0">{{ alert.message }}</p></td>
+        <td>{{ alert.get_status_display }}</td>
+        <td>{{ alert.ticket.assigned_area.name|default:'Sin área asignada' }}</td>
+        <td>{% if alert.ticket.sla_due_at %}{{ alert.ticket.sla_due_at|localtime|date:'d/m/Y H:i' }}{% else %}Sin fecha de vencimiento{% endif %}</td>
+        <td class="small">Creada: {{ alert.created_at|localtime|date:'d/m/Y H:i' }}{% if alert.resolved_at %}<br>Resuelta: {{ alert.resolved_at|localtime|date:'d/m/Y H:i' }}{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'components/pagination.html' with page_obj=page_obj filters=filters only %}
+{% else %}
+<section class="card border-0 shadow-sm p-4" aria-labelledby="empty-title"><h2 id="empty-title" class="h5">Sin alertas</h2><p class="text-secondary mb-0">No hay alertas que coincidan con estos filtros.</p></section>
+{% endif %}
+{% endblock %}

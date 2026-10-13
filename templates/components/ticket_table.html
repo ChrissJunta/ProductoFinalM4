@@ -1,0 +1,20 @@
+{% load tz %}
+<div class="table-responsive bg-white rounded border" role="region" aria-label="Tickets; tabla desplazable horizontalmente" tabindex="0">
+<table class="table align-middle mb-0">
+  <caption class="caption-top px-3">{{ table_caption|default:"Solicitudes autorizadas · 20 resultados por página" }}</caption>
+  <thead class="table-light"><tr><th scope="col">Solicitud</th><th scope="col">Estado</th><th scope="col">Prioridad</th><th scope="col">Categoría</th>{% if user_role != 'Usuario' %}<th scope="col">Solicitante</th><th scope="col">Área y responsable</th>{% endif %}<th scope="col">Fechas</th><th scope="col">SLA</th></tr></thead>
+  <tbody>
+  {% for row in rows %}
+    <tr>
+      <th scope="row" class="fw-normal"><a class="fw-semibold" href="{% url 'helpdesk:ticket_detail' row.ticket.ticket_code %}">{{ row.ticket.ticket_code }}</a><div>{{ row.ticket.subject }}</div></th>
+      <td>{% include 'components/ticket_badge.html' with label=row.ticket.get_status_display only %}</td>
+      <td>{{ row.ticket.get_priority_display }}</td>
+      <td>{{ row.ticket.category.name|default:'Sin categoría' }}</td>
+      {% if user_role != 'Usuario' %}<td>{{ row.ticket.user.get_full_name|default:row.ticket.user.username }}</td><td>{{ row.ticket.assigned_area.name|default:'Sin área' }}<br><span class="small">{% if row.ticket.assigned_user %}{{ row.ticket.assigned_user.get_full_name|default:row.ticket.assigned_user.username }}{% else %}Sin responsable{% endif %}</span></td>{% endif %}
+      <td class="small">Creada: {{ row.ticket.created_at|localtime|date:'d/m/Y H:i' }}<br>Actualizada: {{ row.ticket.updated_at|localtime|date:'d/m/Y H:i' }}</td>
+      <td>{% include 'components/sla_badge.html' with sla=row.sla only %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>

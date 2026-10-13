@@ -1,0 +1,27 @@
+# Entorno
+.env
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Django
+staticfiles/
+media/*
+!media/.gitkeep
+
+# Editores / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Salida de scripts/e2e_demo.py
+salida_e2e/

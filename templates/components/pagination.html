@@ -1,0 +1,20 @@
+{% if page_obj.paginator.num_pages > 1 %}
+<nav class="mt-4" aria-label="Paginación de resultados">
+  <p class="small text-secondary">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} · {{ page_obj.paginator.count }} resultados</p>
+  <ul class="pagination flex-wrap gap-1">
+    {% if page_obj.has_previous %}
+      <li class="page-item"><a class="page-link" href="{% querystring page=1 %}" aria-label="Primera página">Primera</a></li>
+      <li class="page-item"><a class="page-link" href="{% querystring page=page_obj.previous_page_number %}" aria-label="Página anterior">Anterior</a></li>
+    {% else %}
+      <li class="page-item disabled"><span class="page-link" aria-disabled="true">Anterior</span></li>
+    {% endif %}
+    <li class="page-item active"><span class="page-link" aria-current="page">{{ page_obj.number }}</span></li>
+    {% if page_obj.has_next %}
+      <li class="page-item"><a class="page-link" href="{% querystring page=page_obj.next_page_number %}" aria-label="Página siguiente">Siguiente</a></li>
+      <li class="page-item"><a class="page-link" href="{% querystring page=page_obj.paginator.num_pages %}" aria-label="Última página">Última</a></li>
+    {% else %}
+      <li class="page-item disabled"><span class="page-link" aria-disabled="true">Siguiente</span></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}

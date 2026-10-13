@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% load tz %}
+{% block title %}{% if user_role == 'Usuario' %}Mis tickets{% else %}Tickets{% endif %}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-2">{% if user_role == 'Usuario' %}Mis tickets{% else %}Tickets{% endif %}</h1>
+<p class="text-secondary mb-4">Consulta el estado y la última actualización de tus solicitudes autorizadas.</p>
+{% url 'helpdesk:ticket_list' as filter_action %}
+{% include 'components/ticket_filters.html' %}
+{% get_current_timezone as current_timezone %}
+<p class="small text-secondary">Fechas en {{ current_timezone }}. El tiempo restante de SLA lo proporciona el servicio; un valor negativo indica vencimiento.</p>
+{% if rows %}
+  {% include 'components/ticket_table.html' with rows=rows user_role=user_role only %}
+  {% include 'components/pagination.html' with page_obj=page_obj only %}
+{% else %}
+  <section class="card border-0 shadow-sm p-4" aria-labelledby="empty-title"><h2 id="empty-title" class="h5">Sin tickets</h2><p class="mb-0 text-secondary">No hay solicitudes que coincidan con los filtros.</p></section>
+{% endif %}
+{% endblock %}

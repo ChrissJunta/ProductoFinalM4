@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Iniciar sesión{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <section class="col-12 col-md-8 col-lg-5" aria-labelledby="login-title">
+    <div class="brand-card card border-0 shadow-sm p-3 p-md-4">
+      <div class="card-body">
+        <img class="login-logo" src="{% static 'img/LOGO-UTI-2.png' %}" width="160" height="160" alt="Universidad Indoamérica">
+        <p class="text-primary fw-semibold small mb-2">PORTAL DE ATENCIÓN</p>
+        <h1 id="login-title" class="h3 mb-2">Iniciar sesión</h1>
+        <p class="text-secondary mb-4">Ingresa con tu usuario o correo para acceder a la Mesa de Ayuda.</p>
+        {% if form.non_field_errors %}
+          <div id="login-errors" class="alert alert-danger" role="alert">Usuario o contraseña incorrectos.</div>
+        {% endif %}
+        <form method="post" action="{% url 'accounts:login' %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ next }}">
+          <div class="mb-3">
+            <label for="{{ form.username.id_for_label }}" class="form-label">Usuario o correo</label>
+            <input class="form-control{% if form.username.errors or form.non_field_errors %} is-invalid{% endif %}" type="text" id="{{ form.username.id_for_label }}" name="{{ form.username.html_name }}" value="{{ form.username.value|default_if_none:'' }}" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="{{ form.username.field.max_length }}" {% if form.username.errors %}aria-invalid="true" aria-describedby="{{ form.username.id_for_label }}_errors"{% elif form.non_field_errors %}aria-invalid="true" aria-describedby="login-errors"{% endif %}>
+            {% include 'components/field_errors.html' with field=form.username only %}
+          </div>
+          <div class="mb-4">
+            <label for="{{ form.password.id_for_label }}" class="form-label">Contraseña</label>
+            <input class="form-control{% if form.password.errors or form.non_field_errors %} is-invalid{% endif %}" type="password" id="{{ form.password.id_for_label }}" name="{{ form.password.html_name }}" autocomplete="current-password" required {% if form.password.errors %}aria-invalid="true" aria-describedby="{{ form.password.id_for_label }}_errors"{% elif form.non_field_errors %}aria-invalid="true" aria-describedby="login-errors"{% endif %}>
+            {% include 'components/field_errors.html' with field=form.password only %}
+          </div>
+          <button class="btn btn-primary w-100" type="submit">Ingresar</button>
+        </form>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
