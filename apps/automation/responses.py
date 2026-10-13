@@ -4,6 +4,10 @@ Formatean resultados del proveedor de forma determinística, sin LLM. Por
 WhatsApp los datos sensibles se minimizan (SPEC §35.1: deuda total, sin detalle).
 """
 
+from datetime import timedelta
+
+from django.utils import timezone
+
 from apps.helpdesk.models import Ticket
 
 DAY_NAMES = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
@@ -27,10 +31,23 @@ def _money(value):
     return f"{value:,.2f}"
 
 
-def schedule(entries, channel=None):
+def _relative_day(day):
+    today = timezone.localdate()
+    if day == today:
+        return "de hoy"
+    if day == today + timedelta(days=1):
+        return "de mañana"
+    return "del"
+
+
+def schedule(entries, channel=None, day=None):
+    day = entries[0].day if entries else (day or timezone.localdate())
+    label = _relative_day(day)
     if not entries:
-        return "Hoy no tienes clases registradas."
-    lines = [f"Tu horario de hoy ({_date(entries[0].day)}):"]
+        if label == "de hoy":
+            return "Hoy no tienes clases registradas."
+        return f"No tienes clases registradas el {_date(day)}."
+    lines = [f"Tu horario {label} ({_date(day)}):"]
     lines += [f"• {e.start:%H:%M}–{e.end:%H:%M} {e.subject} ({e.room})" for e in entries]
     return "\n".join(lines)
 
@@ -78,8 +95,8 @@ FORMATTERS = {
 }
 
 
-def format_query(method, data, channel=None):
-    return FORMATTERS[method](data, channel=channel)
+def format_query(method, data, channel=None, **extra):
+    return FORMATTERS[method](data, channel=channel, **extra)
 
 
 def _ticket_line(t):

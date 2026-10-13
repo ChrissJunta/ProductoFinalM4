@@ -1311,6 +1311,8 @@ El SLA se evalúa con el comando `python manage.py check_sla` (ver sección 38),
 
 Proveedor: **Meta WhatsApp Cloud API** (v5.2). Verificación del webhook con `hub.verify_token`; validación de firma con cabecera `X-Hub-Signature-256` (HMAC-SHA256 con el App Secret). Credenciales solo por variables de entorno.
 
+> **Decisión del responsable (2026-10-13, ADR-049):** WhatsApp es un **adicional** y se implementa **al final** del MVP y **simulado**, porque no se dispone de acceso a Meta Developer. El webhook, la firma, la idempotencia, la vinculación (35.1) y la bandeja de salida se construyen con el mismo contrato de Meta, pero los eventos los genera un simulador local (comando/pantalla de prueba) y la salida se registra sin enviarse. Pasar a Meta real solo requerirá credenciales y desactivar el simulador.
+
 ## 35.1 Autenticación por WhatsApp (v5.2)
 
 Un número de WhatsApp **no** basta por sí mismo para entregar datos sensibles.
@@ -1729,7 +1731,7 @@ Reglas:
 ## 46A.6 Memoria y persistencia
 
 - Checkpointer: `PostgresSaver` (`langgraph-checkpoint-postgres`) sobre la misma base PostgreSQL, en tablas propias del checkpointer.
-- `thread_id` = `Conversation.id`; así la conversación Web/WhatsApp comparte memoria.
+- ~~`thread_id` = `Conversation.id`~~ (CR-008): cada mensaje se ejecuta en su propio hilo (`run-…`, guardado en `AIDecision.thread_id`), porque en LangGraph un mensaje nuevo en un hilo pausado descarta la revisión humana pendiente. La memoria entre mensajes vive en `Conversation` (`active_intent`, `last_message_at`), que sí es compartida por canal.
 - En pruebas se usa `InMemorySaver`.
 - El checkpointer no sustituye a los modelos de negocio: tickets, mensajes y auditoría siguen en sus tablas Django.
 
@@ -2499,6 +2501,8 @@ CANCELLED
 ### BE-T11 — Webhook WhatsApp
 
 **Objetivo:** recibir y validar eventos.
+
+**Nota (ADR-049):** se ejecuta al final del MVP, con eventos simulados (sin acceso a Meta Developer).
 
 **Entregables:**
 - GET verificación;

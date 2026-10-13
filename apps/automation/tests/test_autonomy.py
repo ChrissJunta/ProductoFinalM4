@@ -44,7 +44,9 @@ def test_ca001_schedule(student, on_wednesday):
     assert (r.intent_code, r.level, r.ticket) == ("CHECK_SCHEDULE", "N0", None)
     assert "miércoles 14/10/2026" in r.response
     assert "07:00–09:00 Cálculo I (A-201)" in r.response
-    assert r.path == ["classify_rules", "decide_autonomy", "check_auth", "call_tool", "respond"]
+    assert r.path == [
+        "load_context", "classify_rules", "decide_autonomy", "check_auth", "call_tool", "respond",
+    ]  # fmt: skip
     assert Ticket.objects.count() == 0
 
 
@@ -92,7 +94,8 @@ def test_provider_failure_creates_ticket(student, monkeypatch):
 
     monkeypatch.setattr(LocalProvider, "get_grades", boom)
     r = ask("mis notas", student)
-    assert "provider_error" in r.path and r.ticket is not None
+    assert r.path[-4:-2] == ["call_tool", "create_ticket"] and r.ticket is not None
+    assert r.errors == ["get_grades: ProviderError"]
     assert (r.level, r.ticket.intent.code, r.ticket.user) == ("N3", "CHECK_GRADE", student)
     assert "No pudimos consultar" in r.response and r.ticket.ticket_code in r.response
 
@@ -107,7 +110,7 @@ def test_provider_failure_with_human_review_fallback(student, monkeypatch):
 
 def test_student_without_institutional_record_gets_ticket(make_user):
     r = ask("mis notas", make_user("nuevo", role="Usuario"))
-    assert r.ticket is not None and "provider_error" in r.path
+    assert r.ticket is not None and r.errors == ["get_grades: StudentNotFound"]
 
 
 # --- CHECK_TICKET (CA-009) ---------------------------------------------------------------
@@ -174,7 +177,7 @@ def test_n3_routes_ticket(student):
     r = ask("Olvidé mi contraseña", student)
     assert (r.level, r.ticket.assigned_area.code) == ("N3", "IT")
     assert "derivamos al área" in r.response
-    assert r.path[-3:] == ["create_ticket", "route_ticket", "respond"]
+    assert r.path[-3:] == ["create_ticket", "route_ticket", "respond_ticket"]
 
 
 def test_ticket_actions_need_identified_sender():
@@ -233,17 +236,19 @@ def test_determine_autonomy_rules():
 
 def test_medium_confidence_forces_review_before_ticket(student, monkeypatch):
     """SPEC §46A.4: 0.70–0.849 → revisión humana antes de N2/N3 (lo usará el LLM)."""
-    from apps.automation import autonomy, intents
+    from apps.ai.agent import nodes
+    from apps.automation import intents
 
     real = intents.identify_intent
 
     def medium(text):
         m = real(text)
-        return intents.IntentMatch(m.intent, 0.75, "LLM", m.candidates)
+        return intents.IntentMatch(m.intent, 0.75, "RULES", m.candidates)
 
-    monkeypatch.setattr(autonomy, "identify_intent", medium)
+    monkeypatch.setattr(nodes, "identify_intent", medium)
     r = ask("Olvidé mi contraseña", student)
-    assert r.level == "N3" and "human_review" in r.path
+    # El hilo queda pausado en human_review (interrupt) después de responder al usuario.
+    assert r.level == "N3" and r.pending_review and r.path[-1] == "request_review"
     assert r.ticket.alerts.get().alert_type == "HUMAN_REVIEW"
 
 
@@ -258,7 +263,9 @@ def test_empty_message_and_anonymous_user(student):
 def test_disabled_intent_is_not_used(student, make_user):
     catalogs.set_active(Intent.objects.get(code="CHECK_DEBT"), False,
                         actor=make_user("admin", role="Administrador"))  # fmt: skip
-    assert ask("deuda", student).level == "N4"
+    r = ask("deuda", student)  # las reglas ya no la reconocen: decide el LLM, nunca CHECK_DEBT
+    assert r.intent_code != "CHECK_DEBT" and r.ticket is not None
+    assert "classify_llm" in r.path
 
 
 # --- Vista web (CONTRACT-014) -------------------------------------------------------------

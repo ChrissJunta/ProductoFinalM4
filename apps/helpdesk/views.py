@@ -307,8 +307,16 @@ def ticket_detail(request, code):
             ),
             "message_form": MessageForm(),
             "assign": assignment.assign_options(ticket, user),
+            "ai_review": _ai_review(ticket, user),
         },
     )
+
+
+def _ai_review(ticket, user):
+    """CONTRACT-015: revisión humana pendiente del agente (solo Agente/Supervisor)."""
+    from apps.ai.agent.runner import review_options  # import diferido: ai depende de helpdesk
+
+    return review_options(ticket, user)
 
 
 def _first_error(form):

@@ -65,7 +65,8 @@ BACK_APPS: accounts, helpdesk, automation, integrations, ai
 SGA_MODE: LocalProvider para MVP
 AI_MODE: asistivo
 LLM_PROVIDER: abierto (ADR-010); FakeLLMProvider por defecto
-AGENT: LangGraph 1.x embebido en apps/ai/agent/ (ADR-016)
+AGENT: LangGraph 1.2 embebido en apps/ai/agent/ (ADR-016), grafo v1.0.0
+WHATSAPP: al final del MVP y simulado, sin acceso a Meta Developer (ADR-049)
 ```
 
 ## 3.1 Reparto de trabajo entre agentes (ADR-013)
@@ -128,16 +129,16 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | BE-T08 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03, BE-T07 | 2026-10-13 |
 | BE-T09 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03 | 2026-10-13 |
 | BE-T10 | TODO | - | BE-T03, BE-T08 | - |
-| BE-T11 | TODO | - | BE-T05 | - |
-| BE-T11A | TODO | - | BE-T01, BE-T11 | - |
-| BE-T12 | TODO | - | BE-T11 | - |
+| BE-T11 | TODO (al final, simulado: ADR-049) | - | BE-T05 | 2026-10-13 |
+| BE-T11A | TODO (al final, simulado: ADR-049) | - | BE-T01, BE-T11 | 2026-10-13 |
+| BE-T12 | TODO (al final, simulado: ADR-049) | - | BE-T11 | 2026-10-13 |
 | BE-T13 | REVIEW (pendiente de revisión del PR) | Claude | BE-T09 | 2026-10-13 |
 | BE-T14 | REVIEW (motor web listo; la entrega por WhatsApp espera BE-T11/BE-T11A) | Claude | BE-T13, BE-T11A | 2026-10-13 |
 | BE-T15 | REVIEW (pendiente de revisión del PR) | Claude | BE-T14 | 2026-10-13 |
-| BE-T16 | TODO | - | - | - |
-| BE-T17 | TODO | - | BE-T16 | - |
-| BE-T18 | TODO | - | BE-T16, BE-T17 | - |
-| BE-T18A | TODO | - | BE-T13..BE-T18 | 2026-10-12 |
+| BE-T16 | REVIEW (interfaz + Fake; proveedor real pendiente de ADR-010) | Claude | - | 2026-10-13 |
+| BE-T17 | REVIEW (pendiente de revisión del PR) | Claude | BE-T16 | 2026-10-13 |
+| BE-T18 | REVIEW (pendiente de revisión del PR) | Claude | BE-T16, BE-T17 | 2026-10-13 |
+| BE-T18A | REVIEW (web; la entrada WhatsApp llega con BE-T11/T12 simulados) | Claude | BE-T13..BE-T18 | 2026-10-13 |
 | BE-T19 | TODO | - | BE-T15 | - |
 | BE-T20 | TODO | - | BE-T01..BE-T19, BE-T18A | - |
 
@@ -148,6 +149,7 @@ Notas v5.2:
 - El dataset etiquetado de IA se adelanta a BE-T17 (antes en BE-T20).
 - BE-T18A (grafo agéntico LangGraph) orquesta BE-T13/BE-T14/BE-T15/BE-T17/BE-T18; los motores se implementan como funciones reutilizables que luego son nodos del grafo.
 - BE-T11A (vinculación WhatsApp) bloquea a BE-T14: sin ella no se pueden entregar datos sensibles por WhatsApp.
+- 2026-10-13 (ADR-049): WhatsApp (BE-T11, BE-T11A, BE-T12, FE-T11) pasa al final y será simulado; mientras tanto el agente solo entrega datos por web (sesión iniciada).
 
 ---
 
@@ -267,6 +269,15 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-046 | 2026-10-13 | Nueva alerta `HUMAN_REVIEW` (N4 / confianza media); se resuelve sola cuando un humano saca el ticket de NEW (asignación, solicitud de datos…) o al terminarlo | La bandeja/alertas muestran qué revisar sin un modelo nuevo; `interrupt()` de LangGraph llega con BE-T18A | `helpdesk/0011`, `workflow._sync_alerts` |
 | ADR-047 | 2026-10-13 | Por WhatsApp la deuda se responde solo con el total; el detalle solo en web | Minimización de datos (SPEC §35.1) | `automation.responses` |
 | ADR-048 | 2026-10-13 | `INSTITUTIONAL_PROVIDER` (variable de entorno, por defecto `local`) elige el proveedor en `get_provider()`; `sga` falla con `ImproperlyConfigured` hasta BE-T19. `LocalProvider` lee `local_data.json` indexado por `User.external_id` (datos ficticios) | Cambiar de proveedor no toca la lógica de negocio (SPEC §39) | `integrations.institutional` |
+| ADR-049 | 2026-10-13 | WhatsApp es adicional: se implementa **al final** y **simulado** (simulador local de eventos con el contrato de Meta; salida registrada sin envío) | Decisión del responsable: no hay acceso a Meta Developer | BE-T11, BE-T11A, BE-T12, FE-T11; SPEC §35 |
+| ADR-050 | 2026-10-13 | `LLM_PROVIDER` (entorno) elige la familia de proveedor; `AIModelConfig` elige modelo primario y de respaldo por operación (admin, auditado). Sin filas activas se usa el modelo por defecto del proveedor y no hay respaldo | SPEC §42.1 y §46; cambiar de modelo sin redeploy | `ai.providers`, `AIService.chain` |
+| ADR-051 | 2026-10-13 | `FakeLLMProvider` imita a un LLM con coincidencia por raíces (5 letras) sobre nombre + palabras clave del catálogo que recibe en contexto; los marcadores `#fallo-llm` y `#salida-invalida` simulan fallos para demostrar CA-007 a mano | Determinístico y sin red para CI/demo; ejercita la misma validación que un proveedor real | `ai/providers/fake.py` |
+| ADR-052 | 2026-10-13 | Errores del proveedor → reintento (1) → respaldo → `AIUnavailable`; salida inválida → `AIInvalidOutput` sin reintento. Ambos terminan en ticket N4 con revisión humana. `requires_human` del catálogo prevalece sobre el del LLM | SPEC §46 y §46A.4 | `AIService`, nodos `classify_llm`/`validate_output` |
+| ADR-053 | 2026-10-13 | Dataset: 10 frases base por intención × 2 formas = 20 ejemplos; desarrollo/prueba separados **por frase base** (3 de 10 a prueba). Palabras clave ajustadas solo con desarrollo (`automation/0005`) | Evitar fuga entre conjuntos; métricas honestas | `ai/evaluation`, TEST-RUN-010 |
+| ADR-054 | 2026-10-13 | Revisión humana después de responder al usuario: `respond_ticket → request_review (alerta) → human_review (interrupt) → apply_review`. La alerta va en nodo propio porque LangGraph re-ejecuta el nodo interrumpido al reanudar. N2 no pausa el grafo: su «validación» es el trabajo normal del área (`RoutingRule.requires_validation`) | El usuario no queda esperando; sin alertas duplicadas | `ai/agent/graph.py` (CR-008) |
+| ADR-055 | 2026-10-13 | Si el grafo falla o supera `AGENT_MAX_STEPS` (12), el runner crea fuera del grafo un ticket N4 con alerta (o pide identificarse si no hay usuario) | «Ningún fallo IA pierde la solicitud» (BE-T18) | `runner._fallback` |
+| ADR-056 | 2026-10-13 | Los tickets del agente llevan categoría/subcategoría: la del LLM si su salida es válida o, si no, la de `automation.catalog.INTENT_CATEGORY` | SLA y filtros por categoría también para tickets automáticos | nodo `create_ticket` |
+| ADR-057 | 2026-10-13 | Revisión humana: aceptar, corregir (solo ticket NEW: nueva intención → categoría, routing y SLA recalculados, `classification_source=HUMAN`, auditado) o rechazar. Solo Agente/Supervisor con el ticket visible; el Administrador no opera tickets (ADR-023). Si el hilo ya no existe (memoria tras reinicio), la decisión se aplica igual y se anota | Trazabilidad y robustez | `runner.resume_agent`, CONTRACT-015 |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -698,7 +709,33 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Sugerencia FRONT:** enlace «Asistente» en la navegación para el rol Usuario y acceso desde el inicio.
 **Aprobado:** Sí
 
+### CONTRACT-015 — Revisión humana del agente (FE-005 detalle / FE-006 bandeja)
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T18A) → consumidor FRONT
+**Contexto nuevo en `helpdesk:ticket_detail` (CONTRACT-010):** `ai_review` — `None` o `dict` (solo Agente/Supervisor con el ticket visible y una revisión pendiente):
+
+| Clave | Tipo | Descripción |
+|---|---|---|
+| `decision_id` | `int` | Decisión pendiente. |
+| `intent_code` | `str` | Intención propuesta (vacía si fue ambigua o falló el LLM). |
+| `candidates` | `list[str]` | Intenciones empatadas o propuestas. |
+| `confidence` | `Decimal` o `None` | Confianza 0–1. |
+| `can_correct` | `bool` | Solo `True` si el ticket sigue en `NEW`. |
+| `intents` | `list[tuple[code, name]]` | Catálogo activo para el selector de corrección. |
+
+**Acción:** `POST` a `ai:ticket_review` → `/tickets/<code>/review/` con CSRF y `action` = `accept` \| `correct` \| `reject`; con `correct`, campo `intent` (código). Respuesta 302 al detalle con mensaje (éxito o error). 403 si el rol no puede revisar; 404 si el ticket no es visible.
+**Sugerencia FRONT:** tarjeta «Revisión del asistente» en el detalle; en la bandeja, los tickets con alerta `HUMAN_REVIEW` ya aparecen en «Sin asignar»/«Alertas».
+**Aprobado:** Sí
+
 ## 12.2 Solicitudes de cambio
+
+### CHANGE REQUEST CR-008 — Hilos del agente por ejecución y revisión tras responder
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T18A)
+**Contrato actual:** SPEC §46A.6 `thread_id = Conversation.id`; §46A.4 `human_review → respond`.
+**Cambio:** (1) cada mensaje usa su hilo `run-…` (en `AIDecision.thread_id`); la memoria entre mensajes se guarda en `Conversation.active_intent/last_message_at`. Motivo comprobado: en LangGraph 1.2 un mensaje nuevo en un hilo pausado descarta la revisión pendiente. (2) La revisión humana ocurre después de responder al usuario (ADR-054).
+**Impacto:** SPEC §46A.6 anotada. Ningún cambio para FRONT.
+**Aprobado:** Sí (decisión técnica del agente BACKEND; revisable en el PR)
 
 ### CHANGE REQUEST CR-006 — `Intent.keywords` — **Aplicado** (automation/0003-0004, 2026-10-13)
 **Fecha:** 2026-10-13
@@ -777,6 +814,10 @@ Plantilla:
 - `automation/migrations/0003_intent_keywords.py` — `Intent.keywords` (CR-006) — aplicada y reversible — BE-T13
 - `automation/migrations/0004_initial_keywords.py` — palabras clave iniciales de 19 intenciones (auditado como SYSTEM) — aplicada y reversible — BE-T13
 - `helpdesk/migrations/0011_alert_human_review.py` — tipo de alerta `HUMAN_REVIEW` — aplicada y reversible — BE-T14
+- `ai/migrations/0001_initial.py` — `AIModelConfig`, `AIPromptVersion`, `AIUsage`, `AIDecision` — aplicada y reversible — BE-T16/BE-T18
+- `ai/migrations/0002_initial_config.py` — modelos fake primario/respaldo por operación, prompts v1 y permisos por rol (auditado) — aplicada y reversible — BE-T16/BE-T18
+- `automation/migrations/0005_tune_keywords.py` — palabras clave ajustadas con el conjunto de desarrollo — aplicada y reversible — BE-T17
+- Tablas propias del checkpointer LangGraph (`checkpoints`, `checkpoint_blobs`, `checkpoint_writes`, `checkpoint_migrations`): las crea `PostgresSaver.setup()` en el primer uso, no son migraciones Django — BE-T18A
 
 Formato:
 
@@ -817,6 +858,9 @@ Rutas web (vistas Django, ADR-007):
 - `/admin/automation/{intent,intentaction,routingrule}/` — configuración auditada, sin borrado — REVIEW — BE-T09
 - `GET|POST /assistant/` — `automation:assistant` — REVIEW — BE-T14 — CONTRACT-014
 - Comando `python manage.py ask <usuario> "<mensaje>" [--channel WHATSAPP] [--anonymous]` — demostración del agente — REVIEW — BE-T14
+- `POST /tickets/<code>/review/` — `ai:ticket_review` — REVIEW — BE-T18A — CONTRACT-015
+- `/admin/ai/{aimodelconfig,aipromptversion}/` (auditado, sin borrado) y `/admin/ai/{aiusage,aidecision}/` (solo lectura) — REVIEW — BE-T16/BE-T18
+- Comandos `python manage.py evaluate_intents [--split dev|test|all] [--errors]` y `python manage.py agent_graph [--check]` — REVIEW — BE-T17/BE-T18A
 
 API: ninguna todavía (el webhook WhatsApp llegará con BE-T11).
 
@@ -908,6 +952,14 @@ Formato:
 **Resultado:** PASS — 629 pruebas, cobertura 99 % (`intents`, `autonomy`, `responses`, `views`, `ask` e `integrations.institutional` al 100 %).
 **Fallos:** una prueba previa de alertas cambió a propósito (el contador incluye `HUMAN_REVIEW`).
 **Manual:** `seed_demo` + `ask usuario …` sobre la base de desarrollo: horario, notas y deuda (N0), nota incorrecta (N2, ticket a Secretaría Académica), solicitud ambigua (N4 con alerta) y anónimo por WhatsApp (instrucciones de vinculación).
+
+### TEST-RUN-010
+**Fecha:** 2026-10-13
+**Tarea:** BE-T16 + BE-T17 + BE-T18 + BE-T18A
+**Comando:** mismo que TEST-RUN-001 + `python manage.py evaluate_intents --split test`
+**Resultado:** PASS — 701 pruebas ×2 sin `.env`, cobertura 99 % (incluye checkpointer PostgreSQL real con pausa, «reinicio» y reanudación).
+**Métricas base (conjunto de PRUEBA, 120 ejemplos, sin ajustar con él):** solo reglas: accuracy **0.683**, macro F1 **0.684**; reglas + FakeLLM: accuracy **0.767**, macro F1 **0.749**. En desarrollo (usado para ajustar palabras clave): reglas 0.986. La diferencia muestra el límite de las reglas: el proveedor LLM real (ADR-010) debe superar esta línea base.
+**Manual:** `ask` sobre la base de desarrollo con `AGENT_CHECKPOINTER=postgres`: horario, «¿Y mañana?» (CA-010), clasificación por LLM, solicitud ambigua y `#fallo-llm` (CA-007) pausados en revisión; reanudación con corrección desde otro proceso.
 
 Formato:
 
@@ -1665,3 +1717,52 @@ Bloqueos: Ninguno
 - La plantilla temporal del detalle queda sustituida por la de FRONT (FE-T05). Sigue temporal `templates/automation/assistant.html` (CONTRACT-014).
 - `feature/fe-t01-identidad-institucional` no aporta cambios: el logo ya está, idéntico byte a byte.
 - Verificación: 629 pruebas ×2 sin `.env`, ruff, `check` y `makemigrations --check` limpios; E2E del repositorio en Chromium: 12 pasos PASS, sin 5xx.
+
+## BE-T16 / BE-T17 / BE-T18 — LLMProvider, AIService, fallback y auditoría — Cierre
+
+**Estado:** REVIEW
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- Contrato `LLMProvider` (SPEC §42), `FakeLLMProvider` (ADR-051) y `get_llm_provider()` por `LLM_PROVIDER` (ADR-050).
+- `AIModelConfig`, `AIPromptVersion`, `AIUsage`, `AIDecision` (SPEC §43) con admin y permisos por rol.
+- `AIService.classify/extract/summarize/generate_response`: cadena primario → reintento → respaldo (ADR-052), `AIUsage` por intento, validación de contrato y catálogos (SPEC §44); `generate_response` nunca añade cifras (si lo hace, se usa la plantilla).
+- Dataset etiquetado (400 ejemplos) y métricas Accuracy/Macro F1 (ADR-053, TEST-RUN-010).
+
+### Criterios de aceptación
+- BE-T16 «cambio de proveedor por configuración»: probado (`LLM_PROVIDER`, `AIModelConfig`). **Pendiente:** el proveedor real depende de ADR-010 (decisión del responsable: costo, latencia, JSON estructurado y privacidad).
+- BE-T17 «salida ajustada al contrato y catálogos; métricas base»: probado y medido.
+- BE-T18 «ningún fallo IA pierde la solicitud»: probado (fallo, salida inválida, confianza baja, caída del grafo, límite de pasos).
+
+## BE-T18A — Grafo agéntico LangGraph — Cierre
+
+**Estado:** REVIEW
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- `apps/ai/agent/` (`state.py`, `nodes.py`, `tools.py`, `graph.py`, `runner.py`) con 16 nodos y aristas condicionales; diagrama en `docs/agent_graph.md` (v1.0.0, verificado por prueba).
+- Herramientas de lectura validadas (nombre, argumentos, usuario del estado); escritura solo en nodos determinísticos.
+- `human_review` con `interrupt()` y `resume_agent` (aceptar/corregir/rechazar, ADR-057), checkpointer `PostgresSaver` (memoria en pruebas), `AIDecision` por ejecución con `graph_version`, `node_path` y `thread_id`.
+- Memoria de conversación para seguimiento («¿Y mañana?», CA-010) en `Conversation` (CR-008).
+- `AutomationService.handle_message` (vista `/assistant/` y comando `ask`) ejecuta ahora el grafo; `apps.automation.autonomy` queda como regla de decisión (nodo `decide_autonomy`).
+- Vista `ai:ticket_review` y contexto `ai_review` en el detalle (CONTRACT-015).
+
+### Criterios de aceptación
+- CA-001 a CA-007, CA-009 y CA-010 recorren el grafo con FakeLLMProvider; CA-008 (reasignación) es del flujo de tickets (BE-T06, ya probado).
+- Ninguna herramienta de escritura es invocable por el LLM: probado.
+- Número no verificado no obtiene datos sensibles: probado con `is_verified=False` (la entrada WhatsApp real/simulada llega con BE-T11).
+- Error del LLM nunca pierde la solicitud: probado.
+
+### Pendientes derivados
+- Integración con `process_integration_queue` → BE-T12 (WhatsApp simulado, ADR-049).
+- FRONT: tarjeta de revisión en el detalle (CONTRACT-015) y pantalla definitiva del asistente (CONTRACT-014).
+- Proveedor LLM real → decisión ADR-010.
+
+## 2026-10-13 — Claude (BACKEND) / BE-T16, BE-T17, BE-T18, BE-T18A
+
+- Estado anterior: TODO.
+- Estado nuevo: REVIEW.
+- Pedido del responsable: WhatsApp al final y simulado (ADR-049); se priorizó IA + LangGraph.
+- Pruebas: TEST-RUN-010 PASS (701 pruebas) y métricas base registradas. E2E del repositorio en Chromium: 12 pasos PASS sin 5xx. El E2E destapó que revertir `ai/0002` fallaba con decisiones existentes; corregido con prueba.

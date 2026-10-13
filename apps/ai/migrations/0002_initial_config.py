@@ -93,7 +93,12 @@ def unseed(apps, schema_editor):
                 *Permission.objects.filter(content_type__app_label="ai", codename__in=codenames)
             )
     apps.get_model("ai", "AIModelConfig").objects.all().delete()
-    apps.get_model("ai", "AIPromptVersion").objects.all().delete()
+    prompts = apps.get_model("ai", "AIPromptVersion").objects.all()
+    # Las decisiones ya registradas se conservan, sin la referencia al prompt retirado.
+    apps.get_model("ai", "AIDecision").objects.filter(prompt_version__in=prompts).update(
+        prompt_version=None
+    )
+    prompts.delete()
     apps.get_model("helpdesk", "AuditLog").objects.filter(metadata_json=SOURCE).delete()
 
 

@@ -60,6 +60,22 @@ python manage.py ask usuario "¿Cuánto debo?" --channel WHATSAPP    # solo el t
 python manage.py ask --anonymous "¿Cuáles son los requisitos?"      # sin identificar: solo respuestas N1
 ```
 
+**Agente LangGraph (IA).** Cada mensaje recorre el grafo de `docs/agent_graph.md`: reglas → LLM (solo si
+las reglas no resuelven) → decisión N0–N4 → herramienta/ticket → revisión humana si hace falta. En
+desarrollo el LLM es simulado (`LLM_PROVIDER=fake`). Para verlo:
+
+```bash
+python manage.py ask usuario "¿Cuál es mi horario de hoy?"
+python manage.py ask usuario "¿Y mañana?"                            # memoria de conversación (CA-010)
+python manage.py ask usuario "no logro acceder a la biblioteca digital"   # lo clasifica el LLM
+python manage.py ask usuario "algo raro #fallo-llm"                  # LLM caído → ticket + revisión (CA-007)
+python manage.py evaluate_intents                                    # accuracy y macro F1 del clasificador
+```
+
+Los casos que quedan en revisión aparecen como alerta «Revisión humana»; un `agente_ti` o el
+`supervisor` decide (aceptar/corregir/rechazar) con `POST /tickets/<código>/review/` (la tarjeta
+visual del detalle la hará FRONT; mientras tanto, también desde `python manage.py shell`).
+
 Tareas periódicas (en producción, con cron; en desarrollo se pueden lanzar a mano):
 
 ```bash

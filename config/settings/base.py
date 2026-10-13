@@ -136,3 +136,8 @@ INSTITUTIONAL_PROVIDER = env("INSTITUTIONAL_PROVIDER", default="local")
 LLM_PROVIDER = env("LLM_PROVIDER", default="fake")
 AI_MAX_RETRIES = 1  # reintentos del primario antes de pasar al respaldo (SPEC §46)
 AI_SUMMARY_MAX_CHARS = 500
+
+# Agente LangGraph (SPEC §46A). «postgres» persiste los hilos pausados en revisión humana;
+# «memory» solo para pruebas (se pierde al reiniciar).
+AGENT_CHECKPOINTER = env("AGENT_CHECKPOINTER", default="postgres")
+AGENT_MAX_STEPS = 12  # recursion_limit (SPEC §46A.5, regla 4)

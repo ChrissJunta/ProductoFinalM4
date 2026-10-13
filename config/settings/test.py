@@ -11,3 +11,5 @@ ALLOWED_HOSTS = ["testserver", "localhost"]
 
 # Hash rápido: las pruebas no evalúan la robustez del algoritmo.
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+
+AGENT_CHECKPOINTER = "memory"  # SPEC §46A.6: InMemorySaver en pruebas

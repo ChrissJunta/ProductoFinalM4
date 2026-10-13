@@ -237,3 +237,19 @@ def test_generate_response_never_adds_facts(monkeypatch):
 
     monkeypatch.setattr(FakeLLMProvider, "generate_response", down)
     assert AIService().generate_response(template) == template
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_ai_migrations_are_reversible_with_existing_decisions():
+    from django.core.management import call_command
+
+    from apps.ai.models import AIDecision
+
+    AIDecision.objects.create(
+        operation="AGENT_RUN", prompt_version=AIService.prompt_for("CLASSIFY")
+    )
+    call_command("migrate", "ai", "0001", verbosity=0)
+    assert AIDecision.objects.get().prompt_version is None  # la decisión se conserva
+    call_command("migrate", "ai", "zero", verbosity=0)
+    call_command("migrate", verbosity=0)
+    assert AIPromptVersion.objects.count() == 4 and AIModelConfig.objects.count() == 8
