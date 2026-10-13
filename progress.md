@@ -108,8 +108,8 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | FE-T06 | REVIEW (lectura y asignación CONTRACT-009/012) | ChatGPT | BE-T04, BE-T06 | 2026-10-13 |
 | FE-T07 | REVIEW (acciones autorizadas CONTRACT-006/010) | ChatGPT | BE-T07 | 2026-10-13 |
 | FE-T08 | REVIEW (alertas implementadas y validadas; CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-12 |
-| FE-T09 | TODO (modelos listos; hoy se administra en Django admin) | ChatGPT | BE-T03A, BE-T09 | 2026-10-13 |
-| FE-T10 | TODO | - | BE-T10 | - |
+| FE-T09 | TODO (bloqueada: CONTRACT-FRONT-005; Django admin disponible) | ChatGPT | BE-T03A, BE-T09 | 2026-10-13 |
+| FE-T10 | TODO (bloqueada: BE-T10 / CONTRACT-FRONT-006) | - | BE-T10 | - |
 | FE-T11 | TODO | - | BE-T11A | - |
 
 ---
@@ -726,6 +726,35 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Acción:** `POST` a `ai:ticket_review` → `/tickets/<code>/review/` con CSRF y `action` = `accept` \| `correct` \| `reject`; con `correct`, campo `intent` (código). Respuesta 302 al detalle con mensaje (éxito o error). 403 si el rol no puede revisar; 404 si el ticket no es visible.
 **Sugerencia FRONT:** tarjeta «Revisión del asistente» en el detalle; en la bandeja, los tickets con alerta `HUMAN_REVIEW` ya aparecen en «Sin asignar»/«Alertas».
 **Aprobado:** Sí
+
+### CONTRACT-FRONT-005 — Pantallas administrativas FE-T09 — Pendiente
+**Fecha:** 2026-10-13 — America/Guayaquil
+**Origen:** FRONT (solicitud de coordinación; sin implementación BACK)
+**Estado:** Pendiente de contrato aprobado. BE-T03A/BE-T09 están REVIEW; Django admin disponible no equivale a vistas propias FE-T09.
+**Solicitud concreta:** BACK debe publicar URL names y rutas GET de listado/alta/edición para áreas, categorías, subcategorías, intenciones, acciones, routing y SLA, con plantilla, contexto (objetos/page_obj/filtros/choices/form), permisos administrativos y errores 403/404. Publicar endpoints POST de guardar y desactivar/reactivar lógicamente (sin borrado), campos y validación de cada formulario, CSRF, redirects, mensajes y concurrencia cuando corresponda. Áreas: agentes autorizados (CR-003); intenciones: keywords textarea (CR-006); routing: relaciones, prioridad, orden y validación; SLA: unidades y reglas editables. Si acciones o SLA quedan fuera de FE-T09, explicitarlo en el contrato.
+**Campos observados en modelos para que BACK confirme su exposición (no son contrato de formulario):**
+
+| Entidad | Campos que necesita confirmar el formulario contratado |
+|---|---|
+| Área | code, name, email, agents, is_active |
+| Categoría | code, name, default_area, is_active |
+| Subcategoría | category, code, name, is_active |
+| Intención | code, name, automation_level, requires_authentication, requires_llm, requires_human, keywords, is_active |
+| Acción | intent, action_type, provider_method, response_template, fallback_action, is_active |
+| Routing | intent, category, subcategory, area, priority, requires_validation, order, is_active |
+| SLA | category, priority, first_response_minutes, resolution_minutes, business_hours_only, is_active |
+
+**Contexto/formulario solicitado:** listado con objetos/page_obj y filtros aplicados; alta/edición con form ligado y errores por campo/no campo, instancia al editar y opciones autorizadas en cada relación. Confirmar si se permite editar code, cómo guardar agents con auditoría y cuál POST/URL name cambia is_active. No publicar rutas hipotéticas como si existieran.
+**Consumidor:** FE-T09. No deducir endpoints de los modelos/admin ni construir lógica de catálogo en FRONT.
+**Aprobado:** Pendiente
+
+### CONTRACT-FRONT-006 — Métricas operativas FE-T10 — Pendiente
+**Fecha:** 2026-10-13 — America/Guayaquil
+**Origen:** FRONT (solicitud de coordinación; sin implementación BACK)
+**Estado:** Pendiente BE-T10 y contrato aprobado.
+**Solicitud concreta:** BACK debe publicar URL name/ruta GET, plantilla, roles autorizados, filtros y parámetros (periodo/área/categoría/canal), contexto de abiertos/cerrados, cumplimiento SLA, tiempos y agrupaciones por área/categoría/canal. Definir unidades, zona horaria, denominadores, tratamiento de registros sin SLA/fechas, estados vacíos y errores 403. Si se requieren exportaciones, publicar sus rutas/permisos y formato; FRONT no agregará métricas ni consultas.
+**Consumidor:** FE-T10.
+**Aprobado:** Pendiente
 
 ## 12.2 Solicitudes de cambio
 
@@ -1766,3 +1795,22 @@ Bloqueos: Ninguno
 - Estado nuevo: REVIEW.
 - Pedido del responsable: WhatsApp al final y simulado (ADR-049); se priorizó IA + LangGraph.
 - Pruebas: TEST-RUN-010 PASS (701 pruebas) y métricas base registradas. E2E del repositorio en Chromium: 12 pasos PASS sin 5xx. El E2E destapó que revertir `ai/0002` fallaba con decisiones existentes; corregido con prueba.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / Coordinación BE-T09/13/14/15 e integración — America/Guayaquil
+
+- Fetch y avance sin reset a main-r0dfx3 `4b46b287c72b0bd4c58d63e109520fce0be7c79e`: Claude ya integró las tareas FRONT FE-T02/05/07/06. Rama conjunta conserva toda la historia; integración fast-forward sin conflictos ni edición manual BACK. Main sin cambios.
+- FE-T09 no se inicia: BE-T03A/09 están REVIEW y no hay contrato de vistas propias CRUD. Solicitud CONTRACT-FRONT-005 detalla URL names, contexto, formularios, campos nuevos (agentes/keywords), permisos, validación y desactivación. FE-T10 espera BE-T10 y CONTRACT-FRONT-006 de métricas. No se implementa backend ni se deducen rutas del admin.
+- CONTRACT-014/CR-007 introduce asistente web aprobado, pero dice expresamente «sin tarea FE asignada aún». Requiere asignación/ampliación explícita del alcance FRONT (propuesta BACK: FE-T02 o FE-T12). Se conserva plantilla temporal de Claude; sin nuevos enlaces ni interfaz del asistente en este trabajo FE01..10.
+- Regresión real en esta base: 13 pasos Chromium PASS en PostgreSQL temporal (cinco roles, resumen, crear/responder/adjunto/confirmar/asignar/resolver/aislamiento404 y responsive detalle 360/768/1280), sin5xx; axe login/inicio cuatro roles sin hallazgos seleccionados. Bases y media temporales eliminados; datos de desarrollo sin usuarios/tickets reales.
+- Django check y makemigrations --check --dry-run pasan; Ruff check/format (97 archivos) y ambos JS pasan. Suite completa con cobertura ejecutándose: no se atribuyen aún las 629 anunciadas por Claude a esta ejecución local.
+- PR #3/#4/#5 actualizados preservando validaciones históricas (483 de aquella revisión) y aclarando FE-T02 ya implementada #8, detalle/acciones #9/#10 y asignación #6. PR #7 mantiene DRAFT para revisión conjunta; no merge/push main ni force push.
+- Seguimiento Cloud horario activo según UI; primera ejecución remota sigue sin verificar. Sin monitor duplicado.
+
+## 2026-10-13 08:58 — ChatGPT (FRONTEND) / Integración vigente — Validación final — America/Guayaquil
+
+- Base backend `4b46b28`: **629 passed en 551.55 s**, cobertura **98.53 %** (umbral80 superado), ejecutado en Cloud con PostgreSQL16.15 y `source /workspace/.mesa-cloud/env.sh; .venv/bin/pytest -q --cov --cov-fail-under=80` (settings dev de ese auxiliar; no se atribuye ejecución en settings test). Log real: /workspace/.mesa-cloud/latest-suite.log. Sin fallos ni omisiones reportadas por pytest.
+- Regresión Chromium 13 pasos y auditoría axe de login/inicio descritas arriba pasan; smoke del servidor actualizado: login200, error genérico, CSRF403, logoutGET405 e inicio protegido. Django/migraciones/Ruff/JS pasan. Datos de desarrollo:0usuarios/0tickets; auxiliares con datos sintéticos fuera del checkout y bases temporales destruidas.
+- CI pasó en a67a19e (run38408328176); este cierre solo añade documentación FRONT y precisa solicitud005, verificar CI del HEAD final publicado. Registros y filas BACK conservados literalmente, contratos sin colisiones.
+- PR #8 consta MERGED en main-r0dfx3 (no main) por integración de Claude; PR #3/#4/#5/#6/#9/#10 siguen conservados. PR #7 DRAFT reúne entrega revisable, sin merge/push main. Diferencia contra último BACK: exclusivamente solicitudes005/006, estados TODO FRONT bloqueados y registros FRONT de esta revisión.
+- Próximo paso FRONT: contrato administrativo aprobado para FE-T09; luego métricas FE-T10 cuando BE-T10 publique contrato. Asistente CONTRACT-014/CR-007 necesita asignación explícita de tarea/alcance antes de reemplazar plantilla o agregar navegación FRONT. No nuevas tareas IN_PROGRESS sin contrato.
+- Start_skill guardado actualizado para reanudación Cloud; requiere revisar/guardar/publicar en ajustes para activar ese borrador. Entorno publicado previamente y scheduler horario activo por UI; primera ejecución remota no verificada.
