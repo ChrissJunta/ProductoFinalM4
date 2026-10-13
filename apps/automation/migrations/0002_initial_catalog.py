@@ -170,7 +170,9 @@ def unseed(apps, schema_editor):
     codes = [c for c, *_ in INTENTS]
     RoutingRule.objects.filter(intent__code__in=codes).delete()
     IntentAction.objects.filter(intent__code__in=codes).delete()
-    Intent.objects.filter(code__in=codes).delete()
+    # Borrado directo: según el orden del plan inverso, el estado histórico puede incluir
+    # Ticket.intent aunque su columna ya no exista, y el colector la consultaría.
+    Intent.objects.filter(code__in=codes)._raw_delete(schema_editor.connection.alias)
     AuditLog.objects.filter(metadata_json=SOURCE).delete()
 
 
