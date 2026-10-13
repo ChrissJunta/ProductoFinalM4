@@ -178,3 +178,15 @@ if TRUSTED_PROXY_COUNT:
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 SECURE_REFERRER_POLICY = "same-origin"
 SESSION_COOKIE_AGE = 8 * 60 * 60  # jornada laboral
+
+# WhatsApp (SPEC §35, ADR-049): «simulated» registra la salida sin enviarla (sin acceso a
+# Meta Developer); «cloud» usa Meta WhatsApp Cloud API con las credenciales de abajo.
+WHATSAPP_MODE = env("WHATSAPP_MODE", default="simulated")
+WHATSAPP_VERIFY_TOKEN = env("WHATSAPP_VERIFY_TOKEN", default="")
+WHATSAPP_APP_SECRET = env("WHATSAPP_APP_SECRET", default="")
+WHATSAPP_ACCESS_TOKEN = env("WHATSAPP_ACCESS_TOKEN", default="")
+WHATSAPP_PHONE_NUMBER_ID = env("WHATSAPP_PHONE_NUMBER_ID", default="")
+WHATSAPP_API_VERSION = env("WHATSAPP_API_VERSION", default="v21.0")
+WHATSAPP_LINK_CODE_MINUTES = 10
+INTEGRATION_MAX_ATTEMPTS = 5  # reintentos con backoff exponencial (SPEC §38.1)
+RATE_LIMITS["whatsapp_link"] = (5, 60 * 60)  # códigos fallidos por número y hora (§35.1)

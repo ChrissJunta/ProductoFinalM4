@@ -13,3 +13,7 @@ ALLOWED_HOSTS = ["testserver", "localhost"]
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 
 AGENT_CHECKPOINTER = "memory"  # SPEC §46A.6: InMemorySaver en pruebas
+
+WHATSAPP_VERIFY_TOKEN = "test-verify-token"
+WHATSAPP_APP_SECRET = "test-app-secret"
+WHATSAPP_MODE = "simulated"

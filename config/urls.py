@@ -8,4 +8,5 @@ urlpatterns = [
     path("", include("apps.automation.urls")),
     path("", include("apps.ai.urls")),
     path("manage/", include("apps.helpdesk.manage_urls")),
+    path("", include("apps.integrations.urls")),
 ]

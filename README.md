@@ -79,9 +79,21 @@ visual del detalle la hará FRONT; mientras tanto, también desde `python manage
 Tareas periódicas (en producción, con cron; en desarrollo se pueden lanzar a mano):
 
 ```bash
+python manage.py process_integration_queue  # cada minuto: WhatsApp (entrada, salida, reintentos)
 python manage.py check_sla              # cada 5 min: alertas de SLA y escalamiento automático
 python manage.py close_stale_tickets    # cada hora: cierre/cancelación automáticos
 ```
+
+### WhatsApp simulado (sin acceso a Meta)
+
+```bash
+# 1) usuario → /profile/whatsapp/ → «Generar código» (6 dígitos)
+python manage.py whatsapp_simulate +593991112233 "¿Cuánto debo?"   # sin vincular: pide vincular
+python manage.py whatsapp_simulate +593991112233 "<código>"         # vincula el número
+python manage.py whatsapp_simulate +593991112233 "¿Cuánto debo?"   # responde solo el total
+```
+
+En producción el worker corre por cron: `* * * * * python manage.py process_integration_queue`.
 
 ### Carga y benchmark (opcional)
 

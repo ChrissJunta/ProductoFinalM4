@@ -100,6 +100,11 @@ def add_message(
         ticket.first_response_at = message.created_at
     ticket.save(update_fields=["first_response_at", "updated_at"])
 
+    if is_staff:
+        # Ticket nacido en WhatsApp: la respuesta del personal también sale por WhatsApp.
+        from apps.integrations.whatsapp.processing import notify_ticket_reply
+
+        notify_ticket_reply(message)
     if request_info:
         workflow.transition(ticket, S.WAITING_USER, actor=author, reason="Solicitud de información")
     elif not is_staff and ticket.status == S.WAITING_USER:
