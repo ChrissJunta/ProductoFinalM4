@@ -564,6 +564,7 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Estado:** Pendiente de publicación BACK
 **Contrato actual:** CONTRACT-002 solo expone variables globales en home.html; CONTRACT-008 aporta listado, no dashboard.
 **Solicitud concreta:** publicar url name/plantilla del dashboard y contexto autorizado de tickets recientes (código, asunto, estado, última actualización, enlace publicado si existe) y acceso de creación. BACK decide selección, orden, límite y privacidad; FRONT no consultará ORM desde plantilla ni simulará tickets recientes.
+**Precisiones de interfaz pendientes:** método GET, ruta y URL name exactos, nombre/estructura de la variable de tickets recientes, selección/límite/orden ya resueltos por BACK y caso vacío. La creación usa la URL aprobada `helpdesk:ticket_create` (CONTRACT-004); no se requiere inventar un formulario POST dentro del dashboard. Si BACK cambia `accounts:role_redirect`/ROLE_HOME_URLS debe registrarlo como cambio de contrato.
 **Consumidor:** FE-T02. No bloquea FE-T04 (listado) ni cambia contratos BACK.
 **Aprobado:** Pendiente
 
@@ -573,6 +574,7 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Estado:** Pendiente de publicación BACK / BE-T06
 **Contrato disponible:** CONTRACT-009 permite filtrar/listar bandeja; `assignees` son opciones de filtro, no autorización para asignar un ticket.
 **Solicitud concreta:** publicar URL names y POST esperado para asignar/reasignar, manejo de versión/CSRF/errores y contexto por ticket con acciones/destinos autorizados calculados por BACK. Definir quién puede elegir área/responsable y cuándo; FRONT no reutilizará el queryset de filtros como lista de asignación autorizada ni deducirá permisos del rol.
+**Precisiones de formulario pendientes:** ruta y URL name de cada POST, variable/instancia del formulario, nombres/tipos/límites/requeridos de sus campos y errores generales/por campo, opciones de área/responsable autorizadas **para el ticket**, campo de versión leída, CSRF, motivo si procede, respuesta/error y destino PRG. BACK publica estos datos; `assignees` del filtro CONTRACT-009 no autoriza una operación de asignación.
 **Consumidor:** FE-T06. La lectura/filtros se implementa ahora; acciones bloqueadas hasta el contrato.
 **Aprobado:** Pendiente
 
@@ -582,6 +584,8 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Estado:** Pendiente de publicación BACK / BE-T05
 **Contrato disponible:** CONTRACT-005 define descargas y CONTRACT-006 POST de estado; ninguno publica vista GET/contexto del detalle.
 **Solicitud concreta:** publicar URL name/plantilla del detalle, contexto autorizado del ticket, conversación/histórico ordenados por BACK (remitente/canal/fecha/texto autorizado), adjuntos autorizados, `ticket.version`, `allowed_targets` y datos de acciones permitidas; también URL names/POST de respuesta cuando existan. BACK decide permisos, transiciones y qué contenido puede mostrarse; FRONT no infiere botones, mensajes ni historial desde modelos sin contexto aprobado.
+**Precisiones de GET/respuesta pendientes:** ruta y URL name GET del detalle; nombres/estructura exactos de ticket, conversación, historial, adjuntos y `sla`; instancias de formularios publicados (campos, obligatorios/límites, errores y adjunto habilitado), URL name/ruta POST de respuesta, enctype si admite archivo y destino PRG. No se declara existente ninguna vista/contexto aún pendiente.
+**Acciones POST ya aprobadas, a consumir solo con contexto de detalle:** CONTRACT-006 publica `helpdesk:ticket_status`, `ticket_resolve`, `ticket_escalate`, `ticket_confirm`, `ticket_reject_resolution`, `ticket_reopen`, `ticket_cancel`; campos `version` leído (entero), `reason` (máx. 2000, requerido según acción), `next` interno opcional, `to_status` solo para genérica, CSRF. Mostrar únicamente `allowed_targets` de BACK; publicación del contexto debe cubrir qué acción/motivo corresponde. Respuestas 400/403/404 y mensajes/PRG se rigen por CONTRACT-006 y CR-004 (no visible → 404), sin lógica de permisos FRONT.
 **Consumidores:** FE-T05/FE-T07. La solicitud equivalente de FE-T07 también consta en PR #3 como CONTRACT-FRONT-001; no implica dos implementaciones ni dos bloqueos distintos.
 **Aprobado:** Pendiente
 
