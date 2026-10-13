@@ -14,14 +14,14 @@
   <h2 id="summary-title" class="h5">Resumen de tus tickets</h2>
   <dl class="row g-3">
     <div class="col-sm-4"><dt class="card rounded-top p-3 pb-0 border-bottom-0">Abiertos</dt><dd class="card rounded-bottom p-3 pt-0 border-top-0 fs-3 mb-0">{{ summary.open }}</dd></div>
-    <div class="col-sm-4"><dt class="card rounded-top p-3 pb-0 border-bottom-0">Esperando tu respuesta</dt><dd class="card rounded-bottom p-3 pt-0 border-top-0 fs-3 mb-0">{{ summary.waiting_user }}</dd></div>
+    <div class="col-sm-4"><dt class="card rounded-top p-3 pb-0 border-bottom-0">Esperando al usuario</dt><dd class="card rounded-bottom p-3 pt-0 border-top-0 fs-3 mb-0">{{ summary.waiting_user }}</dd></div>
     <div class="col-sm-4"><dt class="card rounded-top p-3 pb-0 border-bottom-0">Soluciones por confirmar</dt><dd class="card rounded-bottom p-3 pt-0 border-top-0 fs-3 mb-0">{{ summary.resolved }}</dd></div>
   </dl>
 </section>
 <section aria-labelledby="recent-title">
   <h2 id="recent-title" class="h5">Tickets recientes</h2>
   <p class="text-secondary">Hasta cinco solicitudes, ordenadas por última actualización.</p>
-  {% if recent_rows %}{% include 'components/ticket_table.html' with rows=recent_rows %}
+  {% if recent_rows %}{% include 'components/ticket_table.html' with rows=recent_rows table_caption="Solicitudes recientes · hasta cinco resultados" %}
   {% else %}<p class="border rounded bg-white p-3">Todavía no tienes tickets. Crea una solicitud para comenzar.</p>{% endif %}
 </section>
 {% endblock %}
