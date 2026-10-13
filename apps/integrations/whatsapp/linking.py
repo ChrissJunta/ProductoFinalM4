@@ -10,11 +10,10 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
-from apps.accounts import ratelimit
 from apps.helpdesk import audit
 from apps.helpdesk.audit import Action
 
-from ..models import WhatsAppLinkCode
+from ..models import WhatsAppLinkAttempt, WhatsAppLinkCode
 
 CODE_DIGITS = 6
 LINKED = (
@@ -47,9 +46,9 @@ def generate_code(user):
 @transaction.atomic
 def redeem(code, phone):
     """Valida el código recibido desde `phone`. Devuelve (usuario | None, mensaje de respuesta)."""
-    if ratelimit.is_limited("whatsapp_link", phone):
-        return None, LOCKED
     now = timezone.now()
+    if _locked(phone, now):
+        return None, LOCKED
     link = (
         WhatsAppLinkCode.objects.select_for_update()
         .filter(code_hash=_hash(code.strip()), used_at__isnull=True, expires_at__gt=now)
@@ -57,7 +56,7 @@ def redeem(code, phone):
         .first()
     )
     if link is None or not link.user.is_active:
-        ratelimit.hit("whatsapp_link", phone)
+        WhatsAppLinkAttempt.objects.create(phone=phone)
         return None, INVALID
     link.used_at = now
     link.save(update_fields=["used_at"])
@@ -67,8 +66,17 @@ def redeem(code, phone):
         _set_phone(other, "", None, actor=None, reason="Número vinculado por otra cuenta")
     user = User.objects.select_for_update().get(pk=link.user_id)
     _set_phone(user, phone, now, actor=user, reason="Vinculación por código")
-    ratelimit.reset("whatsapp_link", phone)
+    WhatsAppLinkAttempt.objects.filter(phone=phone).delete()
     return user, LINKED
+
+
+def _locked(phone, now):
+    """Máx. 5 fallos por número y hora, y un tope global que frena la rotación de números."""
+    recent = WhatsAppLinkAttempt.objects.filter(created_at__gte=now - timedelta(hours=1))
+    return (
+        recent.filter(phone=phone).count() >= settings.WHATSAPP_LINK_MAX_FAILURES
+        or recent.count() >= settings.WHATSAPP_LINK_GLOBAL_MAX_FAILURES
+    )
 
 
 @transaction.atomic
