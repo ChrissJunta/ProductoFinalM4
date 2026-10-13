@@ -104,14 +104,14 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | FE-T02 | REVIEW (CONTRACT-013; resumen y recientes implementados) | ChatGPT | BE-T03, BE-T04 | 2026-10-13 |
 | FE-T03 | REVIEW (implementada y validada en Cloud; pendiente de revisión) | ChatGPT | BE-T03, BE-T03A | 2026-10-12 |
 | FE-T04 | REVIEW (listado validado en Cloud; CONTRACT-008) | ChatGPT | BE-T04 | 2026-10-12 |
-| FE-T05 | REVIEW (detalle y conversación CONTRACT-010/011) | ChatGPT | BE-T05, BE-T07 | 2026-10-13 |
+| FE-T05 | REVIEW (detalle, conversación y revisión humana CONTRACT-010/011/015) | ChatGPT | BE-T05, BE-T07 | 2026-10-13 |
 | FE-T06 | REVIEW (lectura y asignación CONTRACT-009/012) | ChatGPT | BE-T04, BE-T06 | 2026-10-13 |
 | FE-T07 | REVIEW (acciones autorizadas CONTRACT-006/010) | ChatGPT | BE-T07 | 2026-10-13 |
 | FE-T08 | REVIEW (alertas implementadas y validadas; CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-12 |
-| FE-T09 | TODO (desbloqueada: CONTRACT-016 responde CONTRACT-FRONT-005; hay plantillas TEMPORALES) | ChatGPT | BE-T03A, BE-T09 | 2026-10-13 |
-| FE-T10 | TODO (desbloqueada: CONTRACT-017 responde CONTRACT-FRONT-006; hay plantilla TEMPORAL) | ChatGPT | BE-T10 | 2026-10-13 |
-| FE-T11 | TODO (desbloqueada: CONTRACT-018; hay plantilla TEMPORAL) | ChatGPT | BE-T11A | 2026-10-13 |
-| FE-T12 | TODO (nueva: asistente CONTRACT-014 + tarjeta de revisión humana CONTRACT-015; hay plantilla TEMPORAL del asistente) | ChatGPT | BE-T14, BE-T18A | 2026-10-13 |
+| FE-T09 | REVIEW (administración CONTRACT-016 implementada) | ChatGPT | BE-T03A, BE-T09 | 2026-10-13 |
+| FE-T10 | REVIEW (métricas CONTRACT-017 implementadas) | ChatGPT | BE-T10 | 2026-10-13 |
+| FE-T11 | REVIEW (vinculación CONTRACT-018 implementada) | ChatGPT | BE-T11A | 2026-10-13 |
+| FE-T12 | REVIEW (asistente CONTRACT-014; revisión CONTRACT-015 reutilizada FE-T05) | ChatGPT | BE-T14, BE-T18A | 2026-10-13 |
 
 ---
 
@@ -815,6 +815,14 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Estado:** Pendiente BE-T10 y contrato aprobado.
 **Solicitud concreta:** BACK debe publicar URL name/ruta GET, plantilla, roles autorizados, filtros y parámetros (periodo/área/categoría/canal), contexto de abiertos/cerrados, cumplimiento SLA, tiempos y agrupaciones por área/categoría/canal. Definir unidades, zona horaria, denominadores, tratamiento de registros sin SLA/fechas, estados vacíos y errores 403. Si se requieren exportaciones, publicar sus rutas/permisos y formato; FRONT no agregará métricas ni consultas.
 **Consumidor:** FE-T10.
+**Aprobado:** Pendiente
+
+### CONTRACT-FRONT-007 — Extensión de métricas WhatsApp FE-T10 — Pendiente
+**Fecha:** 2026-10-13 — America/Guayaquil
+**Origen:** FRONT
+**Estado:** CONTRACT-017 aprobado no documenta aún metrics.whatsapp añadido por BE-T12.
+**Solicitud:** ampliar explícitamente CONTRACT-017 con contexto y definiciones de inbound, inbound_failed, outbound_sent, outbound_failed, outbound_pending, retries y conversations, unidad/periodo y aplicación de filtros área/categoría/canal. Confirmar la diferencia entre conversaciones y números únicos, y denominador de fallos/reintentos si se pide porcentaje. No se calculan ni infieren estos indicadores en FRONT; interfaz FE-T10 actual presenta las claves publicadas en CONTRACT-017.
+**Consumidor:** FE-T10 (extensión posterior). No bloquea la presentación de métricas aprobadas.
 **Aprobado:** Pendiente
 
 ## 12.2 Solicitudes de cambio
@@ -1955,7 +1963,20 @@ Bloqueos: Ninguno
 ### Pendientes derivados
 - Ajustar `ROUTES`/`map_*` cuando la universidad entregue el contrato real del SGA (sin cambios fuera de `sga.py`).
 
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T05 — Revisión humana CONTRACT-015 — REVIEW
 
+- Tarjeta exclusivamente cuando ai_review existe; muestra propuesta/candidatos/confianza y POST accept/reject, correct solo si can_correct. Catálogo exclusivamente ai_review.intents, CSRF y URL name ai:ticket_review. No decisión de autonomía ni permisos calculados FRONT.
+- Extensión del detalle autorizada FE01..10; asistente FE-T12 separado sin implementación en esta ejecución. Pruebas conjuntas pendientes de cierre.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T09 — REVIEW
+
+- Sustituidas plantillas temporales: panel, listado/filtros/paginación20, alta/edición con ModelForm ligado, errores/ayuda, agents múltiple, keywords textarea y código disabled del BACK. Activación/desactivación POST CSRF, sin borrado. URLs por nombre manage; navegación solo Administrador.
+- Sin modificar servicios/catalogs ni modelos/permisos; pendiente validación conjunta y humana.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T10 — REVIEW
+
+- Filtros ModelForm GET/errores, periodo aplicado, volúmenes/estados, ambos SLA, tiempos, reasignaciones/reaperturas, desgloses y métricas IA publicados. Ceros se conservan; None se presenta Sin datos. No cálculos FRONT ni exportaciones inferidas; costo sin moneda no se etiqueta como USD. Navegación solo Supervisor.
+- Pendiente validación conjunta y humana.
 ## BE-T11 / BE-T11A / BE-T12 — WhatsApp simulado — Cierre
 
 **Estado:** REVIEW
@@ -2001,3 +2022,45 @@ Bloqueos: Ninguno
 - Revisado sin hallazgos: autorización horizontal/vertical, CSRF, XSS, redirecciones, adjuntos, SQL, firma del webhook, herramientas del agente, datos enviados al LLM, secretos en el repositorio.
 **Pendiente:** UAT con usuarios reales de la universidad (requiere personas, no automatizable) y objetivo IA de SPEC §50, que depende del proveedor LLM real (ADR-010).
 
+
+## 2026-10-13 10:16 — ChatGPT (FRONTEND) / FE-T05/09/10 e integración — REVIEW — America/Guayaquil
+
+- Backend vigente integrado: a93118b6257d960d2bb469abfefb31c620207281. Claude añadió durante esta revisión WhatsApp simulado/CA001..010; se sincronizó sin reset ni cambios manuales BACK. Conflictos solo progress: estados FRONT vigentes y ambas historias conservadas, sin duplicados ni marcadores finales. Main intacta; ramas propias sin force push.
+- FE-T05 PR #9 sobre main-r0dfx3: revisión humana CONTRACT-015 (ai_review/can_correct, acciones POST/CSRF/catálogo BACK), mantiene detalle omnicanal. FE-T09 PR #11 sobre FE-T05: siete catálogos CONTRACT-016, CRUD/desactivación/paginación/errores/agents/keywords. FE-T10 PR #12 sobre FE-T09: valores/filtros CONTRACT-017 sin cálculos FRONT. REVIEW hasta validación humana. Integración feature/integracion-mvp/PR DRAFT #7 contiene BACK Claude + FRONT ChatGPT y ramas de tarea conservadas.
+- Suite real final: **801 passed en 110.01 s, cobertura98.99 %**, PostgreSQL16.15, DJANGO_SETTINGS_MODULE=config.settings.test pytest --cov --cov-fail-under=80. Log /workspace/.mesa-cloud/suite-final.log. Previa base79177e5 en esta ejecución:771PASS/99.00%;629corresponde a revisión anterior;701 era anuncio BACK, no resultado atribuido a este Cloud.
+- Chromium final:13pasos de regresión PASS, más7escenarios nuevos PASS. Checkpointer PostgreSQL real para aceptar/corregir/rechazar, retiro de tarjeta y can_correct=False, Usuario sin UI/403, CSRF403/GET405. Métricas ocho tickets, fechas inválidas y ceros; siete catálogos, alta/edición/desactivar/reactivar área con agents, código disabled, error duplicado y autoescape. Responsive360/768/1280.22auditorías axe sin hallazgos seleccionados tras corregir lista de errores y contraste de btn-outline-primary. Cero5xx; no certificación WCAG completa.
+- Datos solo sintéticos en bases temporales eliminadas; helpers/media/evidencia fuera del repo, proveedores fake/local/simulado, sin secretos de producción. Django check/makemigrations sin cambios, Ruff check/format152archivos y sintaxis JS pasan. Checkpointer de desarrollo no se inicializó con datos reales.
+- CONTRACT-FRONT005/006 respondidas por016/017: ya no bloquean FE-T09/10. Nueva petición007 precisa extensión metrics.whatsapp no documentada en017; no UI inferida. FE-T11(018) y asistente FE-T12(014) quedan fuera del alcance actualFE01..10: plantillas temporales BACK conservadas; tarjeta015 implementada una sola vez enFE-T05 para no duplicar trabajo. Fuente oficial pendiente, sistema provisional; integración no sustituye UAT humana ni proveedores reales.
+- Seguimiento Cloud único horario activo según UI, primera ejecución remota no verificada. Actualización de setup/arranque se guarda en borrador para revisar/guardar/publicar; no monitor duplicado.
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T11 — IN_PROGRESS — America/Guayaquil
+
+- Autorización expresa del usuario amplía alcance a vinculación018 y asistente014. Base BACK08cb87e y tareas FRONT previas preservadas. WhatsApp simulado ADR049; solo templates/static y registros FRONT, sin backend ni secretos reales.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T11 — REVIEW
+
+- Pantalla institucional: estado/número/fecha verificados, código de una sola vista y vencimiento suministrados BACK, generar y desvincular POST con CSRF y URL accounts:whatsapp. Navegación autenticada y modo simulado explícito, sin número institucional inventado ni credenciales JS. Funciona sin JS. Validación conjunta pendiente de registrar.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T12 — IN_PROGRESS — America/Guayaquil
+
+- Alcance ampliado expresamente por usuario. Implementar exchange/form/examples de014, sin inventar historial persistente: contrato solo última consulta una vez tras PRG. Tarjeta015 ya existente FE05, no duplicar.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T12 — REVIEW
+
+- Formulario ligado con errores, última pregunta/respuesta escapadas, saltos de línea y enlace a ticket exclusivamente exchange.ticket_code. Ejemplos POST CSRF funcionales sin JS; navegación/inicio solo Usuario. Sin historial/contexto/autonomía inferidos ni JS con secretos. Tarjeta015 reutilizada, sin duplicar. Validación conjunta pendiente de registrar.
+
+## 2026-10-13 12:38 — ChatGPT (FRONTEND) / FE-T11/12 — Validación e integración REVIEW — America/Guayaquil
+
+- Autorización explícita del usuario amplió FRONT a FE-T11/12: ya no están fuera de alcance. Base BACK08cb87eed3ff31a530167b56e8210f5faf8d9785 integrada sin edición manual BACK; ramas FE05/09/10 sincronizadas conservando todos sus PR. Main intacta, sin reset ni force push.
+- FE-T11 feature/fe-t11-whatsapp PR#13 sobre FE10: perfil018, estado/código/vencimiento, generar y desvincular POST CSRF; navegación autenticada y modo simulado ADR049. FE-T12 feature/fe-t12-asistente PR#14 sobre FE11: formulario014, ejemplos POST sin JS, exchange escapado una sola vista, enlace a ticket suministrado y navegación/inicio solo Usuario. Revisión015 reutilizada FE05; no historial persistente ni lógica de autonomía FRONT inferidos.
+- Estado final de ambas tareas REVIEW, pendiente UAT humana. Integración feature/integracion-mvp PR DRAFT#7 conserva BACK Claude + FRONT ChatGPT, historias y ramas de tarea; conflictos de progress resueltos conservando ambas entradas, filas BACK iguales y contratos sin colisiones.
+- Suite vigente local: **805 passed en93.61s, cobertura98.97%**, PostgreSQL16.15, config.settings.test. Log /workspace/.mesa-cloud/suite-fe1112.log. Django check/makemigrations pasan; Ruff check/format153archivos y sintaxis JS sin cambios. Resultados801 y anteriores permanecen históricos, no se atribuyen a esta base.
+- Nuevos E2E: **3 escenarios /5 auditorías axe PASS**. Sin JS: generar código propietario de una sola vista, aislamiento de otra sesión, CSRF, webhook firmado simulado verifica número y desvinculación POST; asistente ejemplos/deudaN0, PRG una sola vista, solicitud ambiguaN4 con ticket, autoescapeXSS, permisos por rol y validación real. Checkpointer PostgreSQL real. Axe vacío/código/respuesta/error y responsive360/768/1280 pasan. Helpers de prueba corregidos fuera del repo (argumentos posicionales del simulador y envío form-urlencoded), sin cambiar BACK.
+- Regresión en esta base: **13 pasos previos PASS +7 escenarios revisión/catálogos/métricas PASS**,22auditorías de estos últimos sin hallazgos seleccionados; cero5xx. No certificación WCAG completa. Datos solo sintéticos/local/fake/simulado en DB/media temporales destruidos, sin secretos de producción, no Meta real.
+- CONTRACT-FRONT007 permanece pendiente de respuesta/aprobación: métricas WhatsApp no documentadas en017 no se añaden por inferencia. No otras tareas FRONT nuevas publicadas en este alcance. Fuente sistema provisional hasta fuente oficial; UAT y proveedores reales siguen pendientes.
+- Coordinación exclusivamente por repositorio/progress/PR; observaciones Claude por usuario/repositorio, sin mensajes directos. Seguimiento Cloud único horario activo por UI, primera ejecución remota no verificada. Arranque se actualiza en borrador para revisar/guardar/publicar, sin monitor duplicado.
+
+## 2026-10-13 17:50 — Claude (BACKEND) / Integración FE-T09, FE-T10, FE-T11, FE-T12 y revisión humana
+
+- `feature/integracion-mvp` (`05bc2c5`) integrada por merge en `main-r0dfx3` sin conflictos; solo plantillas, estáticos y registros FRONT. Ya no quedan plantillas temporales del backend: asistente (CONTRACT-014), revisión humana (CONTRACT-015), administración (CONTRACT-016), métricas (CONTRACT-017) y WhatsApp (CONTRACT-018) tienen versión FRONT.
+- Verificación: 805 pruebas ×2 sin `.env`; E2E del repositorio 12 pasos PASS; recorrido en Chromium de las pantallas nuevas (asistente N0 y N4, código de WhatsApp, `/manage/`, `/metrics/`, alerta y tarjeta de revisión humana con decisión registrada): 11/11 PASS, sin 5xx.
+- Sugerencia para FRONT (menor): en `/alerts/` el código del ticket no enlaza al detalle; enlazarlo facilitaría llegar a la tarjeta de revisión.
