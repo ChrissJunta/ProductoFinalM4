@@ -93,7 +93,7 @@ Reglas:
 | FE-T03 | TODO (desbloqueada: CONTRACT-004/005) | ChatGPT | BE-T03, BE-T03A | 2026-10-13 |
 | FE-T04 | REVIEW (listado validado en Cloud; CONTRACT-008) | ChatGPT | BE-T04 | 2026-10-12 |
 | FE-T05 | TODO | - | BE-T05, BE-T07 | - |
-| FE-T06 | TODO (listado listo: CONTRACT-009; asignación pendiente de BE-T06) | ChatGPT | BE-T04, BE-T06 | 2026-10-13 |
+| FE-T06 | REVIEW (lectura validada; asignación pendiente CONTRACT-FRONT-003) | ChatGPT | BE-T04, BE-T06 | 2026-10-12 |
 | FE-T07 | TODO (acciones disponibles: CONTRACT-006; el detalle llega con BE-T05) | ChatGPT | BE-T07 | 2026-10-13 |
 | FE-T08 | REVIEW (alertas implementadas y validadas; CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-12 |
 | FE-T09 | TODO | - | BE-T03A, BE-T09 | - |
@@ -559,6 +559,15 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Consumidor:** FE-T02. No bloquea FE-T04 (listado) ni cambia contratos BACK.
 **Aprobado:** Pendiente
 
+### CONTRACT-FRONT-003 — Asignación FE-T06 — Pendiente
+**Fecha:** 2026-10-12 — America/Guayaquil
+**Origen:** FRONT
+**Estado:** Pendiente de publicación BACK / BE-T06
+**Contrato disponible:** CONTRACT-009 permite filtrar/listar bandeja; `assignees` son opciones de filtro, no autorización para asignar un ticket.
+**Solicitud concreta:** publicar URL names y POST esperado para asignar/reasignar, manejo de versión/CSRF/errores y contexto por ticket con acciones/destinos autorizados calculados por BACK. Definir quién puede elegir área/responsable y cuándo; FRONT no reutilizará el queryset de filtros como lista de asignación autorizada ni deducirá permisos del rol.
+**Consumidor:** FE-T06. La lectura/filtros se implementa ahora; acciones bloqueadas hasta el contrato.
+**Aprobado:** Pendiente
+
 ## 12.2 Solicitudes de cambio
 
 ### CHANGE REQUEST CR-001 — Agente LangGraph
@@ -817,6 +826,29 @@ Añadir siempre al final, sin borrar entradas anteriores.
 - Migraciones/endpoints/archivos BACK nuevos: ninguno. Datos sintéticos temporales eliminados al concluir. Se respeta CR-004 (tickets no visibles → 404 en descargas/acciones), sin inferir permisos FRONT.
 - Pendientes: revisión humana; FE-T02 necesita contexto específico de dashboard (CONTRACT-FRONT-002). Próxima tarea con lectura habilitada: FE-T06, CONTRACT-009; sin inventar acciones de asignación pendientes BE-T06 ni acciones FE-T07 pendientes contexto BE-T05.
 - Seguimiento Cloud: ACTIVO cada hora según UI, id `6acd9bd4f1648190a92625ce9eefe1d5`, primera ejecución aún no validada. No duplicados, no heartbeat local.
+
+---
+
+## 2026-10-12 22:12 — ChatGPT (FRONTEND) / FE-T06 — Inicio — America/Guayaquil
+
+- Estado anterior: TODO (listado listo por CONTRACT-009; asignación pendiente).
+- Estado nuevo: IN_PROGRESS, solo lectura habilitada; rama `feature/fe-t06-bandeja-agente`, base FE-T04 para reutilizar tabla/filtros/SLA.
+- Alcance: vistas por pestaña y conteos provistos por BACK, filtros incluyendo responsable, prioridad/área/SLA y paginación. Navegación Agente/Supervisor solo de presentación; BACK valida acceso y visibilidad. No botones de asignación ni cambios de estado sin contrato/contexto autorizado.
+- Archivos previstos: `templates/helpdesk/agent_inbox.html`, filtros comunes de presentación, navegación y registros FRONT. Contexto de asignación solicitado como CONTRACT-FRONT-003 en sección 12.
+- FE-T04 entregada en PR #5; seguimiento Cloud ACTIVO cada hora según UI, primera ejecución pendiente. No monitor duplicado, datos reales ni cambios BACK.
+
+---
+
+## 2026-10-12 22:15 — ChatGPT (FRONTEND) / FE-T06 — Entrega de lectura — America/Guayaquil
+
+- Estado anterior: IN_PROGRESS, lectura habilitada por CONTRACT-009.
+- Estado nuevo: REVIEW **de lectura**; asignación/reasignación sigue pendiente BE-T06 y CONTRACT-FRONT-003. No se declara completada esa parte.
+- Implementado: bandeja Agente/Supervisor, pestañas y conteos BACK, filtros compartidos con listado incluyendo responsable, orden/SLA/prioridad/área, 20 filas/página y querystring preservando tab/filtros, limpiar conservando pestaña, estado vacío y tabla responsive. Solo acciones GET de consulta; no se deducen permisos ni estados.
+- Archivos: `templates/helpdesk/agent_inbox.html`, `templates/components/ticket_filters.html`, integración de filtros en `templates/helpdesk/ticket_list.html`, `templates/components/navbar.html`, registros FRONT.
+- Pruebas: 483 PASS, cobertura 98.78 %; ruff check/format/diff check PASS. Chromium 360/768/1280: Usuario 403; Agente ve solo área/asignación/propios/triaje autorizados por BACK; pestañas y conteos, responsable, 20 filas y segunda página conservando tab/assignee, espera de usuario, vencidos, historial, limpiar/vacío y ausencia de formularios POST de acciones no contratadas PASS. Listado FE-T04 revalidado para la extracción de filtros. BD sintética temporal eliminada.
+- Base vigente revisada: `b421f24`. No se han publicado dashboard FE-T02, detalle FE-T05/contexto allowed_targets FE-T07, asignación FE-T06 ni catálogos/métricas FE-T09/10. Sus acciones/vistas no se inventan; solicitudes FRONT concretas en sección 12 y PR #3/#5/este PR.
+- Entregas previas: PR #2 FE-T01, #3 FE-T03, #4 FE-T08, #5 FE-T04; todos sin merge automático y con registros BACK preservados. Este PR queda sobre FE-T04 para diff exclusivo de lectura FE-T06.
+- Seguimiento Cloud ACTIVO cada hora confirmado por UI, id `6acd9bd4f1648190a92625ce9eefe1d5`, America/Guayaquil. Primera ejecución/acceso GitHub/continuación automática aún no verificados; no se crea otro monitor.
 
 ---
 
