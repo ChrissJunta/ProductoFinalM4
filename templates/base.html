@@ -1,0 +1,22 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Mesa de Ayuda{% endblock %} · Mesa de Ayuda</title>
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/mesa.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-body-tertiary d-flex flex-column min-vh-100">
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+  {% include 'components/navbar.html' %}
+  <main id="contenido" class="container py-4 py-md-5 flex-grow-1" tabindex="-1">
+    {% include 'components/messages.html' %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="container pb-4 text-secondary small">Mesa de Ayuda · Portal de atención</footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
