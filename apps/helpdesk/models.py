@@ -150,7 +150,7 @@ class AuditLog(models.Model):
 class Ticket(models.Model):
     """Solicitud con seguimiento (SPEC §26 `Ticket`).
 
-    `intent` se añade con BE-T09 (CR-002). Los plazos SLA los calcula BE-T08.
+    Los plazos SLA los calcula `helpdesk.sla` al crear el ticket.
     """
 
     class Channel(models.TextChoices):
@@ -189,6 +189,15 @@ class Ticket(models.Model):
         related_name="tickets",
     )
     channel = models.CharField("canal", max_length=16, choices=Channel.choices)
+    # CR-002: intención que originó el ticket (la fija automatización/IA; web la deja vacía).
+    intent = models.ForeignKey(
+        "automation.Intent",
+        verbose_name="intención",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="tickets",
+    )
     category = models.ForeignKey(
         Category, verbose_name="categoría", null=True, blank=True, on_delete=models.PROTECT
     )
@@ -236,6 +245,7 @@ class Ticket(models.Model):
         "ticket_code",
         "user_id",
         "channel",
+        "intent_id",
         "category_id",
         "subcategory_id",
         "priority",
@@ -415,6 +425,7 @@ class Alert(models.Model):
         SLA_WARNING = "SLA_WARNING", "SLA por vencer"
         SLA_BREACHED = "SLA_BREACHED", "SLA vencido"
         ESCALATED = "ESCALATED", "Escalado"
+        HUMAN_REVIEW = "HUMAN_REVIEW", "Revisión humana"  # N4 / baja confianza (BE-T14)
 
     class Severity(models.TextChoices):
         INFO = "INFO", "Informativa"

@@ -37,8 +37,8 @@ Abrir http://127.0.0.1:8000/ e iniciar sesión.
 | `usuario` | Usuario | «Mis tickets» (4 tickets en distintos estados), crear solicitud con adjunto, responder, confirmar o rechazar una solución, reabrir. |
 | `agente_ti` | Agente (área TI) | «Bandeja» → «Sin asignar», abrir un ticket, asignárselo, iniciar atención, pedir información, resolver con mensaje. |
 | `agente_fin` | Agente (área Finanzas) | Solo ve tickets de Finanzas, los asignados a él y los sin área; un ticket de TI le da 404. |
-| `supervisor` | Supervisor | Ve todos los tickets, reasigna entre áreas, «Alertas» de SLA, escalados. |
-| `admin` | Administrador | `/admin/`: áreas (y sus agentes), categorías, políticas SLA, auditoría. |
+| `supervisor` | Supervisor | Ve todos los tickets, reasigna entre áreas, «Alertas» de SLA, escalados y `/metrics/` (métricas operativas e IA). |
+| `admin` | Administrador | `/manage/` (administración propia: áreas y agentes, categorías, intenciones, routing, SLA) y `/admin/` (auditoría). |
 
 Recorrido sugerido:
 1. `usuario` → «Mis tickets» → «Nota incorrecta en Cálculo I» → **Confirmar solución** (queda Cerrado).
@@ -47,6 +47,34 @@ Recorrido sugerido:
 4. `agente_ti` → «Bandeja» → «Sin asignar» → abrir el ticket nuevo → asignarse → «Iniciar atención» → «Resolver» con un mensaje.
 5. `usuario` → abrir ese ticket → ver la resolución en la conversación → confirmar o rechazar.
 6. `supervisor` → «Alertas» y «Bandeja» → «Historial».
+7. `usuario` → abrir **`/assistant/`** (pantalla provisional hasta que FRONT la diseñe) y preguntar:
+   «¿Cuál es mi horario de hoy?», «¿Cuáles son mis notas?», «¿Cuánto debo?» (respuesta automática con datos simulados),
+   «Mi nota de Cálculo I está incorrecta» (crea ticket para Secretaría Académica) o «certificado y contraseña»
+   (ambigua: ticket + alerta de revisión humana, visible para `supervisor` en «Alertas»).
+
+El mismo agente se puede probar desde consola (muestra intención, nivel N0–N4 y recorrido):
+
+```bash
+python manage.py ask usuario "¿Cuánto debo?"
+python manage.py ask usuario "¿Cuánto debo?" --channel WHATSAPP    # solo el total (minimización)
+python manage.py ask --anonymous "¿Cuáles son los requisitos?"      # sin identificar: solo respuestas N1
+```
+
+**Agente LangGraph (IA).** Cada mensaje recorre el grafo de `docs/agent_graph.md`: reglas → LLM (solo si
+las reglas no resuelven) → decisión N0–N4 → herramienta/ticket → revisión humana si hace falta. En
+desarrollo el LLM es simulado (`LLM_PROVIDER=fake`). Para verlo:
+
+```bash
+python manage.py ask usuario "¿Cuál es mi horario de hoy?"
+python manage.py ask usuario "¿Y mañana?"                            # memoria de conversación (CA-010)
+python manage.py ask usuario "no logro acceder a la biblioteca digital"   # lo clasifica el LLM
+python manage.py ask usuario "algo raro #fallo-llm"                  # LLM caído → ticket + revisión (CA-007)
+python manage.py evaluate_intents                                    # accuracy y macro F1 del clasificador
+```
+
+Los casos que quedan en revisión aparecen como alerta «Revisión humana»; un `agente_ti` o el
+`supervisor` decide (aceptar/corregir/rechazar) con `POST /tickets/<código>/review/` (la tarjeta
+visual del detalle la hará FRONT; mientras tanto, también desde `python manage.py shell`).
 
 Tareas periódicas (en producción, con cron; en desarrollo se pueden lanzar a mano):
 
@@ -54,6 +82,16 @@ Tareas periódicas (en producción, con cron; en desarrollo se pueden lanzar a m
 python manage.py check_sla              # cada 5 min: alertas de SLA y escalamiento automático
 python manage.py close_stale_tickets    # cada hora: cierre/cancelación automáticos
 ```
+
+### Carga y benchmark (opcional)
+
+```bash
+python scripts/load_test.py --base http://127.0.0.1:8000 --threads 10 --requests 50
+python manage.py evaluate_intents --agent     # accuracy y latencia P50/P95/P99 del agente
+python manage.py run_sga_mock --port 8099     # SGA simulado (INSTITUTIONAL_PROVIDER=sga, SGA_BASE_URL=…)
+```
+
+Para producción, ver el bloque «Producción» de `.env.example` (HTTPS, cookies seguras, proxy, caché compartida).
 
 ### Verificación automática en navegador (opcional)
 

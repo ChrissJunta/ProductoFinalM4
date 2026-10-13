@@ -236,6 +236,9 @@ def _sync_alerts(ticket, previous, target, reason):
         )
     elif previous == S.ESCALATED:
         alerts.resolve_alerts(ticket, [Alert.Type.ESCALATED])
+    if previous == S.NEW:
+        # Un humano ya triageó el ticket (asignó, pidió datos…): la revisión N4 está hecha.
+        alerts.resolve_alerts(ticket, [Alert.Type.HUMAN_REVIEW])
     if target in FINISHED:
         alerts.resolve_alerts(ticket)
 

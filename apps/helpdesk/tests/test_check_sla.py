@@ -200,7 +200,8 @@ def test_alert_list_for_supervisor(client, make_user, alerts_data):
     ctx = response.context
     assert {a.message for a in ctx["alerts"]} == {"vencido", "por vencer"}  # OPEN por defecto
     assert ctx["filters"] == {"status": "OPEN", "type": ""}
-    assert ctx["open_counts"] == {"SLA_WARNING": 1, "SLA_BREACHED": 1, "ESCALATED": 0}
+    assert ctx["open_counts"] == {"SLA_WARNING": 1, "SLA_BREACHED": 1, "ESCALATED": 0,
+                                  "HUMAN_REVIEW": 0}  # fmt: skip
     assert ctx["page_obj"].number == 1
 
 

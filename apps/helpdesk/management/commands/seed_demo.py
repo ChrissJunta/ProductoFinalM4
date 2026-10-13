@@ -17,6 +17,8 @@ from apps.helpdesk.models import Area, Category, Subcategory, Ticket
 from apps.helpdesk.tickets import TicketService
 
 DEMO_PASSWORD = "Demo-2026!"
+# Código institucional del estudiante demo en los datos simulados del LocalProvider.
+DEMO_EXTERNAL_IDS = {"usuario": "EST-0001"}
 
 USERS = [
     # usuario, nombre, apellido, rol, staff (acceso a /admin)
@@ -65,6 +67,7 @@ class Command(BaseCommand):
                 last_name=last,
                 email=f"{username}@demo.local",
                 is_staff=staff,
+                external_id=DEMO_EXTERNAL_IDS.get(username, ""),
             )
             user.groups.add(Group.objects.get(name=role))
             users[username] = user

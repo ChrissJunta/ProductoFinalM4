@@ -65,7 +65,8 @@ BACK_APPS: accounts, helpdesk, automation, integrations, ai
 SGA_MODE: LocalProvider para MVP
 AI_MODE: asistivo
 LLM_PROVIDER: abierto (ADR-010); FakeLLMProvider por defecto
-AGENT: LangGraph 1.x embebido en apps/ai/agent/ (ADR-016)
+AGENT: LangGraph 1.2 embebido en apps/ai/agent/ (ADR-016), grafo v1.0.0
+WHATSAPP: al final del MVP y simulado, sin acceso a Meta Developer (ADR-049)
 ```
 
 ## 3.1 Reparto de trabajo entre agentes (ADR-013)
@@ -104,12 +105,13 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | FE-T03 | REVIEW (implementada y validada en Cloud; pendiente de revisión) | ChatGPT | BE-T03, BE-T03A | 2026-10-12 |
 | FE-T04 | REVIEW (listado validado en Cloud; CONTRACT-008) | ChatGPT | BE-T04 | 2026-10-12 |
 | FE-T05 | REVIEW (detalle y conversación CONTRACT-010/011) | ChatGPT | BE-T05, BE-T07 | 2026-10-13 |
-| FE-T06 | REVIEW (lectura validada; asignación desbloqueada: CONTRACT-012) | ChatGPT | BE-T04, BE-T06 | 2026-10-13 |
-| FE-T07 | TODO (desbloqueada: CONTRACT-006 + `actions` de CONTRACT-010) | ChatGPT | BE-T07 | 2026-10-13 |
+| FE-T06 | REVIEW (lectura y asignación CONTRACT-009/012) | ChatGPT | BE-T04, BE-T06 | 2026-10-13 |
+| FE-T07 | REVIEW (acciones autorizadas CONTRACT-006/010) | ChatGPT | BE-T07 | 2026-10-13 |
 | FE-T08 | REVIEW (alertas implementadas y validadas; CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-12 |
-| FE-T09 | TODO | - | BE-T03A, BE-T09 | - |
-| FE-T10 | TODO | - | BE-T10 | - |
-| FE-T11 | TODO | - | BE-T11A | - |
+| FE-T09 | TODO (desbloqueada: CONTRACT-016 responde CONTRACT-FRONT-005; hay plantillas TEMPORALES) | ChatGPT | BE-T03A, BE-T09 | 2026-10-13 |
+| FE-T10 | TODO (desbloqueada: CONTRACT-017 responde CONTRACT-FRONT-006; hay plantilla TEMPORAL) | ChatGPT | BE-T10 | 2026-10-13 |
+| FE-T11 | TODO (al final, WhatsApp simulado: ADR-049) | ChatGPT | BE-T11A | 2026-10-13 |
+| FE-T12 | TODO (nueva: asistente CONTRACT-014 + tarjeta de revisión humana CONTRACT-015; hay plantilla TEMPORAL del asistente) | ChatGPT | BE-T14, BE-T18A | 2026-10-13 |
 
 ---
 
@@ -126,20 +128,20 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | BE-T06 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03 | 2026-10-13 |
 | BE-T07 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03 | 2026-10-13 |
 | BE-T08 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03, BE-T07 | 2026-10-13 |
-| BE-T09 | TODO | - | BE-T03 | - |
-| BE-T10 | TODO | - | BE-T03, BE-T08 | - |
-| BE-T11 | TODO | - | BE-T05 | - |
-| BE-T11A | TODO | - | BE-T01, BE-T11 | - |
-| BE-T12 | TODO | - | BE-T11 | - |
-| BE-T13 | TODO | - | BE-T09 | - |
-| BE-T14 | TODO | - | BE-T13, BE-T11A | - |
-| BE-T15 | TODO | - | BE-T14 | - |
-| BE-T16 | TODO | - | - | - |
-| BE-T17 | TODO | - | BE-T16 | - |
-| BE-T18 | TODO | - | BE-T16, BE-T17 | - |
-| BE-T18A | TODO | - | BE-T13..BE-T18 | 2026-10-12 |
-| BE-T19 | TODO | - | BE-T15 | - |
-| BE-T20 | TODO | - | BE-T01..BE-T19, BE-T18A | - |
+| BE-T09 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03 | 2026-10-13 |
+| BE-T10 | REVIEW (CONTRACT-017) | Claude | BE-T03, BE-T08 | 2026-10-13 |
+| BE-T11 | TODO (al final, simulado: ADR-049) | - | BE-T05 | 2026-10-13 |
+| BE-T11A | TODO (al final, simulado: ADR-049) | - | BE-T01, BE-T11 | 2026-10-13 |
+| BE-T12 | TODO (al final, simulado: ADR-049) | - | BE-T11 | 2026-10-13 |
+| BE-T13 | REVIEW (pendiente de revisión del PR) | Claude | BE-T09 | 2026-10-13 |
+| BE-T14 | REVIEW (motor web listo; la entrega por WhatsApp espera BE-T11/BE-T11A) | Claude | BE-T13, BE-T11A | 2026-10-13 |
+| BE-T15 | REVIEW (pendiente de revisión del PR) | Claude | BE-T14 | 2026-10-13 |
+| BE-T16 | REVIEW (interfaz + Fake; proveedor real pendiente de ADR-010) | Claude | - | 2026-10-13 |
+| BE-T17 | REVIEW (pendiente de revisión del PR) | Claude | BE-T16 | 2026-10-13 |
+| BE-T18 | REVIEW (pendiente de revisión del PR) | Claude | BE-T16, BE-T17 | 2026-10-13 |
+| BE-T18A | REVIEW (web; la entrada WhatsApp llega con BE-T11/T12 simulados) | Claude | BE-T13..BE-T18 | 2026-10-13 |
+| BE-T19 | REVIEW (adaptador + SGA simulado; contrato real del SGA pendiente) | Claude | BE-T15 | 2026-10-13 |
+| BE-T20 | IN_PROGRESS (seguridad, carga y benchmark hechos; aceptación final CA-001..010 y UAT tras WhatsApp) | Claude | BE-T01..BE-T19, BE-T18A | 2026-10-13 |
 
 Notas v5.2:
 
@@ -148,6 +150,7 @@ Notas v5.2:
 - El dataset etiquetado de IA se adelanta a BE-T17 (antes en BE-T20).
 - BE-T18A (grafo agéntico LangGraph) orquesta BE-T13/BE-T14/BE-T15/BE-T17/BE-T18; los motores se implementan como funciones reutilizables que luego son nodos del grafo.
 - BE-T11A (vinculación WhatsApp) bloquea a BE-T14: sin ella no se pueden entregar datos sensibles por WhatsApp.
+- 2026-10-13 (ADR-049): WhatsApp (BE-T11, BE-T11A, BE-T12, FE-T11) pasa al final y será simulado; mientras tanto el agente solo entrega datos por web (sesión iniciada).
 
 ---
 
@@ -257,6 +260,31 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-036 | 2026-10-13 | Asignación: Supervisor a cualquier área/agente; Agente solo dentro de sus áreas (tomar o pasar a un compañero) y nunca un ticket ESCALATED; el responsable debe ser agente activo del área | SPEC §9.2 «reasignar cuando tenga permiso», §9.3, fila 12 | `assignment` |
 | ADR-037 | 2026-10-13 | Asignar avanza el estado a ASSIGNED desde NEW (vía CLASSIFIED), CLASSIFIED, REOPENED y ESCALATED, también si área/responsable no cambian; cada paso lo firma el usuario si la tabla §32.1 se lo permite, si no el sistema | Evita tickets asignados que quedan en NEW | `assignment.assign` |
 | ADR-038 | 2026-10-13 | `seed_demo`: datos de demostración solo con DEBUG (o `--force`), idempotente, creados con los servicios reales | Verificación manual reproducible | comando `seed_demo` |
+| ADR-039 | 2026-10-13 | Routing: gana la regla activa de menor `order`; intención/categoría/subcategoría vacías son comodín; se aplica al **crear** el ticket, antes del SLA (la prioridad enrutada define los plazos); los tickets existentes no se reenrutan al cambiar reglas | SPEC §28 y criterio «sin redeploy» | `AutomationService.route_ticket` |
+| ADR-040 | 2026-10-13 | Una sola `IntentAction` activa por intención; `provider_method` restringido al contrato de `InstitutionalDataProvider` (§39) | Configuración inequívoca y sin métodos inventados | `automation.IntentAction` |
+| ADR-041 | 2026-10-13 | Las plantillas N1 iniciales son textos genéricos de ejemplo: el Administrador debe reemplazarlas por la información oficial | No inventar datos institucionales (teléfonos, fechas) | `automation/0002_initial_catalog` |
+| ADR-042 | 2026-10-13 | Intent Engine por reglas: el código `HD-AAAA-NNNNNN` → CHECK_TICKET (confianza 1.0); después, `Intent.keywords` puntúa cada coincidencia por su número de palabras («a + b» exige todas). Gana el puntaje mayor con confianza fija 0.90; un empate es solicitud ambigua (0.50 → N4, CA-006); sin coincidencias queda para el LLM (BE-T16/T17) | Determinístico, explicable y configurable sin redeploy; las intenciones de problema combinan tema + síntoma y ganan a la consulta simple | `automation.intents` |
+| ADR-043 | 2026-10-13 | `determine_autonomy`: sin intención o confianza < 0.70 → N4; N0 sin acción de proveedor y N1 sin plantilla activa → N3 (SPEC §31.1); 0.70–0.849 en N2/N3 → ticket + alerta `HUMAN_REVIEW` (SPEC §46A.4) | La decisión de nivel nunca la toma el LLM | `automation.autonomy` |
+| ADR-044 | 2026-10-13 | Un remitente no identificado (`user=None`, p. ej. WhatsApp sin verificar) solo recibe N1; para datos personales o para crear ticket se le piden instrucciones de vinculación/inicio de sesión. Un ticket siempre tiene solicitante | SPEC §35.1; `Ticket.user` es obligatorio | `automation.autonomy` |
+| ADR-045 | 2026-10-13 | Si el proveedor institucional falla (incluido estudiante sin registro), la consulta N0 se convierte en ticket según `IntentAction.fallback_action` (CREATE_TICKET → N3, HUMAN_REVIEW → N4); la solicitud no se pierde | SPEC §39, §46A.4 (`call_tool --error--> create_ticket`) | `automation.autonomy` |
+| ADR-046 | 2026-10-13 | Nueva alerta `HUMAN_REVIEW` (N4 / confianza media); se resuelve sola cuando un humano saca el ticket de NEW (asignación, solicitud de datos…) o al terminarlo | La bandeja/alertas muestran qué revisar sin un modelo nuevo; `interrupt()` de LangGraph llega con BE-T18A | `helpdesk/0011`, `workflow._sync_alerts` |
+| ADR-047 | 2026-10-13 | Por WhatsApp la deuda se responde solo con el total; el detalle solo en web | Minimización de datos (SPEC §35.1) | `automation.responses` |
+| ADR-048 | 2026-10-13 | `INSTITUTIONAL_PROVIDER` (variable de entorno, por defecto `local`) elige el proveedor en `get_provider()`; `sga` falla con `ImproperlyConfigured` hasta BE-T19. `LocalProvider` lee `local_data.json` indexado por `User.external_id` (datos ficticios) | Cambiar de proveedor no toca la lógica de negocio (SPEC §39) | `integrations.institutional` |
+| ADR-049 | 2026-10-13 | WhatsApp es adicional: se implementa **al final** y **simulado** (simulador local de eventos con el contrato de Meta; salida registrada sin envío) | Decisión del responsable: no hay acceso a Meta Developer | BE-T11, BE-T11A, BE-T12, FE-T11; SPEC §35 |
+| ADR-050 | 2026-10-13 | `LLM_PROVIDER` (entorno) elige la familia de proveedor; `AIModelConfig` elige modelo primario y de respaldo por operación (admin, auditado). Sin filas activas se usa el modelo por defecto del proveedor y no hay respaldo | SPEC §42.1 y §46; cambiar de modelo sin redeploy | `ai.providers`, `AIService.chain` |
+| ADR-051 | 2026-10-13 | `FakeLLMProvider` imita a un LLM con coincidencia por raíces (5 letras) sobre nombre + palabras clave del catálogo que recibe en contexto; los marcadores `#fallo-llm` y `#salida-invalida` simulan fallos para demostrar CA-007 a mano | Determinístico y sin red para CI/demo; ejercita la misma validación que un proveedor real | `ai/providers/fake.py` |
+| ADR-052 | 2026-10-13 | Errores del proveedor → reintento (1) → respaldo → `AIUnavailable`; salida inválida → `AIInvalidOutput` sin reintento. Ambos terminan en ticket N4 con revisión humana. `requires_human` del catálogo prevalece sobre el del LLM | SPEC §46 y §46A.4 | `AIService`, nodos `classify_llm`/`validate_output` |
+| ADR-053 | 2026-10-13 | Dataset: 10 frases base por intención × 2 formas = 20 ejemplos; desarrollo/prueba separados **por frase base** (3 de 10 a prueba). Palabras clave ajustadas solo con desarrollo (`automation/0005`) | Evitar fuga entre conjuntos; métricas honestas | `ai/evaluation`, TEST-RUN-010 |
+| ADR-054 | 2026-10-13 | Revisión humana después de responder al usuario: `respond_ticket → request_review (alerta) → human_review (interrupt) → apply_review`. La alerta va en nodo propio porque LangGraph re-ejecuta el nodo interrumpido al reanudar. N2 no pausa el grafo: su «validación» es el trabajo normal del área (`RoutingRule.requires_validation`) | El usuario no queda esperando; sin alertas duplicadas | `ai/agent/graph.py` (CR-008) |
+| ADR-055 | 2026-10-13 | Si el grafo falla o supera `AGENT_MAX_STEPS` (12), el runner crea fuera del grafo un ticket N4 con alerta (o pide identificarse si no hay usuario) | «Ningún fallo IA pierde la solicitud» (BE-T18) | `runner._fallback` |
+| ADR-056 | 2026-10-13 | Los tickets del agente llevan categoría/subcategoría: la del LLM si su salida es válida o, si no, la de `automation.catalog.INTENT_CATEGORY` | SLA y filtros por categoría también para tickets automáticos | nodo `create_ticket` |
+| ADR-057 | 2026-10-13 | Revisión humana: aceptar, corregir (solo ticket NEW: nueva intención → categoría, routing y SLA recalculados, `classification_source=HUMAN`, auditado) o rechazar. Solo Agente/Supervisor con el ticket visible; el Administrador no opera tickets (ADR-023). Si el hilo ya no existe (memoria tras reinicio), la decisión se aplica igual y se anota | Trazabilidad y robustez | `runner.resume_agent`, CONTRACT-015 |
+| ADR-058 | 2026-10-13 | Administración propia en `/manage/` (CONTRACT-016) con un registro único de entidades; escritura solo vía `helpdesk.catalogs` (auditada), sin borrado; `code` inmutable tras crear; relaciones limitadas a opciones activas (más la actual al editar); sin bloqueo optimista (solo Administrador; auditoría completa) | Desbloquea FE-T09 sin duplicar lógica del admin de Django | `helpdesk.catalog_admin`, `manage_views` |
+| ADR-059 | 2026-10-13 | Métricas (CONTRACT-017): universo = tickets creados en el periodo (fechas locales, extremos incluidos, por defecto 30 días, máx. 1 año); tiempos en minutos de reloj; SLA cumple/incumple/en curso/sin SLA; cumplimiento = cumple/(cumple+incumple). Solo Supervisor (§47.1). Incluye métricas IA de §49 | Definiciones explícitas para que FRONT no calcule | `helpdesk.metrics` |
+| ADR-060 | 2026-10-13 | `SGAProvider` usa un contrato HTTP **supuesto** (`/estudiantes/{id}/horario|calificaciones|estado-cuenta|matricula|asignaturas`, campos en español) aislado en `sga.ROUTES` y `map_*`; se ajusta en un solo lugar cuando el SGA publique el suyo. Timeout por petición (`SGA_TIMEOUT`), 1 reintento ante 5xx/timeout/red, 404 → `StudentNotFound`, otro 4xx sin reintento, JSON o formato inválido → `ProviderError`. Token Bearer opcional (`SGA_TOKEN`) | SPEC §41 «no inventar endpoints reales»; LocalProvider y SGAProvider cumplen el mismo contrato | `integrations.institutional.sga`, `sga_mock` |
+| ADR-061 | 2026-10-13 | Límite de intentos con la caché de Django (ventana fija): login 5 fallos/15 min por usuario y 20 por IP (bloquea aun con clave correcta, 429), asistente 30 mensajes/5 min por usuario. `X-Forwarded-For` solo con `TRUSTED_PROXY_COUNT`. Caché `locmem` en desarrollo; `CACHE_BACKEND=db` con varios procesos | SPEC §48 sin Redis (prohibido) | `accounts.ratelimit` |
+| ADR-062 | 2026-10-13 | `CONN_MAX_AGE` por defecto 0: con hilos efímeros (runserver) las conexiones persistentes agotaron PostgreSQL en la prueba de carga; subirlo solo en producción con workers fijos | Defecto real hallado por BE-T20 (TEST-RUN-013) | `config/settings/base.py` |
+| ADR-063 | 2026-10-13 | Ajustes de producción por entorno (HTTPS, HSTS, cookies seguras, proxy, CSRF trusted origins, sesión de 8 h); `check --deploy` sin advertencias salvo `security.W021` (precarga HSTS: decisión institucional) | SPEC §48 | `config/settings/base.py` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -671,7 +699,134 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Consumidores afectados:** FE-T03, FE-T07 (sin cambios de plantilla).
 **Aprobado:** Sí
 
+### CONTRACT-014 — Asistente (canal web del agente de atención)
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T14) → consumidor FRONT (nueva pantalla; ver CR-007)
+**URL name:** `automation:assistant` → `/assistant/` · **GET|POST** · solo rol **Usuario** (otros roles: 403; sin sesión: login)
+**Plantilla:** `automation/assistant.html` (hoy **temporal del backend**, mínima; FRONT la reemplaza)
+**POST:** campo `message` (obligatorio, máx. 5000) + CSRF → 302 a la misma URL (PRG). Con errores: 200 y `form.errors`.
+**Contexto:**
+
+| Variable | Tipo | Descripción |
+|---|---|---|
+| `form` | `AssistantForm` | Campo `message` (textarea). |
+| `exchange` | `dict` o `None` | Última consulta, se muestra **una sola vez** tras el redirect: `question`, `response` (texto plano con saltos de línea; usar `white-space: pre-line` o `linebreaksbr`), `level` (`N0`..`N4`), `intent_code` (o `None`), `ticket_code` (o `None`; si existe, enlazar a `helpdesk:ticket_detail`). |
+| `examples` | `list[str]` | Preguntas de ejemplo para sugerir (pueden enviarse como chips). |
+
+**Sugerencia FRONT:** enlace «Asistente» en la navegación para el rol Usuario y acceso desde el inicio.
+**Aprobado:** Sí
+
+### CONTRACT-015 — Revisión humana del agente (FE-005 detalle / FE-006 bandeja)
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T18A) → consumidor FRONT
+**Contexto nuevo en `helpdesk:ticket_detail` (CONTRACT-010):** `ai_review` — `None` o `dict` (solo Agente/Supervisor con el ticket visible y una revisión pendiente):
+
+| Clave | Tipo | Descripción |
+|---|---|---|
+| `decision_id` | `int` | Decisión pendiente. |
+| `intent_code` | `str` | Intención propuesta (vacía si fue ambigua o falló el LLM). |
+| `candidates` | `list[str]` | Intenciones empatadas o propuestas. |
+| `confidence` | `Decimal` o `None` | Confianza 0–1. |
+| `can_correct` | `bool` | Solo `True` si el ticket sigue en `NEW`. |
+| `intents` | `list[tuple[code, name]]` | Catálogo activo para el selector de corrección. |
+
+**Acción:** `POST` a `ai:ticket_review` → `/tickets/<code>/review/` con CSRF y `action` = `accept` \| `correct` \| `reject`; con `correct`, campo `intent` (código). Respuesta 302 al detalle con mensaje (éxito o error). 403 si el rol no puede revisar; 404 si el ticket no es visible.
+**Sugerencia FRONT:** tarjeta «Revisión del asistente» en el detalle; en la bandeja, los tickets con alerta `HUMAN_REVIEW` ya aparecen en «Sin asignar»/«Alertas».
+**Aprobado:** Sí
+
+### CONTRACT-016 — Administración de catálogos (FE-T09; responde CONTRACT-FRONT-005)
+**Fecha:** 2026-10-13
+**Origen:** BACK → consumidor FE-T09
+**Permisos:** solo rol **Administrador** (otros roles 403; sin sesión → login). Entidad desconocida u objeto inexistente → 404.
+**Entidades (`entity`):** `areas`, `categories`, `subcategories`, `intents`, `actions`, `routing`, `sla`.
+
+| URL name | Ruta | Método | Plantilla |
+|---|---|---|---|
+| `manage:index` | `/manage/` | GET | `manage/index.html` |
+| `manage:list` | `/manage/<entity>/` | GET | `manage/list.html` |
+| `manage:create` | `/manage/<entity>/new/` | GET, POST | `manage/form.html` |
+| `manage:edit` | `/manage/<entity>/<pk>/` | GET, POST | `manage/form.html` |
+| `manage:toggle` | `/manage/<entity>/<pk>/toggle/` | POST | — (302 al listado) |
+
+**Contexto `index`:** `entities` = lista de `{slug, label, active, total, url}`.
+**Contexto `list`:** `entity`, `entity_label`, `entity_label_singular`, `entities` (navegación `{slug, label}`), `columns` (encabezados), `rows` = `{pk, object, is_active, values (mismo orden que columns), edit_url, toggle_url}`, `page_obj` (20 por página), `filters` = `{q, status}` (`status`: `all` \| `active` \| `inactive`), `status_choices`, `create_url`. GET `q` busca por código/nombre (o campos equivalentes); `page`.
+**Contexto `form`:** `entity`, `entity_label`, `entity_label_singular`, `entities`, `form` (ModelForm ligado: errores por campo y `non_field_errors`), `object` (`None` al crear), `is_create`, `cancel_url`. Éxito → 302 a `manage:list` con mensaje.
+**Campos por entidad:** áreas `code, name, email, agents` (multiselección, solo agentes activos; se guarda auditado); categorías `code, name, default_area`; subcategorías `category, code, name`; intenciones `code, name, automation_level, requires_authentication, requires_llm, requires_human, keywords` (textarea, CR-006); acciones `intent, action_type, provider_method` (lista cerrada), `response_template, fallback_action`; routing `intent, category, subcategory, area, priority, requires_validation, order`; SLA `category, priority, first_response_minutes, resolution_minutes, business_hours_only`.
+**Reglas:** `code` deshabilitado al editar (ADR-058); `is_active` no está en el formulario: se cambia con `manage:toggle` (POST `active` = `1` \| `0`, CSRF). Conflictos de unicidad (p. ej. dos acciones activas para una intención) vuelven como error de formulario o mensaje. Sin borrado físico.
+**Aprobado:** Sí
+
+### CONTRACT-017 — Métricas operativas (FE-T10; responde CONTRACT-FRONT-006)
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T10) → consumidor FE-T10
+**URL name:** `helpdesk:metrics` → `/metrics/` · GET · solo **Supervisor** (otros 403). Plantilla `helpdesk/metrics.html` (TEMPORAL del backend).
+**Filtros GET (`form`):** `date_from`, `date_to` (AAAA-MM-DD; por defecto últimos 30 días; máx. 1 año; inválido → `metrics=None` y errores en `form`), `area` (id), `category` (id), `channel` (`WEB` \| `WHATSAPP`).
+**Contexto:** `form`, `period` = `{date_from, date_to}` (aplicado), `metrics` (`dict` o `None`):
+
+| Clave | Contenido |
+|---|---|
+| `total`, `open`, `resolved`, `closed`, `cancelled` | Conteos (abierto = no RESOLVED/CLOSED/CANCELLED). |
+| `by_status` | `[{status, label, count}]` en orden de estados. |
+| `sla_resolution`, `sla_first_response` | `{within, breached, pending, no_sla, compliance_pct}` (porcentaje con 1 decimal o `None`). |
+| `first_response_minutes`, `resolution_minutes` | `{count, avg, median, p90}` en minutos de reloj (`None` sin datos). |
+| `reassignments`, `reopenings` | Conteos de reasignaciones auditadas y reaperturas. |
+| `by_area`, `by_category`, `by_channel` | `[{id, label, total, open, resolved, closed, cancelled, sla_resolution}]`, ordenados por volumen; «Sin área»/«Sin categoría». |
+| `ai` | `{runs, by_level[{level, count}], automation_pct (N0+N1), llm_calls, llm_failures, invalid_outputs, pending_reviews, reviewed, corrected, latency_ms{count,avg,median,p90}, estimated_cost}`. |
+
+**Definiciones:** ADR-059 (universo por fecha de creación local `TIME_ZONE`; SLA y denominadores explícitos). Sin exportaciones en el MVP.
+**Aprobado:** Sí
+
+### CONTRACT-FRONT-005 — Pantallas administrativas FE-T09 — Respondida (CONTRACT-016)
+**Fecha:** 2026-10-13 — America/Guayaquil
+**Origen:** FRONT (solicitud de coordinación; sin implementación BACK)
+**Estado:** Pendiente de contrato aprobado. BE-T03A/BE-T09 están REVIEW; Django admin disponible no equivale a vistas propias FE-T09.
+**Solicitud concreta:** BACK debe publicar URL names y rutas GET de listado/alta/edición para áreas, categorías, subcategorías, intenciones, acciones, routing y SLA, con plantilla, contexto (objetos/page_obj/filtros/choices/form), permisos administrativos y errores 403/404. Publicar endpoints POST de guardar y desactivar/reactivar lógicamente (sin borrado), campos y validación de cada formulario, CSRF, redirects, mensajes y concurrencia cuando corresponda. Áreas: agentes autorizados (CR-003); intenciones: keywords textarea (CR-006); routing: relaciones, prioridad, orden y validación; SLA: unidades y reglas editables. Si acciones o SLA quedan fuera de FE-T09, explicitarlo en el contrato.
+**Campos observados en modelos para que BACK confirme su exposición (no son contrato de formulario):**
+
+| Entidad | Campos que necesita confirmar el formulario contratado |
+|---|---|
+| Área | code, name, email, agents, is_active |
+| Categoría | code, name, default_area, is_active |
+| Subcategoría | category, code, name, is_active |
+| Intención | code, name, automation_level, requires_authentication, requires_llm, requires_human, keywords, is_active |
+| Acción | intent, action_type, provider_method, response_template, fallback_action, is_active |
+| Routing | intent, category, subcategory, area, priority, requires_validation, order, is_active |
+| SLA | category, priority, first_response_minutes, resolution_minutes, business_hours_only, is_active |
+
+**Contexto/formulario solicitado:** listado con objetos/page_obj y filtros aplicados; alta/edición con form ligado y errores por campo/no campo, instancia al editar y opciones autorizadas en cada relación. Confirmar si se permite editar code, cómo guardar agents con auditoría y cuál POST/URL name cambia is_active. No publicar rutas hipotéticas como si existieran.
+**Consumidor:** FE-T09. No deducir endpoints de los modelos/admin ni construir lógica de catálogo en FRONT.
+**Aprobado:** Pendiente
+
+### CONTRACT-FRONT-006 — Métricas operativas FE-T10 — Respondida (CONTRACT-017)
+**Fecha:** 2026-10-13 — America/Guayaquil
+**Origen:** FRONT (solicitud de coordinación; sin implementación BACK)
+**Estado:** Pendiente BE-T10 y contrato aprobado.
+**Solicitud concreta:** BACK debe publicar URL name/ruta GET, plantilla, roles autorizados, filtros y parámetros (periodo/área/categoría/canal), contexto de abiertos/cerrados, cumplimiento SLA, tiempos y agrupaciones por área/categoría/canal. Definir unidades, zona horaria, denominadores, tratamiento de registros sin SLA/fechas, estados vacíos y errores 403. Si se requieren exportaciones, publicar sus rutas/permisos y formato; FRONT no agregará métricas ni consultas.
+**Consumidor:** FE-T10.
+**Aprobado:** Pendiente
+
 ## 12.2 Solicitudes de cambio
+
+### CHANGE REQUEST CR-008 — Hilos del agente por ejecución y revisión tras responder
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T18A)
+**Contrato actual:** SPEC §46A.6 `thread_id = Conversation.id`; §46A.4 `human_review → respond`.
+**Cambio:** (1) cada mensaje usa su hilo `run-…` (en `AIDecision.thread_id`); la memoria entre mensajes se guarda en `Conversation.active_intent/last_message_at`. Motivo comprobado: en LangGraph 1.2 un mensaje nuevo en un hilo pausado descarta la revisión pendiente. (2) La revisión humana ocurre después de responder al usuario (ADR-054).
+**Impacto:** SPEC §46A.6 anotada. Ningún cambio para FRONT.
+**Aprobado:** Sí (decisión técnica del agente BACKEND; revisable en el PR)
+
+### CHANGE REQUEST CR-006 — `Intent.keywords` — **Aplicado** (automation/0003-0004, 2026-10-13)
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T13)
+**Cambio:** la SPEC §30 pide «coincidencias configuradas» pero el modelo `Intent` (§28) no tiene dónde guardarlas. Se añade `Intent.keywords` (texto, una coincidencia por línea, auditado) con palabras clave iniciales en español, editables desde el admin.
+**Impacto:** FE-T09 (administración de intenciones) debe mostrar el campo como textarea.
+**Aprobado:** Sí (decisión técnica del agente BACKEND; revisable en el PR)
+
+### CHANGE REQUEST CR-007 — Ruta web `/assistant/`
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T14)
+**Cambio:** SPEC §46A.7 dice que el canal web invoca al agente desde «la vista de nuevo mensaje/solicitud», pero §47.1 no tiene una ruta para preguntar sin abrir ticket. Se añade `automation:assistant` (CONTRACT-014) para que CA-001 a CA-003 se puedan verificar en web antes de WhatsApp. `/tickets/new/` no cambia (el usuario elige categoría).
+**Impacto:** nueva pantalla FRONT (sin tarea FE asignada aún; propuesta: ampliar FE-T02 o crear FE-T12).
+**Aprobado:** Sí (decisión técnica del agente BACKEND; revisable en el PR)
 
 ### CHANGE REQUEST CR-001 — Agente LangGraph
 **Fecha:** 2026-10-12
@@ -696,7 +851,7 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Consumidores afectados:** FE-T05/FE-T07 (ningún cambio de plantilla: Django muestra la página 404 estándar).
 **Aprobado:** Sí
 
-### CHANGE REQUEST CR-002 — `Ticket.intent` se añade en BE-T09
+### CHANGE REQUEST CR-002 — `Ticket.intent` se añade en BE-T09 — **Aplicado** (helpdesk/0010, 2026-10-13)
 **Fecha:** 2026-10-13
 **Origen:** BACK (BE-T03)
 **Cambio:** BE-T03 debía incluir `Ticket.intent` (FK a `automation.Intent`), pero ese modelo nace en BE-T09. Crear ahora un `Intent` vacío solo para la FK violaría la regla 57 (no adelantar piezas sin requisito). El campo, nullable, se añadirá con su migración en BE-T09.
@@ -730,6 +885,16 @@ Plantilla:
 - `helpdesk/migrations/0007_initial_sla_policies.py` — 4 políticas generales (SPEC §34) auditadas como SYSTEM y permisos por rol — aplicada y reversible — BE-T08
 - `helpdesk/migrations/0008_area_agents.py` — `Area.agents` (CR-003) — aplicada y reversible — BE-T04
 - `helpdesk/migrations/0009_conversations.py` — `Conversation`, `TicketMessage`, `Attachment.message` — aplicada y reversible — BE-T05
+- `automation/migrations/0001_initial.py` — `Intent`, `IntentAction`, `RoutingRule` — aplicada y reversible — BE-T09
+- `automation/migrations/0002_initial_catalog.py` — 20 intenciones (SPEC §29), 20 acciones, 11 reglas, permisos por rol (auditado como SYSTEM) — aplicada y reversible — BE-T09
+- `helpdesk/migrations/0010_ticket_intent.py` — `Ticket.intent` (CR-002) — aplicada y reversible — BE-T09
+- `automation/migrations/0003_intent_keywords.py` — `Intent.keywords` (CR-006) — aplicada y reversible — BE-T13
+- `automation/migrations/0004_initial_keywords.py` — palabras clave iniciales de 19 intenciones (auditado como SYSTEM) — aplicada y reversible — BE-T13
+- `helpdesk/migrations/0011_alert_human_review.py` — tipo de alerta `HUMAN_REVIEW` — aplicada y reversible — BE-T14
+- `ai/migrations/0001_initial.py` — `AIModelConfig`, `AIPromptVersion`, `AIUsage`, `AIDecision` — aplicada y reversible — BE-T16/BE-T18
+- `ai/migrations/0002_initial_config.py` — modelos fake primario/respaldo por operación, prompts v1 y permisos por rol (auditado) — aplicada y reversible — BE-T16/BE-T18
+- `automation/migrations/0005_tune_keywords.py` — palabras clave ajustadas con el conjunto de desarrollo — aplicada y reversible — BE-T17
+- Tablas propias del checkpointer LangGraph (`checkpoints`, `checkpoint_blobs`, `checkpoint_writes`, `checkpoint_migrations`): las crea `PostgresSaver.setup()` en el primer uso, no son migraciones Django — BE-T18A
 
 Formato:
 
@@ -767,6 +932,15 @@ Rutas web (vistas Django, ADR-007):
 - `POST /tickets/<code>/assign/` — `helpdesk:ticket_assign` — REVIEW — BE-T06 — CONTRACT-012
 - `GET /inicio/` — `accounts:home` con resumen — REVIEW — CONTRACT-013
 - Comando `python manage.py seed_demo [--force]` — solo desarrollo (ADR-038)
+- `/admin/automation/{intent,intentaction,routingrule}/` — configuración auditada, sin borrado — REVIEW — BE-T09
+- `GET|POST /assistant/` — `automation:assistant` — REVIEW — BE-T14 — CONTRACT-014
+- Comando `python manage.py ask <usuario> "<mensaje>" [--channel WHATSAPP] [--anonymous]` — demostración del agente — REVIEW — BE-T14
+- `POST /tickets/<code>/review/` — `ai:ticket_review` — REVIEW — BE-T18A — CONTRACT-015
+- `/admin/ai/{aimodelconfig,aipromptversion}/` (auditado, sin borrado) y `/admin/ai/{aiusage,aidecision}/` (solo lectura) — REVIEW — BE-T16/BE-T18
+- `/manage/` y `/manage/<entity>/[new/|<pk>/|<pk>/toggle/]` — `manage:*` — REVIEW — CONTRACT-016
+- `GET /metrics/` — `helpdesk:metrics` — REVIEW — BE-T10 — CONTRACT-017
+- Comando `python manage.py run_sga_mock [--port 8099] [--token …]` — SGA simulado para desarrollo — REVIEW — BE-T19
+- Comandos `python manage.py evaluate_intents [--split dev|test|all] [--errors]` y `python manage.py agent_graph [--check]` — REVIEW — BE-T17/BE-T18A
 
 API: ninguna todavía (el webhook WhatsApp llegará con BE-T11).
 
@@ -843,6 +1017,50 @@ Formato:
 **Resultado:** PASS — 12 pasos con los 5 roles: login; «Mis tickets»; confirmar solución; responder con PDF (vuelve a «En proceso»); crear ticket y llegar al detalle; agente ve «Sin asignar», se asigna, atiende y resuelve; supervisor en alertas/historial; agente de otra área recibe 404; admin entra a `/admin/`; listado a 360 px sin desbordamiento. Sin respuestas 5xx.
 **Fallos:** en los primeros intentos fallaron aserciones del propio script (texto del aviso con saltos de línea; botón de cerrar sesión ausente en la página 404 de Django), no la aplicación.
 **Repetición final:** tras integrar la identidad institucional de FRONT (`feature/integracion-mvp`: logo Indoamérica, colores, contraste) se reinició el servidor (Django cachea plantillas y `--noreload` no las invalida) y se repitió E2E: PASS, 12 pasos, con logo y estilos nuevos.
+
+### TEST-RUN-008
+**Fecha:** 2026-10-13
+**Tarea:** BE-T09
+**Comando:** mismo que TEST-RUN-001 (dos ejecuciones completas)
+**Resultado:** PASS — 558 pruebas, cobertura 99 % (`automation/services.py` y admin al 100 %).
+**Fallos:** ninguno.
+
+### TEST-RUN-009
+**Fecha:** 2026-10-13
+**Tarea:** BE-T13 + BE-T14 + BE-T15
+**Comando:** mismo que TEST-RUN-001 (dos ejecuciones completas, sin `.env`)
+**Resultado:** PASS — 629 pruebas, cobertura 99 % (`intents`, `autonomy`, `responses`, `views`, `ask` e `integrations.institutional` al 100 %).
+**Fallos:** una prueba previa de alertas cambió a propósito (el contador incluye `HUMAN_REVIEW`).
+**Manual:** `seed_demo` + `ask usuario …` sobre la base de desarrollo: horario, notas y deuda (N0), nota incorrecta (N2, ticket a Secretaría Académica), solicitud ambigua (N4 con alerta) y anónimo por WhatsApp (instrucciones de vinculación).
+
+### TEST-RUN-010
+**Fecha:** 2026-10-13
+**Tarea:** BE-T16 + BE-T17 + BE-T18 + BE-T18A
+**Comando:** mismo que TEST-RUN-001 + `python manage.py evaluate_intents --split test`
+**Resultado:** PASS — 701 pruebas ×2 sin `.env`, cobertura 99 % (incluye checkpointer PostgreSQL real con pausa, «reinicio» y reanudación).
+**Métricas base (conjunto de PRUEBA, 120 ejemplos, sin ajustar con él):** solo reglas: accuracy **0.683**, macro F1 **0.684**; reglas + FakeLLM: accuracy **0.767**, macro F1 **0.749**. En desarrollo (usado para ajustar palabras clave): reglas 0.986. La diferencia muestra el límite de las reglas: el proveedor LLM real (ADR-010) debe superar esta línea base.
+**Manual:** `ask` sobre la base de desarrollo con `AGENT_CHECKPOINTER=postgres`: horario, «¿Y mañana?» (CA-010), clasificación por LLM, solicitud ambigua y `#fallo-llm` (CA-007) pausados en revisión; reanudación con corrección desde otro proceso.
+
+### TEST-RUN-011
+**Fecha:** 2026-10-13
+**Tarea:** CONTRACT-016 (administración) + BE-T10 (métricas)
+**Comando:** mismo que TEST-RUN-001 (dos ejecuciones completas sin `.env`) + E2E del repositorio en Chromium
+**Resultado:** PASS — 741 pruebas, cobertura 99 %; E2E 12 pasos sin 5xx.
+**Fallos:** al nombrar `apps/helpdesk/manage.py`, pytest-django lo tomó por el `manage.py` del proyecto y rompió las importaciones; renombrado a `catalog_admin.py`.
+
+### TEST-RUN-012
+**Fecha:** 2026-10-13
+**Tarea:** BE-T19
+**Comando:** mismo que TEST-RUN-001 (dos ejecuciones completas sin `.env`)
+**Resultado:** PASS — 763 pruebas, cobertura 99 % (`sga.py` 100 %), incluye peticiones HTTP reales contra el SGA simulado.
+**Fallos:** ninguno.
+
+### TEST-RUN-013
+**Fecha:** 2026-10-13
+**Tarea:** BE-T20 (seguridad, carga, benchmark IA)
+**Seguridad:** pruebas de límite de intentos (login por usuario e IP, asistente), IP real tras proxy y `manage.py check --deploy --fail-level WARNING` con ajustes de producción: PASS.
+**Carga (`scripts/load_test.py`, servidor de desarrollo de un proceso):** primera corrida 500 peticiones / 10 hilos → **18 errores 500** (conexiones PostgreSQL agotadas por `CONN_MAX_AGE=60` con hilos efímeros). Corregido (ADR-062): 500 peticiones / 10 hilos → 0 errores, 22 req/s, P50 332 ms, P95 610 ms, P99 748 ms; 1000 / 20 hilos → 0 errores, 21 req/s, P95 1.2 s. El techo es el servidor de desarrollo (un proceso); producción con varios workers escala horizontalmente.
+**Benchmark IA (`evaluate_intents --agent`, conjunto de prueba, FakeLLM):** accuracy del agente 0.767; latencia de extremo a extremo P50 85 ms, P95 130 ms, P99 154 ms. Objetivo SPEC §50 (accuracy ≥ 85 %, macro F1 ≥ 0.80) **no alcanzado con el LLM simulado**: requiere el proveedor real (ADR-010).
 
 Formato:
 
@@ -1108,9 +1326,9 @@ SPEC versión: 5.2
 Front backlog definido: Sí
 Back backlog definido: Sí
 Código implementado: BE-T01 (incluye BE-T02), BE-T03A, BE-T03, BE-T04, BE-T05, BE-T06, BE-T07 y BE-T08 en REVIEW; FRONT FE-T01, FE-T03, FE-T04, FE-T06 (lectura) y FE-T08 integrados
-Migraciones: accounts 0001, 0002; helpdesk 0001-0009
+Migraciones: accounts 0001, 0002; helpdesk 0001-0010; automation 0001, 0002
 Endpoints: login, logout, role_redirect, home, ticket_create, attachment_download (vistas web); admin de catálogos, auditoría y tickets
-Pruebas: TEST-RUN-001 a TEST-RUN-007 PASS; E2E-RUN-001 PASS
+Pruebas: TEST-RUN-001 a TEST-RUN-008 PASS; E2E-RUN-001 PASS
 Bloqueos: Ninguno
 ```
 
@@ -1473,6 +1691,96 @@ Bloqueos: Ninguno
 - Verificación: TEST-RUN-007 (535 pruebas) y E2E-RUN-001 (navegador real, 5 roles). Guía paso a paso en `README.md` («Cómo verificar el MVP»), usuarios demo con `seed_demo`.
 - Para FRONT: contratos 010-013 publicados; ver sección 3.2 sobre los dos archivos FRONT tocados por BACK y la plantilla temporal del detalle.
 
+## BE-T09 — Routing y configuración — Cierre
+
+**Estado:** REVIEW (pasa a DONE cuando el PR se apruebe y CI esté en verde)
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- `automation.Intent` (nivel N0–N4, autenticación, LLM, humano), `IntentAction` (consulta al proveedor, plantilla N1, crear ticket, revisión humana; acción de respaldo) y `RoutingRule` (intención/categoría/subcategoría → área, prioridad, validación, orden), con desactivación lógica y auditoría.
+- Catálogo inicial de SPEC §29 con acciones y reglas hacia las áreas existentes (ADR-041 sobre plantillas).
+- `AutomationService.route_ticket` / `matching_rule` (ADR-039), aplicado en `TicketService.create` (que ahora acepta `intent`); el audit de creación guarda la regla aplicada y si requiere validación.
+- `Ticket.intent` (CR-002 aplicado).
+- Admin auditado de intenciones, acciones y reglas; permisos por rol.
+
+### Criterio de aceptación
+- «Routing correcto sin redeploy cuando cambia configuración»: probado cambiando una regla (vía el mismo servicio auditado que usa el admin) y creando el siguiente ticket.
+
+### Pendientes derivados
+- Quién fija `Ticket.intent`: BE-T13 (Intent Engine por reglas) y BE-T17/BE-T18A (IA/LangGraph). Hoy los tickets web llegan sin intención y se enrutan por categoría.
+- Pantallas propias de administración → FE-T09.
+
+## 2026-10-13 — Claude (BACKEND) / BE-T09
+
+- Estado anterior: TODO.
+- Estado nuevo: REVIEW.
+- Trabajo realizado: intenciones, acciones, reglas de routing, catálogo SPEC §29, routing en la creación de tickets, `Ticket.intent`.
+- Pruebas: TEST-RUN-008 PASS.
+- Observaciones: desbloquea BE-T13 (Intent Engine).
+
+## BE-T15 — InstitutionalDataProvider + LocalProvider — Cierre
+
+**Estado:** REVIEW (pasa a DONE cuando el PR se apruebe y CI esté en verde)
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- Contrato `InstitutionalDataProvider` (SPEC §39) con estructuras inmutables (`ScheduleEntry`, `Grade`, `DebtSummary`, `Enrollment`, `Subject`) y errores `ProviderError` / `StudentNotFound`.
+- `LocalProvider` con datos ficticios en `local_data.json` (EST-0001 con horario, notas de dos periodos, deuda, matrícula y asignaturas; EST-0002 sin deuda). `seed_demo` asigna `EST-0001` al usuario `usuario`.
+- `get_provider()` según `INSTITUTIONAL_PROVIDER` (ADR-048) e `InstitutionalQueryService`: solo lecturas del contrato, solo usuario autenticado, errores inesperados → `ProviderError`.
+
+### Criterio de aceptación
+- «CA-001, CA-002 y CA-003 funcionan con datos simulados»: probados de punta a punta a través del Autonomy Engine (web y WhatsApp) y a mano con `ask`.
+
+### Pendientes derivados
+- `SGAProvider` (mock HTTP, timeouts, 4xx/5xx) → BE-T19.
+
+## BE-T13 — Intent Engine — Cierre
+
+**Estado:** REVIEW
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- `automation.intents.identify_intent` (ADR-042): regla determinística del código de ticket y coincidencias configuradas en `Intent.keywords` (CR-006), con normalización (minúsculas, sin tildes ni signos) y detección de ambigüedad.
+- Palabras clave iniciales en español para 19 intenciones; probadas 21 frases reales (consultas y problemas).
+
+### Criterio de aceptación
+- «Intenciones simples se resuelven sin LLM»: no existe aún LLM en el código; las 20 intenciones del catálogo se reconocen por reglas, y lo no reconocido queda marcado para el LLM (hoy → N4).
+
+### Pendientes derivados
+- Nodo `classify_llm` para lo no resuelto → BE-T16/T17/T18A.
+- Fijar intención en tickets creados desde `/tickets/new/` sin categoría (opcional; hoy se triagean a mano).
+
+## BE-T14 — Autonomy Engine — Cierre
+
+**Estado:** REVIEW (motor completo; la entrada por WhatsApp llega con BE-T11/BE-T11A)
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- `AutomationService.handle_message(text, user, channel)` → `AutomationResult` (respuesta, nivel, intención, confianza, ticket, `path` con los nombres de nodo de SPEC §46A.4).
+- `determine_autonomy` (ADR-043) y ejecución: N0 consulta al proveedor con respaldo a ticket (ADR-045), N1 plantilla, N2/N3 ticket enrutado con `classification_source=RULES` y puntaje, N4 ticket + alerta `HUMAN_REVIEW` (ADR-046). Comprobación de autenticación (ADR-044) y minimización por WhatsApp (ADR-047). CHECK_TICKET solo sobre tickets propios (CA-009).
+- `TicketService.create` acepta `classification_source` / `classification_score`.
+- Vista `automation:assistant` (CONTRACT-014, CR-007; plantilla temporal) y comando `ask`.
+
+### Criterio de aceptación
+- «N0/N1 automáticos; N2/N3 generan ticket; N4 escala»: probado (CA-001 a CA-006 y CA-009).
+
+### Pendientes derivados
+- Registro de cada decisión en `AIDecision` (graph_version, node_path) → BE-T18/BE-T18A.
+- Reemplazar la orquestación lineal por el grafo LangGraph reutilizando estas funciones como nodos → BE-T18A.
+- FRONT: pantalla del asistente y enlace en la navegación (CONTRACT-014).
+
+## 2026-10-13 — Claude (BACKEND) / BE-T15, BE-T13, BE-T14
+
+- Estado anterior: TODO → IN_PROGRESS.
+- Estado nuevo: REVIEW.
+- Trabajo realizado: proveedor institucional simulado, Intent Engine por reglas configurables y Autonomy Engine N0–N4 con canal web y comando de demostración.
+- Pruebas: TEST-RUN-009 PASS.
+- Observaciones: el sistema ya responde solo horario, notas y deuda (CA-001 a CA-003). Siguiente bloque sugerido: BE-T11/BE-T11A/BE-T12 (WhatsApp) o BE-T16-T18A (IA + LangGraph).
+
 ## 2026-10-13 — ChatGPT (FRONTEND) / FE-T02 — REVIEW
 
 - Inicio con contadores suministrados por BACK, hasta cinco tickets recientes y enlaces contratados. Sin consultas ni cálculo de permisos FRONT.
@@ -1482,3 +1790,135 @@ Bloqueos: Ninguno
 
 - Sustituida identificación temporal: detalle, historial cronológico WEB/WhatsApp, descargas autorizadas y respuesta multipart con CSRF, límite visible y permiso can_reply. Autoescape conservado.
 - Acciones y asignación separadas en componente para tareas propias; no se modificó lógica BACK. Validación PostgreSQL y navegador conjunta antes de main.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T07 — REVIEW
+
+- Formularios separados por acción suministrada por BACK; URL por nombre, CSRF, versión y to_status solo para acción genérica. Motivo obligatorio únicamente según reason_required.
+- Sin inferir transiciones por rol; mensajes del backend permanecen en componente compartido. Pruebas de permisos, versiones y recorrido conjunto pendientes de cierre.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T06 — Asignación REVIEW
+
+- Completa la entrega de lectura con asignación en detalle: opciones exclusivamente assign.areas, responsable opcional, versión y CSRF. JavaScript mínimo filtra responsables del área y conserva selección válida; sin JS el backend valida todas las opciones autorizadas.
+- Rama existente y PR #6 conservados; dependencias FE-T02/05/07 integradas sin alterar código BACK. Validación conjunta PostgreSQL/E2E pendiente de registrar al terminar.
+
+## 2026-10-13 06:33 — ChatGPT (FRONTEND) / Integración FE-T02/05/07/06 — REVIEW — America/Guayaquil
+
+- Backend vigente: `d7e3c8b` (código BE igual a `8adbebc`); integrado conservando historias y todas las entradas Claude. Diff respecto a BACK limitado a templates/, static/ y registros FRONT; sin modificaciones manuales BACK/config/dependencias/CI/tests. Main intacta.
+- FE-T02 PR #8 (base main-r0dfx3): resumen CONTRACT-013 y hasta cinco recientes. FE-T05 PR #9 (base FE-T02): detalle, historial omnicanal y respuesta CONTRACT-010/011. FE-T07 PR #10 (base FE-T05): solo actions del backend, POST por URL name, versión, CSRF y motivo contratado. FE-T06 PR #6 (base FE-T07): completa lectura con asignación CONTRACT-012 y filtro progresivo de responsables autorizados. Todos REVIEW hasta revisión humana.
+- Rama de entrega `feature/integracion-mvp`, PR draft #7 hacia main; mantiene las ramas de tarea y último BACK de Claude más FRONT de ChatGPT. No se hizo merge/push main ni force push.
+- Pruebas locales reales: `pytest -q`: **535 passed en 459.54 s**, PostgreSQL 16. Esta ejecución no midió cobertura. Django check y makemigrations --check --dry-run sin incidencias; Ruff check y format (75 archivos), node --check en ambos JS pasan. CI backend pasó en `d83587f`; verificar estado del nuevo HEAD tras publicar este registro.
+- Chromium con datos sintéticos en test_front_e2e: **13 pasos PASS**, cinco roles, resumen privado, crear, responder con PDF, confirmar, asignar, resolver, aislamiento de área 404, alertas, admin y responsive de detalle 360/768/1280; cero 5xx. Base temporal y archivos eliminados. Axe del detalle/acciones y login/inicio de cuatro roles: sin hallazgos en las etiquetas WCAG seleccionadas tras corregir semántica dl. No equivale a certificación WCAG completa.
+- Evidencia y auxiliares fuera del repo: /workspace/.mesa-cloud/evidence/current, run_current.py y validate_front.py; bases separadas para no interferir con pytest. No datos reales ni secretos de producción.
+- Pendientes reales: FE-T09/10 esperan contratos BACK; entrada WhatsApp real requiere BE-T11 (el historial admite mensajes de ambos canales). Fuente oficial pendiente, sistema provisional. Las solicitudes FRONT 001–004 ya tienen respuesta aprobada 010–013: sus notas antiguas quedan como historial, no como bloqueos actuales.
+- Seguimiento Cloud único activo cada hora según UI, id 6acd9bd4f1648190a92625ce9eefe1d5; primera ejecución/acceso/continuación remota no verificados. Start_skill actualizado y guardado en borrador; requiere revisión/guardar/publicar en ajustes para activar esta versión, no se crea monitor duplicado.
+
+## 2026-10-13 12:45 — Claude (BACKEND) / Integración FE-T02/05/06/07
+
+- `feature/integracion-mvp` (`ce3ac4c`, contiene FE-T02, FE-T05, FE-T07 y la asignación de FE-T06) integrada por merge en `main-r0dfx3` sobre BE-T13/T14/T15. Único conflicto: entradas añadidas en paralelo en este archivo; se conservaron ambas.
+- La plantilla temporal del detalle queda sustituida por la de FRONT (FE-T05). Sigue temporal `templates/automation/assistant.html` (CONTRACT-014).
+- `feature/fe-t01-identidad-institucional` no aporta cambios: el logo ya está, idéntico byte a byte.
+- Verificación: 629 pruebas ×2 sin `.env`, ruff, `check` y `makemigrations --check` limpios; E2E del repositorio en Chromium: 12 pasos PASS, sin 5xx.
+
+## BE-T16 / BE-T17 / BE-T18 — LLMProvider, AIService, fallback y auditoría — Cierre
+
+**Estado:** REVIEW
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- Contrato `LLMProvider` (SPEC §42), `FakeLLMProvider` (ADR-051) y `get_llm_provider()` por `LLM_PROVIDER` (ADR-050).
+- `AIModelConfig`, `AIPromptVersion`, `AIUsage`, `AIDecision` (SPEC §43) con admin y permisos por rol.
+- `AIService.classify/extract/summarize/generate_response`: cadena primario → reintento → respaldo (ADR-052), `AIUsage` por intento, validación de contrato y catálogos (SPEC §44); `generate_response` nunca añade cifras (si lo hace, se usa la plantilla).
+- Dataset etiquetado (400 ejemplos) y métricas Accuracy/Macro F1 (ADR-053, TEST-RUN-010).
+
+### Criterios de aceptación
+- BE-T16 «cambio de proveedor por configuración»: probado (`LLM_PROVIDER`, `AIModelConfig`). **Pendiente:** el proveedor real depende de ADR-010 (decisión del responsable: costo, latencia, JSON estructurado y privacidad).
+- BE-T17 «salida ajustada al contrato y catálogos; métricas base»: probado y medido.
+- BE-T18 «ningún fallo IA pierde la solicitud»: probado (fallo, salida inválida, confianza baja, caída del grafo, límite de pasos).
+
+## BE-T18A — Grafo agéntico LangGraph — Cierre
+
+**Estado:** REVIEW
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- `apps/ai/agent/` (`state.py`, `nodes.py`, `tools.py`, `graph.py`, `runner.py`) con 16 nodos y aristas condicionales; diagrama en `docs/agent_graph.md` (v1.0.0, verificado por prueba).
+- Herramientas de lectura validadas (nombre, argumentos, usuario del estado); escritura solo en nodos determinísticos.
+- `human_review` con `interrupt()` y `resume_agent` (aceptar/corregir/rechazar, ADR-057), checkpointer `PostgresSaver` (memoria en pruebas), `AIDecision` por ejecución con `graph_version`, `node_path` y `thread_id`.
+- Memoria de conversación para seguimiento («¿Y mañana?», CA-010) en `Conversation` (CR-008).
+- `AutomationService.handle_message` (vista `/assistant/` y comando `ask`) ejecuta ahora el grafo; `apps.automation.autonomy` queda como regla de decisión (nodo `decide_autonomy`).
+- Vista `ai:ticket_review` y contexto `ai_review` en el detalle (CONTRACT-015).
+
+### Criterios de aceptación
+- CA-001 a CA-007, CA-009 y CA-010 recorren el grafo con FakeLLMProvider; CA-008 (reasignación) es del flujo de tickets (BE-T06, ya probado).
+- Ninguna herramienta de escritura es invocable por el LLM: probado.
+- Número no verificado no obtiene datos sensibles: probado con `is_verified=False` (la entrada WhatsApp real/simulada llega con BE-T11).
+- Error del LLM nunca pierde la solicitud: probado.
+
+### Pendientes derivados
+- Integración con `process_integration_queue` → BE-T12 (WhatsApp simulado, ADR-049).
+- FRONT: tarjeta de revisión en el detalle (CONTRACT-015) y pantalla definitiva del asistente (CONTRACT-014).
+- Proveedor LLM real → decisión ADR-010.
+
+## 2026-10-13 — Claude (BACKEND) / BE-T16, BE-T17, BE-T18, BE-T18A
+
+- Estado anterior: TODO.
+- Estado nuevo: REVIEW.
+- Pedido del responsable: WhatsApp al final y simulado (ADR-049); se priorizó IA + LangGraph.
+- Pruebas: TEST-RUN-010 PASS (701 pruebas) y métricas base registradas. E2E del repositorio en Chromium: 12 pasos PASS sin 5xx. El E2E destapó que revertir `ai/0002` fallaba con decisiones existentes; corregido con prueba.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / Coordinación BE-T09/13/14/15 e integración — America/Guayaquil
+
+- Fetch y avance sin reset a main-r0dfx3 `4b46b287c72b0bd4c58d63e109520fce0be7c79e`: Claude ya integró las tareas FRONT FE-T02/05/07/06. Rama conjunta conserva toda la historia; integración fast-forward sin conflictos ni edición manual BACK. Main sin cambios.
+- FE-T09 no se inicia: BE-T03A/09 están REVIEW y no hay contrato de vistas propias CRUD. Solicitud CONTRACT-FRONT-005 detalla URL names, contexto, formularios, campos nuevos (agentes/keywords), permisos, validación y desactivación. FE-T10 espera BE-T10 y CONTRACT-FRONT-006 de métricas. No se implementa backend ni se deducen rutas del admin.
+- CONTRACT-014/CR-007 introduce asistente web aprobado, pero dice expresamente «sin tarea FE asignada aún». Requiere asignación/ampliación explícita del alcance FRONT (propuesta BACK: FE-T02 o FE-T12). Se conserva plantilla temporal de Claude; sin nuevos enlaces ni interfaz del asistente en este trabajo FE01..10.
+- Regresión real en esta base: 13 pasos Chromium PASS en PostgreSQL temporal (cinco roles, resumen, crear/responder/adjunto/confirmar/asignar/resolver/aislamiento404 y responsive detalle 360/768/1280), sin5xx; axe login/inicio cuatro roles sin hallazgos seleccionados. Bases y media temporales eliminados; datos de desarrollo sin usuarios/tickets reales.
+- Django check y makemigrations --check --dry-run pasan; Ruff check/format (97 archivos) y ambos JS pasan. Suite completa con cobertura ejecutándose: no se atribuyen aún las 629 anunciadas por Claude a esta ejecución local.
+- PR #3/#4/#5 actualizados preservando validaciones históricas (483 de aquella revisión) y aclarando FE-T02 ya implementada #8, detalle/acciones #9/#10 y asignación #6. PR #7 mantiene DRAFT para revisión conjunta; no merge/push main ni force push.
+- Seguimiento Cloud horario activo según UI; primera ejecución remota sigue sin verificar. Sin monitor duplicado.
+
+## 2026-10-13 08:58 — ChatGPT (FRONTEND) / Integración vigente — Validación final — America/Guayaquil
+
+- Base backend `4b46b28`: **629 passed en 551.55 s**, cobertura **98.53 %** (umbral80 superado), ejecutado en Cloud con PostgreSQL16.15 y `source /workspace/.mesa-cloud/env.sh; .venv/bin/pytest -q --cov --cov-fail-under=80` (settings dev de ese auxiliar; no se atribuye ejecución en settings test). Log real: /workspace/.mesa-cloud/latest-suite.log. Sin fallos ni omisiones reportadas por pytest.
+- Regresión Chromium 13 pasos y auditoría axe de login/inicio descritas arriba pasan; smoke del servidor actualizado: login200, error genérico, CSRF403, logoutGET405 e inicio protegido. Django/migraciones/Ruff/JS pasan. Datos de desarrollo:0usuarios/0tickets; auxiliares con datos sintéticos fuera del checkout y bases temporales destruidas.
+- CI pasó en a67a19e (run38408328176); este cierre solo añade documentación FRONT y precisa solicitud005, verificar CI del HEAD final publicado. Registros y filas BACK conservados literalmente, contratos sin colisiones.
+- PR #8 consta MERGED en main-r0dfx3 (no main) por integración de Claude; PR #3/#4/#5/#6/#9/#10 siguen conservados. PR #7 DRAFT reúne entrega revisable, sin merge/push main. Diferencia contra último BACK: exclusivamente solicitudes005/006, estados TODO FRONT bloqueados y registros FRONT de esta revisión.
+- Próximo paso FRONT: contrato administrativo aprobado para FE-T09; luego métricas FE-T10 cuando BE-T10 publique contrato. Asistente CONTRACT-014/CR-007 necesita asignación explícita de tarea/alcance antes de reemplazar plantilla o agregar navegación FRONT. No nuevas tareas IN_PROGRESS sin contrato.
+- Start_skill guardado actualizado para reanudación Cloud; requiere revisar/guardar/publicar en ajustes para activar ese borrador. Entorno publicado previamente y scheduler horario activo por UI; primera ejecución remota no verificada.
+
+## CONTRACT-016 (administración) y BE-T10 (métricas) — Cierre
+
+**Estado:** REVIEW
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- `/manage/`: listado con búsqueda, estado y paginación; alta, edición y activar/desactivar para áreas (con agentes), categorías, subcategorías, intenciones (palabras clave), acciones, routing y SLA. Todo auditado; plantillas TEMPORALES mínimas para FE-T09.
+- `helpdesk.metrics` + `/metrics/`: totales, SLA de resolución y primera respuesta, tiempos (media, mediana, p90), reasignaciones, reaperturas, desgloses por área, categoría y canal, y métricas IA (automatización, uso y fallos del LLM, salidas inválidas, revisiones, latencia, costo).
+- Respuesta a CONTRACT-FRONT-005/006 y nueva tarea FE-T12 (asistente + revisión humana) para ChatGPT.
+
+### Criterio de aceptación
+- BE-T10 «coinciden con cálculos manuales de referencia»: probado con tickets de tiempos conocidos (cumplimiento 33.3 % / 66.7 %, mediana 30 min, etc.).
+
+## 2026-10-13 — Claude (BACKEND) / CONTRACT-016 + BE-T10
+
+- Estado anterior: CONTRACT-FRONT-005/006 pendientes; BE-T10 TODO.
+- Estado nuevo: REVIEW; FE-T09 y FE-T10 desbloqueadas; FE-T12 creada (aprobado por el responsable: «Avanza»).
+
+## BE-T19 — SGAProvider mock/contrato — Cierre
+
+**Estado:** REVIEW
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- `SGAProvider` (adaptador HTTP con `urllib`, sin dependencias nuevas): mapping, timeouts, reintento y manejo 4xx/5xx (ADR-060).
+- SGA simulado (`sga_mock`, comando `run_sga_mock`) que sirve los datos locales en el formato supuesto, con códigos especiales para provocar 500, 503 transitorio, lentitud, cuerpo no JSON y formato inesperado.
+- Selección por `INSTITUTIONAL_PROVIDER=sga` + `SGA_BASE_URL`/`SGA_TOKEN`/`SGA_TIMEOUT`.
+
+### Criterio de aceptación
+- «LocalProvider y SGAProvider mock cumplen el mismo contrato»: probado método a método con resultados idénticos; el agente responde igual vía SGA y convierte una caída del SGA en ticket.
+
+### Pendientes derivados
+- Ajustar `ROUTES`/`map_*` cuando la universidad entregue el contrato real del SGA (sin cambios fuera de `sga.py`).

@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{# Plantilla TEMPORAL del backend (CONTRACT-016). FRONT la reemplaza en FE-T09. #}
+{% block content %}
+<h1 class="h4">{% if is_create %}Nuevo/a {{ entity_label_singular }}{% else %}Editar {{ object }}{% endif %}</h1>
+<form method="post">{% csrf_token %}{{ form.as_p }}<button type="submit">Guardar</button> <a href="{{ cancel_url }}">Cancelar</a></form>
+{% endblock %}
