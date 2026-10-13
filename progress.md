@@ -91,7 +91,7 @@ Reglas:
 | FE-T01 | REVIEW (implementada y validada en Cloud; pendiente de revisión) | ChatGPT | BE-T01 | 2026-10-12 |
 | FE-T02 | TODO | - | BE-T03, BE-T04 | - |
 | FE-T03 | TODO (desbloqueada: CONTRACT-004/005) | ChatGPT | BE-T03, BE-T03A | 2026-10-13 |
-| FE-T04 | TODO (desbloqueada: CONTRACT-008) | ChatGPT | BE-T04 | 2026-10-13 |
+| FE-T04 | REVIEW (listado validado en Cloud; CONTRACT-008) | ChatGPT | BE-T04 | 2026-10-12 |
 | FE-T05 | TODO | - | BE-T05, BE-T07 | - |
 | FE-T06 | TODO (listado listo: CONTRACT-009; asignación pendiente de BE-T06) | ChatGPT | BE-T04, BE-T06 | 2026-10-13 |
 | FE-T07 | TODO (acciones disponibles: CONTRACT-006; el detalle llega con BE-T05) | ChatGPT | BE-T07 | 2026-10-13 |
@@ -550,6 +550,15 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 
 **Aprobado:** Sí
 
+### CONTRACT-FRONT-002 — Dashboard de usuario FE-T02 — Pendiente
+**Fecha:** 2026-10-12 — America/Guayaquil
+**Origen:** FRONT
+**Estado:** Pendiente de publicación BACK
+**Contrato actual:** CONTRACT-002 solo expone variables globales en home.html; CONTRACT-008 aporta listado, no dashboard.
+**Solicitud concreta:** publicar url name/plantilla del dashboard y contexto autorizado de tickets recientes (código, asunto, estado, última actualización, enlace publicado si existe) y acceso de creación. BACK decide selección, orden, límite y privacidad; FRONT no consultará ORM desde plantilla ni simulará tickets recientes.
+**Consumidor:** FE-T02. No bloquea FE-T04 (listado) ni cambia contratos BACK.
+**Aprobado:** Pendiente
+
 ## 12.2 Solicitudes de cambio
 
 ### CHANGE REQUEST CR-001 — Agente LangGraph
@@ -784,6 +793,30 @@ Añadir siempre al final, sin borrar entradas anteriores.
 - Validación sobre esa base: 483 pruebas PASS, cobertura 98.78 %, navegador FE-T01/FE-T08 PASS; archivos BACK sin diferencias respecto a la base.
 - PR FE-T08 separado contra `feature/fe-t01-login`; alertas/filtros/paginación/badges y registros FRONT únicamente. Estado REVIEW, sin merge automático.
 - Seguimiento Cloud ACTIVO cada hora según UI (id `6acd9bd4f1648190a92625ce9eefe1d5`); primera ejecución remota pendiente de verificar. FE-T04 será la siguiente tarea habilitada. FE-T02 requiere contrato de dashboard (CONTRACT-002 sigue sin tickets recientes).
+
+---
+
+## 2026-10-12 22:04 — ChatGPT (FRONTEND) / FE-T04 — Inicio — America/Guayaquil
+
+- Estado anterior: TODO, desbloqueada por CONTRACT-008 en `b421f24`.
+- Estado nuevo: IN_PROGRESS; rama `feature/fe-t04-listado-tickets`, base FE-T08 para reutilizar paginación/badges sin duplicarlos. Un PR separado.
+- Alcance: listado de tickets autorizado por backend, filtros GET por estado/fechas (más campos ya publicados para roles de atención), paginación de 20 filas, valores SLA del objeto recibido. No enlaces de detalle ni transiciones sin contrato GET de detalle.
+- Archivos previstos: `templates/helpdesk/ticket_list.html`, componentes de tabla/SLA/paginación, navegación y registros FRONT.
+- Coordinación: FE-T08 entregada PR #4; FE-T02 espera CONTRACT-FRONT-002 para dashboard. FE-T06 dispone de CONTRACT-009 de lectura, asignación pendiente; se puede preparar listado sin acciones tras FE-T04. No cambios BACK ni monitor duplicado.
+
+---
+
+## 2026-10-12 22:09 — ChatGPT (FRONTEND) / FE-T04 — Cierre — America/Guayaquil
+
+- Estado anterior: IN_PROGRESS.
+- Estado nuevo: REVIEW; rama `feature/fe-t04-listado-tickets`, PR separado sobre FE-T08 para reutilizar componentes sin duplicación.
+- Implementado: listado «Mis tickets» para Usuario / «Tickets» para otros roles, datos visibles provistos por BACK, filtros GET de estado/fechas/búsqueda/orden y filtros publicados de atención, 20 filas por página, fechas/SLA backend y estados vacíos. Componente `sla_badge.html` muestra state/due_at/remaining_minutes sin calcularlos; la paginación común usa querystring de Django para preservar todos los filtros.
+- Archivos: `templates/helpdesk/ticket_list.html`, `templates/components/{ticket_table,sla_badge,pagination,navbar}.html`, registros FRONT de `progress.md`.
+- Pruebas: suite vigente 483 PASS, cobertura 98.78 %, ruff check/format y diff check PASS. Chromium 360/768/1280: Usuario no ve ticket ajeno ni por código exacto; Supervisor sí, 20 filas/página y filtros estado/fechas preservados, búsqueda/limpiar/estado vacío, autoescape, tiempo restante idéntico a BACK y ausencia de enlaces de detalle no publicados PASS. La paginación FE-T08 se revalidó en navegador para evitar regresión.
+- Incidencias corregidas: caso de responsable nulo detectado en navegador requería condicional de presentación para evitar resolver un atributo inexistente en un argumento default; corregido solo en plantilla. El helper necesitó buscar el ticket ajeno por código al probar Supervisor (el ticket era antiguo y no salía en la primera página); datos y expectativas corregidos fuera del checkout.
+- Migraciones/endpoints/archivos BACK nuevos: ninguno. Datos sintéticos temporales eliminados al concluir. Se respeta CR-004 (tickets no visibles → 404 en descargas/acciones), sin inferir permisos FRONT.
+- Pendientes: revisión humana; FE-T02 necesita contexto específico de dashboard (CONTRACT-FRONT-002). Próxima tarea con lectura habilitada: FE-T06, CONTRACT-009; sin inventar acciones de asignación pendientes BE-T06 ni acciones FE-T07 pendientes contexto BE-T05.
+- Seguimiento Cloud: ACTIVO cada hora según UI, id `6acd9bd4f1648190a92625ce9eefe1d5`, primera ejecución aún no validada. No duplicados, no heartbeat local.
 
 ---
 
