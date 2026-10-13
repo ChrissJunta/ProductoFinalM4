@@ -1947,22 +1947,6 @@ Bloqueos: Ninguno
 - Ajustar `ROUTES`/`map_*` cuando la universidad entregue el contrato real del SGA (sin cambios fuera de `sga.py`).
 
 ## 2026-10-13 — ChatGPT (FRONTEND) / FE-T05 — Revisión humana CONTRACT-015 — REVIEW
-<<<<<<< HEAD
-
-- Tarjeta exclusivamente cuando ai_review existe; muestra propuesta/candidatos/confianza y POST accept/reject, correct solo si can_correct. Catálogo exclusivamente ai_review.intents, CSRF y URL name ai:ticket_review. No decisión de autonomía ni permisos calculados FRONT.
-- Extensión del detalle autorizada FE01..10; asistente FE-T12 separado sin implementación en esta ejecución. Pruebas conjuntas pendientes de cierre.
-
-## 2026-10-13 — ChatGPT (FRONTEND) / FE-T09 — REVIEW
-
-- Sustituidas plantillas temporales: panel, listado/filtros/paginación20, alta/edición con ModelForm ligado, errores/ayuda, agents múltiple, keywords textarea y código disabled del BACK. Activación/desactivación POST CSRF, sin borrado. URLs por nombre manage; navegación solo Administrador.
-- Sin modificar servicios/catalogs ni modelos/permisos; pendiente validación conjunta y humana.
-
-## 2026-10-13 — ChatGPT (FRONTEND) / FE-T10 — REVIEW
-
-- Filtros ModelForm GET/errores, periodo aplicado, volúmenes/estados, ambos SLA, tiempos, reasignaciones/reaperturas, desgloses y métricas IA publicados. Ceros se conservan; None se presenta Sin datos. No cálculos FRONT ni exportaciones inferidas; costo sin moneda no se etiqueta como USD. Navegación solo Supervisor.
-- Pendiente validación conjunta y humana.
-=======
->>>>>>> feature/fe-t10-metricas
 
 - Tarjeta exclusivamente cuando ai_review existe; muestra propuesta/candidatos/confianza y POST accept/reject, correct solo si can_correct. Catálogo exclusivamente ai_review.intents, CSRF y URL name ai:ticket_review. No decisión de autonomía ni permisos calculados FRONT.
 - Extensión del detalle autorizada FE01..10; asistente FE-T12 separado sin implementación en esta ejecución. Pruebas conjuntas pendientes de cierre.
