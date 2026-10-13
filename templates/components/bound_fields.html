@@ -5,6 +5,6 @@
   {% else %}<label class="form-label fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} (obligatorio){% endif %}</label>{{ field }}{% endif %}
   {% if field.help_text %}<p class="form-text" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</p>{% endif %}
   {% if field.field.widget.allow_multiple_selected %}<p class="small text-secondary">Puedes seleccionar varias opciones usando Ctrl o Cmd; en móvil, usa el selector del dispositivo.</p>{% endif %}
-  {% if field.errors %}<ul class="text-danger small mt-2" id="{{ field.auto_id }}_error" role="alert">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+  {% if field.errors %}<div role="alert"><ul class="text-danger small mt-2" id="{{ field.auto_id }}_error">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul></div>{% endif %}
 </div>
 {% endfor %}
