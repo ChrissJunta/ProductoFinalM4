@@ -277,6 +277,14 @@ class Attachment(models.Model):
     ticket = models.ForeignKey(
         Ticket, verbose_name="ticket", on_delete=models.PROTECT, related_name="attachments"
     )
+    message = models.ForeignKey(
+        "TicketMessage",
+        verbose_name="mensaje",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="attachments",
+    )
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         verbose_name="subido por",
@@ -442,3 +450,111 @@ class Alert(models.Model):
 
     def __str__(self):
         return f"{self.get_alert_type_display()} · {self.ticket_id}"
+
+
+class Conversation(models.Model):
+    """Hilo de un usuario en un canal (SPEC §26). Une Web y WhatsApp en el mismo ticket."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="usuario",
+        on_delete=models.PROTECT,
+        related_name="conversations",
+    )
+    channel = models.CharField("canal", max_length=16, choices=Ticket.Channel.choices)
+    external_conversation_id = models.CharField(
+        "id de conversación externa", max_length=128, blank=True, default=""
+    )
+    active_ticket = models.ForeignKey(
+        Ticket,
+        verbose_name="ticket activo",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    active_intent = models.CharField("intención activa", max_length=64, blank=True, default="")
+    context_summary = models.TextField("resumen de contexto", blank=True, default="")
+    last_message_at = models.DateTimeField("último mensaje", null=True, blank=True)
+    is_active = models.BooleanField("activa", default=True)
+
+    class Meta:
+        verbose_name = "conversación"
+        verbose_name_plural = "conversaciones"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "channel"],
+                condition=models.Q(is_active=True),
+                name="helpdesk_conversation_one_active_per_channel",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.user} · {self.get_channel_display()}"
+
+
+class TicketMessage(models.Model):
+    """Mensaje del histórico de un ticket (SPEC §26, §14)."""
+
+    class SenderType(models.TextChoices):
+        USER = "USER", "Usuario"
+        AGENT = "AGENT", "Agente"
+        SYSTEM = "SYSTEM", "Sistema"
+        AI = "AI", "IA"
+
+    class MessageType(models.TextChoices):
+        TEXT = "TEXT", "Mensaje"
+        INFO_REQUEST = "INFO_REQUEST", "Solicitud de información"
+        RESOLUTION = "RESOLUTION", "Resolución"
+
+    ticket = models.ForeignKey(
+        Ticket, verbose_name="ticket", on_delete=models.PROTECT, related_name="messages"
+    )
+    conversation = models.ForeignKey(
+        Conversation,
+        verbose_name="conversación",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="messages",
+        help_text="Vacío en mensajes del personal escritos desde el portal web.",
+    )
+    sender_type = models.CharField("remitente", max_length=16, choices=SenderType.choices)
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="autor",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    message_type = models.CharField(
+        "tipo", max_length=16, choices=MessageType.choices, default=MessageType.TEXT
+    )
+    content = models.TextField("contenido", max_length=5000)
+    external_message_id = models.CharField(
+        "id de mensaje externo", max_length=128, blank=True, default=""
+    )
+    llm_generated = models.BooleanField("generado por IA", default=False)
+    created_at = models.DateTimeField("fecha", auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = "mensaje"
+        verbose_name_plural = "mensajes"
+        ordering = ["created_at", "id"]
+        constraints = [
+            # Idempotencia de WhatsApp (BE-T11): un mensaje externo se registra una sola vez.
+            models.UniqueConstraint(
+                fields=["external_message_id"],
+                condition=~models.Q(external_message_id=""),
+                name="helpdesk_message_external_id_unique",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.ticket_id} · {self.get_sender_type_display()}"
+
+    @property
+    def channel(self):
+        """Canal por el que llegó: el de su conversación, o Web para el personal."""
+        return self.conversation.channel if self.conversation_id else Ticket.Channel.WEB

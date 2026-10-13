@@ -58,3 +58,25 @@ class TransitionForm(forms.Form):
 
     version = forms.IntegerField(min_value=1)
     reason = forms.CharField(max_length=2000, required=False)
+
+
+class MessageForm(forms.Form):
+    """Respuesta en la conversación del ticket (CONTRACT-011)."""
+
+    content = forms.CharField(label="Mensaje", max_length=5000, widget=forms.Textarea)
+    attachment = forms.FileField(label="Adjunto", required=False)
+    request_info = forms.BooleanField(label="Solicitar información al usuario", required=False)
+
+    def clean_attachment(self):
+        uploaded = self.cleaned_data.get("attachment")
+        if uploaded:
+            validate_upload(uploaded)
+        return uploaded
+
+
+class AssignForm(forms.Form):
+    """POST de asignación (CONTRACT-012). La autorización la decide `helpdesk.assignment`."""
+
+    version = forms.IntegerField(min_value=1)
+    area = forms.IntegerField()
+    assignee = forms.IntegerField(required=False)

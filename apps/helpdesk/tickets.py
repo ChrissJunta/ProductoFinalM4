@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db import connection, transaction
 from django.utils import timezone
 
-from . import audit, sla, workflow
+from . import assignment, audit, sla, workflow
 from .attachments import validate_upload
 from .audit import Action
 from .models import Attachment, Ticket
@@ -84,12 +84,16 @@ class TicketService:
     # Cambiar estado / resolver / cerrar / reabrir: ver helpdesk.workflow (SPEC §32).
     change_status = staticmethod(workflow.transition)
 
+    # Asignar / reasignar: ver helpdesk.assignment (BE-T06).
+    assign = staticmethod(assignment.assign)
+
     @staticmethod
     @transaction.atomic
-    def add_attachment(ticket, uploaded_file, *, uploaded_by):
+    def add_attachment(ticket, uploaded_file, *, uploaded_by, message=None):
         content_type = validate_upload(uploaded_file)
         item = Attachment(
             ticket=ticket,
+            message=message,
             uploaded_by=uploaded_by,
             original_name=os.path.basename(uploaded_file.name)[:255],
             content_type=content_type,
