@@ -145,6 +145,32 @@ def compute(date_from, date_to, *, area=None, category=None, channel=None, now=N
         "by_category": _breakdown(rows, "category_id", "category__name", "Sin categoría", now),
         "by_channel": _breakdown(rows, "channel", "channel_label", "—", now),
         "ai": ai_metrics(date_from, date_to, channel=channel),
+        "whatsapp": whatsapp_metrics(date_from, date_to),
+    }
+
+
+def whatsapp_metrics(date_from, date_to):
+    """SPEC §49 WhatsApp: mensajes, reintentos, fallos y conversaciones (simulado: ADR-049)."""
+    from django.db.models import Sum
+
+    from apps.integrations.models import IntegrationInbox, IntegrationOutbox
+
+    start, end = _bounds(date_from, date_to)
+    inbox = IntegrationInbox.objects.filter(received_at__gte=start, received_at__lt=end)
+    outbox = IntegrationOutbox.objects.filter(created_at__gte=start, created_at__lt=end)
+
+    def retries(qs):
+        total = qs.aggregate(n=Sum("attempts"))["n"] or 0
+        return max(total - qs.filter(attempts__gt=0).count(), 0)
+
+    return {
+        "inbound": inbox.count(),
+        "inbound_failed": inbox.filter(status="FAILED").count(),
+        "outbound_sent": outbox.filter(status="SENT").count(),
+        "outbound_failed": outbox.filter(status="FAILED").count(),
+        "outbound_pending": outbox.filter(status="PENDING").count(),
+        "retries": retries(inbox) + retries(outbox),
+        "conversations": inbox.values("payload_json__from").distinct().count(),
     }
 
 
