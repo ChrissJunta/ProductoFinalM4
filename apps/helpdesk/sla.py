@@ -94,14 +94,26 @@ def minutes_between(start, end, business_hours_only):
 # --- Políticas y plazos ------------------------------------------------------------
 
 
-def policy_for(category, priority):
-    """Política activa de la categoría; si no hay, la general (sin categoría)."""
-    policies = SLAPolicy.objects.filter(is_active=True, priority=priority)
+def policy_index():
+    """Políticas activas indexadas por (category_id, prioridad), para listados sin N+1."""
+    return {(p.category_id, p.priority): p for p in SLAPolicy.objects.filter(is_active=True)}
+
+
+def policy_for(category, priority, policies=None):
+    """Política activa de la categoría; si no hay, la general (sin categoría).
+
+    `policies` (de `policy_index()`) evita consultar la BD por cada ticket.
+    """
+    if policies is not None:
+        category_id = getattr(category, "pk", None)
+        specific = policies.get((category_id, priority)) if category_id else None
+        return specific or policies.get((None, priority))
+    qs = SLAPolicy.objects.filter(is_active=True, priority=priority)
     if category is not None:
-        specific = policies.filter(category=category).first()
+        specific = qs.filter(category=category).first()
         if specific:
             return specific
-    return policies.filter(category__isnull=True).first()
+    return qs.filter(category__isnull=True).first()
 
 
 def apply_due_dates(ticket):
@@ -144,7 +156,7 @@ class SLAStatus:
     consumed_ratio: float | None
 
 
-def sla_status(ticket, now=None):
+def sla_status(ticket, now=None, policies=None):
     """Estado del SLA de resolución, con los mismos criterios que `check_sla`."""
     if ticket.sla_due_at is None:
         return SLAStatus(SLAState.NONE, None, None, None)
@@ -152,7 +164,7 @@ def sla_status(ticket, now=None):
         return SLAStatus(SLAState.STOPPED, ticket.sla_due_at, None, None)
 
     now = now or timezone.now()
-    policy = policy_for(ticket.category, ticket.priority)
+    policy = policy_for(ticket.category, ticket.priority, policies)
     business = policy.business_hours_only if policy else False
     total = minutes_between(ticket.created_at, ticket.sla_due_at, business)
     consumed = minutes_between(ticket.created_at, now, business)

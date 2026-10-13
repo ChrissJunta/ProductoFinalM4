@@ -30,9 +30,9 @@ def people(make_user):
 @pytest.fixture
 def ticket(people):
     t = TicketService.create(user=people["owner"], subject="Asunto", description="Detalle")
-    Ticket.objects.filter(pk=t.pk).update(
-        assigned_area=Area.objects.get(code="IT"), assigned_user=people["assigned_agent"]
-    )
+    it = Area.objects.get(code="IT")
+    it.agents.add(people["agent"], people["assigned_agent"])  # agentes del área (BE-T04)
+    Ticket.objects.filter(pk=t.pk).update(assigned_area=it, assigned_user=people["assigned_agent"])
     t.refresh_from_db()
     return t
 
@@ -273,6 +273,22 @@ def test_reopened_with_inactive_agent_keeps_only_area(ticket, people):
     t = workflow.transition(ticket, S.ASSIGNED)
     assert t.assigned_user is None
     assert t.assigned_area.code == "IT"
+
+
+def test_agent_outside_area_is_not_agent_for_ticket(ticket, make_user):
+    outsider = make_user("outsider", role="Agente")
+    Area.objects.get(code="FINANCE").agents.add(outsider)
+    put_in(ticket, S.NEW)
+    assert workflow.actor_kinds(ticket, outsider) == set()
+    with pytest.raises(workflow.TransitionForbidden):
+        workflow.transition(ticket, S.CLASSIFIED, actor=outsider)
+
+
+def test_any_agent_can_triage_tickets_without_area(people):
+    t = TicketService.create(user=people["owner"], subject="s", description="d")
+    assert t.assigned_area is None
+    outsider = people["agent"]
+    assert Actor.AGENT in workflow.actor_kinds(t, outsider)
 
 
 # --- allowed_targets (para mostrar solo acciones válidas) ---------------------------

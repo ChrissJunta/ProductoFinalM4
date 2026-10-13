@@ -11,8 +11,6 @@ class Role:
 # De mayor a menor privilegio: un usuario con varios grupos asume el más alto.
 ROLE_PRIORITY = [Role.ADMINISTRADOR, Role.SUPERVISOR, Role.AGENTE, Role.USUARIO]
 
-STAFF_ROLES = frozenset({Role.AGENTE, Role.SUPERVISOR, Role.ADMINISTRADOR})
-
 
 def get_role(user):
     """Devuelve el rol efectivo del usuario, o None si no está autenticado.

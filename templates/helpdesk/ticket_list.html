@@ -1,0 +1,6 @@
+{# TEMPORAL (backend): plantilla mínima para pruebas. La reemplaza el FRONTEND según CONTRACT-008 en progress.md. #}
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Tickets</title></head>
+<body>
+<ul>{% for row in rows %}<li>{{ row.ticket.ticket_code }} · {{ row.ticket.subject }} · {{ row.ticket.get_status_display }} · SLA {{ row.sla.state }}</li>{% empty %}<li>Sin tickets</li>{% endfor %}</ul>
+</body></html>
