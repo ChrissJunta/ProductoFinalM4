@@ -64,7 +64,7 @@ FRONT: Django Templates + Bootstrap
 BACK_APPS: accounts, helpdesk, automation, integrations, ai
 SGA_MODE: LocalProvider para MVP
 AI_MODE: asistivo
-LLM_PROVIDER: abierto (ADR-010); FakeLLMProvider por defecto
+LLM_PROVIDER: openai_compat → vLLM Qwen3-8B en 172.16.8.69 (ADR-069); fake por defecto en desarrollo/CI
 AGENT: LangGraph 1.2 embebido en apps/ai/agent/ (ADR-016), grafo v1.0.0
 WHATSAPP: al final del MVP y simulado, sin acceso a Meta Developer (ADR-049)
 ```
@@ -232,7 +232,7 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-007 | 2026-10-12 | Sin API REST de tickets ni DRF; contrato FRONT/BACK = vistas Django | Front server-rendered; regla 56.6 (sin endpoints sin consumidor) | API |
 | ADR-008 | 2026-10-12 | WhatsApp exige teléfono verificado con código desde portal | Proteger notas/deuda | WhatsApp, `User.phone_verified_at` |
 | ADR-009 | 2026-10-12 | Meta WhatsApp Cloud API | Proveedor oficial; firma `X-Hub-Signature-256` | Integraciones |
-| ADR-010 | 2026-10-12 | Proveedor LLM: **ABIERTO** | Falta comparar costo, latencia, JSON estructurado y privacidad | IA (FakeLLMProvider hasta decidir) |
+| ADR-010 | 2026-10-12 | Proveedor LLM: **CERRADO por ADR-069** (servidor vLLM Qwen3-8B) | Falta comparar costo, latencia, JSON estructurado y privacidad | IA (FakeLLMProvider hasta decidir) |
 | ADR-011 | 2026-10-12 | PostgreSQL también en pruebas/CI (sin SQLite) | `SKIP LOCKED`, secuencias, índices parciales; paridad dev/CI/prod | Persistencia, CI |
 | ADR-012 | 2026-10-12 | Django 5.2 LTS + psycopg 3 + django-environ | Soporte extendido; configuración por entorno | Stack |
 | ADR-013 | 2026-10-12 | Claude = BACKEND, ChatGPT = FRONTEND (`templates/`, `static/`) | Trabajo paralelo sin pisarse | Ver sección 3.1 y contratos de vista |
@@ -290,6 +290,7 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-066 | 2026-10-13 | Mensaje entrante de un usuario verificado con un ticket en `WAITING_USER` → se agrega a ese ticket (reanuda, §32.1 fila 8); si no → agente. La respuesta del personal en un ticket de canal WhatsApp sale por la cola al número verificado | «Web y WhatsApp comparten ticket e histórico» | `whatsapp.processing`, `conversations.add_message` |
 | ADR-067 | 2026-10-13 | `config/settings/prod.py` sin valores por defecto (DEBUG siempre False; exige `DJANGO_ALLOWED_HOSTS`, `SECRET_KEY` aleatoria de 50+ caracteres y rechaza secretos de desarrollo de WhatsApp); `wsgi.py`/`asgi.py` lo usan por defecto. `dev.py` lee `.env` antes de aplicar sus valores por defecto | Hallazgo ALTO de la revisión de seguridad de BE-T20 | `config/settings` |
 | ADR-068 | 2026-10-13 | Fallos de vinculación de WhatsApp en BD (`WhatsAppLinkAttempt`): 5 por número y hora y 100 globales por hora; el contador de login por cuenta usa el usuario real (usuario y correo comparten contador); `verify_token` con comparación de tiempo constante | Hallazgos MEDIOS/BAJO de la revisión de seguridad | `whatsapp.linking`, `accounts.views` |
+| ADR-069 | 2026-10-13 | **Proveedor LLM real (cierra ADR-010):** servidor propio del Ing. Pato con **Qwen3-8B (AWQ) sobre vLLM**, API compatible con OpenAI (`http://172.16.8.69:8000/v1`, red interna). Adaptador `openai_compat` con `urllib` (sin SDK), `enable_thinking` apagado por defecto, limpieza de `<think>`, extracción del primer objeto JSON, prompt versionado de `AIPromptVersion`; respaldo opcional `LLM_FALLBACK_PROVIDER` (p. ej. `fake`). Solo se envían el mensaje y el catálogo | Decisión del responsable; servidor institucional sin costo por token y sin salida de datos de la red | `ai/providers/openai_compat.py`, comando `llm_ping` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -2064,3 +2065,9 @@ Bloqueos: Ninguno
 - `feature/integracion-mvp` (`05bc2c5`) integrada por merge en `main-r0dfx3` sin conflictos; solo plantillas, estáticos y registros FRONT. Ya no quedan plantillas temporales del backend: asistente (CONTRACT-014), revisión humana (CONTRACT-015), administración (CONTRACT-016), métricas (CONTRACT-017) y WhatsApp (CONTRACT-018) tienen versión FRONT.
 - Verificación: 805 pruebas ×2 sin `.env`; E2E del repositorio 12 pasos PASS; recorrido en Chromium de las pantallas nuevas (asistente N0 y N4, código de WhatsApp, `/manage/`, `/metrics/`, alerta y tarjeta de revisión humana con decisión registrada): 11/11 PASS, sin 5xx.
 - Sugerencia para FRONT (menor): en `/alerts/` el código del ticket no enlaza al detalle; enlazarlo facilitaría llegar a la tarjeta de revisión.
+
+## 2026-10-13 — Claude (BACKEND) / ADR-069: Qwen3-8B (vLLM) como LLM real
+
+- El responsable entregó el servidor del Ing. Pato (Qwen3-8B sobre vLLM, API compatible con OpenAI, `172.16.8.69:8000`). Desde el entorno de desarrollo en la nube el servidor no es alcanzable (IP de red interna); el adaptador se probó contra un servidor vLLM simulado (formato real de `/v1/models` y `/v1/chat/completions`, `<think>`, JSON con texto alrededor, 500, timeout, respaldo).
+- **Pendiente en la red de la universidad:** `python manage.py llm_ping` y `python manage.py evaluate_intents --agent` con `LLM_PROVIDER=openai_compat` para medir accuracy/macro F1 reales frente al objetivo de SPEC §50 (≥ 85 % / ≥ 0.80).
+

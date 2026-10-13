@@ -61,14 +61,21 @@ class Classification:
 
 
 def _parse_json(raw):
-    text = raw.strip()
+    text = re.sub(r"<think>.*?</think>", "", raw, flags=re.S).strip()
     fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", text, re.S)
     if fenced:
         text = fenced.group(1)
     try:
         data = json.loads(text)
-    except (ValueError, TypeError) as exc:
-        raise AIInvalidOutput("La salida no es JSON.", raw) from exc
+    except (ValueError, TypeError):
+        # Modelos locales a veces rodean el JSON con texto: se toma el primer objeto completo.
+        start = text.find("{")
+        try:
+            data, _ = json.JSONDecoder().raw_decode(text[start:]) if start >= 0 else (None, 0)
+        except ValueError:
+            data = None
+        if data is None:
+            raise AIInvalidOutput("La salida no es JSON.", raw) from None
     if not isinstance(data, dict):
         raise AIInvalidOutput("La salida JSON no es un objeto.", raw)
     return data
@@ -174,6 +181,11 @@ class AIService:
         ]
         if fallback:
             chain.append((get_llm_provider(model_name=fallback.model_name), 1))
+        elif (
+            settings.LLM_FALLBACK_PROVIDER
+            and settings.LLM_FALLBACK_PROVIDER != settings.LLM_PROVIDER
+        ):
+            chain.append((get_llm_provider(settings.LLM_FALLBACK_PROVIDER), 1))
         return chain
 
     def _call(self, operation, method, *args):
@@ -213,7 +225,10 @@ class AIService:
     # --- Operaciones (SPEC §33) ----------------------------------------------------------
 
     def classify(self, text, context=None):
-        context = context or classification_context()
+        context = dict(context or classification_context())
+        prompt = self.prompt_for(Operation.CLASSIFY)
+        if prompt is not None:
+            context.setdefault("prompt_template", prompt.template)
         response = self._call(Operation.CLASSIFY, "classify", text, context)
         return validate_classification(response.text)
 

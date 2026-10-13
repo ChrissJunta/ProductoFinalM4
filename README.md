@@ -84,6 +84,16 @@ python manage.py check_sla              # cada 5 min: alertas de SLA y escalamie
 python manage.py close_stale_tickets    # cada hora: cierre/cancelación automáticos
 ```
 
+### LLM real: Qwen3-8B (vLLM) en la red de la universidad
+
+En `.env`: `LLM_PROVIDER=openai_compat`, `LLM_BASE_URL=http://172.16.8.69:8000/v1` (opcional
+`LLM_FALLBACK_PROVIDER=fake`). Luego:
+
+```bash
+python manage.py llm_ping                     # conectividad, modelo y una clasificación de prueba
+python manage.py evaluate_intents --agent     # accuracy / macro F1 / latencia con el LLM real
+```
+
 ### WhatsApp simulado (sin acceso a Meta)
 
 ```bash

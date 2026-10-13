@@ -141,6 +141,14 @@ SGA_TIMEOUT = env.float("SGA_TIMEOUT", default=5.0)  # segundos por petición
 # IA (SPEC §42-§46). LLM_PROVIDER elige la familia de proveedor (ADR-010 abierto: «fake»
 # en desarrollo y CI); los modelos primario/respaldo se configuran en AIModelConfig.
 LLM_PROVIDER = env("LLM_PROVIDER", default="fake")
+# Servidor compatible con OpenAI (ADR-069): vLLM con Qwen3-8B en la red de la universidad.
+LLM_BASE_URL = env("LLM_BASE_URL", default="")  # p. ej. http://172.16.8.69:8000/v1
+LLM_MODEL = env("LLM_MODEL", default="Qwen/Qwen3-8B-AWQ")
+LLM_API_KEY = env("LLM_API_KEY", default="")  # vLLM no la exige por defecto
+LLM_TIMEOUT = env.float("LLM_TIMEOUT", default=20.0)  # segundos por llamada
+LLM_ENABLE_THINKING = env.bool("LLM_ENABLE_THINKING", default=False)
+# Respaldo si el proveedor principal no responde (SPEC §46), p. ej. «fake». Vacío = ninguno.
+LLM_FALLBACK_PROVIDER = env("LLM_FALLBACK_PROVIDER", default="")
 AI_MAX_RETRIES = 1  # reintentos del primario antes de pasar al respaldo (SPEC §46)
 AI_SUMMARY_MAX_CHARS = 500
 

@@ -5,9 +5,10 @@ from django.core.exceptions import ImproperlyConfigured
 
 from .base import LLMError, LLMProvider, LLMResponse, LLMTimeout
 from .fake import FakeLLMProvider
+from .openai_compat import OpenAICompatibleProvider
 
-# Al decidir ADR-010 se registra aquí el proveedor real; el negocio no cambia.
-REGISTRY = {"fake": FakeLLMProvider}
+# ADR-010 → ADR-069: servidor vLLM (Qwen3-8B) con API compatible con OpenAI.
+REGISTRY = {"fake": FakeLLMProvider, "openai_compat": OpenAICompatibleProvider}
 
 __all__ = ["LLMError", "LLMProvider", "LLMResponse", "LLMTimeout", "get_llm_provider"]
 
