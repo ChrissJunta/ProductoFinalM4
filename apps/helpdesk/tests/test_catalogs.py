@@ -157,3 +157,20 @@ def test_set_active_noop_is_not_audited(admin_user):
     before = _logs(area).count()
     catalogs.set_active(area, True, actor=admin_user)
     assert _logs(area).count() == before
+
+
+def test_set_area_agents_rejects_non_agents(admin_user, make_user):
+    user = make_user("normal", role="Usuario")
+    inactive = make_user("inactivo", role="Agente", is_active=False)
+    with pytest.raises(ValidationError) as exc:
+        catalogs.set_area_agents(Area.objects.get(code="IT"), [user, inactive], actor=admin_user)
+    assert "normal" in str(exc.value) and "inactivo" in str(exc.value)
+
+
+def test_set_area_agents_noop_is_not_audited(admin_user, make_user):
+    area = Area.objects.get(code="IT")
+    agent = make_user("agente", role="Agente")
+    catalogs.set_area_agents(area, [agent], actor=admin_user)
+    before = _logs(area).count()
+    catalogs.set_area_agents(area, [agent], actor=admin_user)
+    assert _logs(area).count() == before

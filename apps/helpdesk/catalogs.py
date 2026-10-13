@@ -5,7 +5,10 @@ que quede auditada en la misma transacción. Lo usan el admin de Django y, más
 adelante, las vistas de administración de FE-T09.
 """
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
+
+from apps.accounts.roles import Role, get_role
 
 from . import audit
 from .audit import Action
@@ -52,3 +55,28 @@ def set_active(instance, active, *, actor):
         new={"is_active": active},
     )
     return instance
+
+
+@transaction.atomic
+def set_area_agents(area, agents, *, actor):
+    """Define qué agentes atienden un área (CR-003) y audita el cambio.
+
+    Solo admite usuarios activos del grupo Agente.
+    """
+    agents = list(agents)
+    invalid = [a.username for a in agents if not a.is_active or get_role(a) != Role.AGENTE]
+    if invalid:
+        raise ValidationError({"agents": f"No son agentes activos: {', '.join(invalid)}."})
+
+    before = sorted(area.agents.values_list("pk", flat=True))
+    area.agents.set(agents)
+    after = sorted(a.pk for a in agents)
+    if before != after:
+        audit.record(
+            Action.UPDATE,
+            area,
+            actor=actor,
+            previous={"agent_ids": before},
+            new={"agent_ids": after},
+        )
+    return area

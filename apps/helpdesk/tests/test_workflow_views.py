@@ -96,7 +96,18 @@ def test_other_user_cannot_touch_ticket(client, make_user, ticket):
         reverse("helpdesk:ticket_cancel", args=[ticket.ticket_code]),
         {"version": ticket.version, "reason": "x"},
     )
-    assert response.status_code == 403
+    assert response.status_code == 404  # ticket no visible: no se revela que existe
+
+
+def test_agent_from_other_area_cannot_touch_ticket(client, make_user, ticket):
+    other = make_user("finanzas", role="Agente")
+    Area.objects.get(code="FINANCE").agents.add(other)
+    client.force_login(other)
+    response = client.post(
+        reverse("helpdesk:ticket_status", args=[ticket.ticket_code]),
+        {"to_status": "WAITING_USER", "version": ticket.version},
+    )
+    assert response.status_code == 404
 
 
 def test_confirm_and_reject_require_resolved(client, owner, ticket):

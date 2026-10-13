@@ -46,6 +46,11 @@ class CatalogAdmin(admin.ModelAdmin):
 @admin.register(Area)
 class AreaAdmin(CatalogAdmin):
     list_display = ("code", "name", "email", "is_active", "updated_at")
+    filter_horizontal = ("agents",)
+
+    def save_related(self, request, form, formsets, change):
+        # Los agentes del área se guardan con el servicio auditado, no con form.save_m2m().
+        catalogs.set_area_agents(form.instance, form.cleaned_data["agents"], actor=request.user)
 
 
 @admin.register(Category)

@@ -5,7 +5,9 @@ from . import views
 app_name = "helpdesk"
 
 urlpatterns = [
+    path("tickets/", views.ticket_list, name="ticket_list"),
     path("tickets/new/", views.ticket_create, name="ticket_create"),
+    path("agent/inbox/", views.agent_inbox, name="agent_inbox"),
     path("alerts/", views.alert_list, name="alert_list"),
     path("tickets/<str:code>/status/", views.ticket_transition, name="ticket_status"),
     path(
