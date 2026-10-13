@@ -110,7 +110,7 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | FE-T08 | REVIEW (alertas implementadas y validadas; CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-12 |
 | FE-T09 | TODO (desbloqueada: CONTRACT-016 responde CONTRACT-FRONT-005; hay plantillas TEMPORALES) | ChatGPT | BE-T03A, BE-T09 | 2026-10-13 |
 | FE-T10 | TODO (desbloqueada: CONTRACT-017 responde CONTRACT-FRONT-006; hay plantilla TEMPORAL) | ChatGPT | BE-T10 | 2026-10-13 |
-| FE-T11 | TODO (al final, WhatsApp simulado: ADR-049) | ChatGPT | BE-T11A | 2026-10-13 |
+| FE-T11 | TODO (desbloqueada: CONTRACT-018; hay plantilla TEMPORAL) | ChatGPT | BE-T11A | 2026-10-13 |
 | FE-T12 | TODO (nueva: asistente CONTRACT-014 + tarjeta de revisión humana CONTRACT-015; hay plantilla TEMPORAL del asistente) | ChatGPT | BE-T14, BE-T18A | 2026-10-13 |
 
 ---
@@ -130,9 +130,9 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | BE-T08 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03, BE-T07 | 2026-10-13 |
 | BE-T09 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03 | 2026-10-13 |
 | BE-T10 | REVIEW (CONTRACT-017) | Claude | BE-T03, BE-T08 | 2026-10-13 |
-| BE-T11 | TODO (al final, simulado: ADR-049) | - | BE-T05 | 2026-10-13 |
-| BE-T11A | TODO (al final, simulado: ADR-049) | - | BE-T01, BE-T11 | 2026-10-13 |
-| BE-T12 | TODO (al final, simulado: ADR-049) | - | BE-T11 | 2026-10-13 |
+| BE-T11 | REVIEW (simulado, ADR-049) | Claude | BE-T05 | 2026-10-13 |
+| BE-T11A | REVIEW (simulado, ADR-049) | Claude | BE-T01, BE-T11 | 2026-10-13 |
+| BE-T12 | REVIEW (simulado, ADR-049) | Claude | BE-T11 | 2026-10-13 |
 | BE-T13 | REVIEW (pendiente de revisión del PR) | Claude | BE-T09 | 2026-10-13 |
 | BE-T14 | REVIEW (motor web listo; la entrega por WhatsApp espera BE-T11/BE-T11A) | Claude | BE-T13, BE-T11A | 2026-10-13 |
 | BE-T15 | REVIEW (pendiente de revisión del PR) | Claude | BE-T14 | 2026-10-13 |
@@ -285,6 +285,9 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-061 | 2026-10-13 | Límite de intentos con la caché de Django (ventana fija): login 5 fallos/15 min por usuario y 20 por IP (bloquea aun con clave correcta, 429), asistente 30 mensajes/5 min por usuario. `X-Forwarded-For` solo con `TRUSTED_PROXY_COUNT`. Caché `locmem` en desarrollo; `CACHE_BACKEND=db` con varios procesos | SPEC §48 sin Redis (prohibido) | `accounts.ratelimit` |
 | ADR-062 | 2026-10-13 | `CONN_MAX_AGE` por defecto 0: con hilos efímeros (runserver) las conexiones persistentes agotaron PostgreSQL en la prueba de carga; subirlo solo en producción con workers fijos | Defecto real hallado por BE-T20 (TEST-RUN-013) | `config/settings/base.py` |
 | ADR-063 | 2026-10-13 | Ajustes de producción por entorno (HTTPS, HSTS, cookies seguras, proxy, CSRF trusted origins, sesión de 8 h); `check --deploy` sin advertencias salvo `security.W021` (precarga HSTS: decisión institucional) | SPEC §48 | `config/settings/base.py` |
+| ADR-064 | 2026-10-13 | WhatsApp simulado (ADR-049) con el contrato de Meta: webhook GET (`hub.challenge`) y POST con firma `X-Hub-Signature-256`, idempotencia por id de mensaje en `IntegrationInbox`, worker `process_integration_queue` (`skip_locked`, backoff 1/2/4/8 min, FAILED a los 5 intentos), salida por `IntegrationOutbox` con `SimulatedClient` (registra sin enviar) o `CloudAPIClient` (`WHATSAPP_MODE=cloud` + credenciales). Simulador `whatsapp_simulate` | Pasar a Meta real solo requiere credenciales | `integrations.whatsapp` |
+| ADR-065 | 2026-10-13 | Vinculación: código de 6 dígitos (HMAC con `SECRET_KEY`, un solo uso, 10 min, generar uno invalida el anterior), máx. 5 fallos por número y hora; un número pertenece a una sola cuenta (la anterior se desvincula); cambiar el teléfono anula la verificación (`User.save`); todo auditado | SPEC §35.1 | `whatsapp.linking`, `accounts.User` |
+| ADR-066 | 2026-10-13 | Mensaje entrante de un usuario verificado con un ticket en `WAITING_USER` → se agrega a ese ticket (reanuda, §32.1 fila 8); si no → agente. La respuesta del personal en un ticket de canal WhatsApp sale por la cola al número verificado | «Web y WhatsApp comparten ticket e histórico» | `whatsapp.processing`, `conversations.add_message` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -775,6 +778,14 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Definiciones:** ADR-059 (universo por fecha de creación local `TIME_ZONE`; SLA y denominadores explícitos). Sin exportaciones en el MVP.
 **Aprobado:** Sí
 
+### CONTRACT-018 — Vinculación de WhatsApp (FE-T11)
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T11A) → consumidor FE-T11
+**URL name:** `accounts:whatsapp` → `/profile/whatsapp/` · GET, POST · cualquier usuario autenticado (sin sesión → login). Plantilla `accounts/whatsapp.html` (TEMPORAL).
+**Contexto:** `phone` (str, vacío si no hay), `is_verified` (bool), `verified_at` (datetime o `None`), `code` (str de 6 dígitos **solo en el GET inmediatamente posterior** a generarlo; luego `None`), `code_expires_at` (datetime o `None`), `code_minutes` (10).
+**POST** (CSRF): `action=generate` → genera código y 302 a la misma URL (mostrar `code` con la instrucción «envíalo por WhatsApp al número de la mesa»); `action=unlink` → desvincula (302 + mensaje). Otra acción → mensaje de error.
+**Aprobado:** Sí
+
 ### CONTRACT-FRONT-005 — Pantallas administrativas FE-T09 — Respondida (CONTRACT-016)
 **Fecha:** 2026-10-13 — America/Guayaquil
 **Origen:** FRONT (solicitud de coordinación; sin implementación BACK)
@@ -894,6 +905,7 @@ Plantilla:
 - `ai/migrations/0001_initial.py` — `AIModelConfig`, `AIPromptVersion`, `AIUsage`, `AIDecision` — aplicada y reversible — BE-T16/BE-T18
 - `ai/migrations/0002_initial_config.py` — modelos fake primario/respaldo por operación, prompts v1 y permisos por rol (auditado) — aplicada y reversible — BE-T16/BE-T18
 - `automation/migrations/0005_tune_keywords.py` — palabras clave ajustadas con el conjunto de desarrollo — aplicada y reversible — BE-T17
+- `integrations/migrations/0001_whatsapp_queues.py` — `IntegrationInbox`, `IntegrationOutbox`, `WhatsAppLinkCode` — aplicada y reversible — BE-T11/T11A/T12
 - Tablas propias del checkpointer LangGraph (`checkpoints`, `checkpoint_blobs`, `checkpoint_writes`, `checkpoint_migrations`): las crea `PostgresSaver.setup()` en el primer uso, no son migraciones Django — BE-T18A
 
 Formato:
@@ -940,6 +952,10 @@ Rutas web (vistas Django, ADR-007):
 - `/manage/` y `/manage/<entity>/[new/|<pk>/|<pk>/toggle/]` — `manage:*` — REVIEW — CONTRACT-016
 - `GET /metrics/` — `helpdesk:metrics` — REVIEW — BE-T10 — CONTRACT-017
 - Comando `python manage.py run_sga_mock [--port 8099] [--token …]` — SGA simulado para desarrollo — REVIEW — BE-T19
+- `GET|POST /api/webhooks/whatsapp/` — `integrations:whatsapp_webhook` — REVIEW — BE-T11 (SPEC §47.2)
+- `GET|POST /profile/whatsapp/` — `accounts:whatsapp` — REVIEW — BE-T11A — CONTRACT-018
+- Comandos `python manage.py process_integration_queue [--loop]` (cron cada minuto) y `python manage.py whatsapp_simulate <número> "<mensaje>"` — REVIEW — BE-T12/BE-T11
+- `/admin/integrations/{integrationinbox,integrationoutbox}/` — solo lectura — REVIEW — BE-T12
 - Comandos `python manage.py evaluate_intents [--split dev|test|all] [--errors]` y `python manage.py agent_graph [--check]` — REVIEW — BE-T17/BE-T18A
 
 API: ninguna todavía (el webhook WhatsApp llegará con BE-T11).
@@ -1061,6 +1077,13 @@ Formato:
 **Seguridad:** pruebas de límite de intentos (login por usuario e IP, asistente), IP real tras proxy y `manage.py check --deploy --fail-level WARNING` con ajustes de producción: PASS.
 **Carga (`scripts/load_test.py`, servidor de desarrollo de un proceso):** primera corrida 500 peticiones / 10 hilos → **18 errores 500** (conexiones PostgreSQL agotadas por `CONN_MAX_AGE=60` con hilos efímeros). Corregido (ADR-062): 500 peticiones / 10 hilos → 0 errores, 22 req/s, P50 332 ms, P95 610 ms, P99 748 ms; 1000 / 20 hilos → 0 errores, 21 req/s, P95 1.2 s. El techo es el servidor de desarrollo (un proceso); producción con varios workers escala horizontalmente.
 **Benchmark IA (`evaluate_intents --agent`, conjunto de prueba, FakeLLM):** accuracy del agente 0.767; latencia de extremo a extremo P50 85 ms, P95 130 ms, P99 154 ms. Objetivo SPEC §50 (accuracy ≥ 85 %, macro F1 ≥ 0.80) **no alcanzado con el LLM simulado**: requiere el proveedor real (ADR-010).
+
+### TEST-RUN-014
+**Fecha:** 2026-10-13
+**Tarea:** BE-T11 + BE-T11A + BE-T12 (WhatsApp simulado)
+**Comando:** mismo que TEST-RUN-001 (dos ejecuciones completas sin `.env`) + E2E del repositorio + `whatsapp_simulate` manual
+**Resultado:** PASS — 800 pruebas, cobertura 99 %; E2E 12 pasos sin 5xx. Manual: número sin vincular → instrucciones; código → vinculado; «¿Cuánto debo?» → solo total; id repetido → duplicado ignorado.
+**Fallos:** `refresh_from_db` no actualizaba el teléfono recordado y la anulación de verificación podía saltarse; corregido con prueba.
 
 Formato:
 
@@ -1927,3 +1950,42 @@ Bloqueos: Ninguno
 
 - Tarjeta exclusivamente cuando ai_review existe; muestra propuesta/candidatos/confianza y POST accept/reject, correct solo si can_correct. Catálogo exclusivamente ai_review.intents, CSRF y URL name ai:ticket_review. No decisión de autonomía ni permisos calculados FRONT.
 - Extensión del detalle autorizada FE01..10; asistente FE-T12 separado sin implementación en esta ejecución. Pruebas conjuntas pendientes de cierre.
+
+## BE-T11 / BE-T11A / BE-T12 — WhatsApp simulado — Cierre
+
+**Estado:** REVIEW
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- Webhook con verificación, firma e idempotencia; inbox/outbox con worker, reintentos y backoff; clientes simulado y Cloud API (ADR-064).
+- Vinculación por código desde `/profile/whatsapp/` con límite de intentos, auditoría y desvinculación (ADR-065, CONTRACT-018).
+- Integración con el agente (identidad verificada del número), con tickets en espera y con respuestas del personal (ADR-066). Métricas WhatsApp en `/metrics/` (`metrics.whatsapp`).
+- Simulador de extremo a extremo `whatsapp_simulate`.
+
+### Criterios de aceptación
+- BE-T11 «duplicados no generan doble procesamiento»: probado.
+- BE-T11A «número no verificado no recibe notas/deuda/horario; código expirado o reutilizado rechazado»: probado.
+- BE-T12 «no se pierden mensajes ante fallos controlados»: probado (fallo del procesamiento y del envío con reintentos).
+
+### Pendientes derivados
+- Conectar Meta real: credenciales `WHATSAPP_*`, `WHATSAPP_MODE=cloud` y registrar la URL del webhook en Meta.
+
+## BE-T20 — Matriz de aceptación CA-001 a CA-010 (SPEC §53)
+
+| Caso | Web (grafo) | WhatsApp (simulado) | Prueba automática | Estado |
+|---|---|---|---|---|
+| CA-001 Consultar horario | N0, datos del día | N0 con número verificado | `automation/tests/test_autonomy.py::test_ca001_schedule`, `integrations/tests/test_whatsapp.py::test_ca001_ca002_ca009_over_whatsapp` | PASS |
+| CA-002 Consultar nota | N0 | N0 | `test_ca002_grades`, `test_ca001_ca002_ca009_over_whatsapp` | PASS |
+| CA-003 Consultar deuda | N0 con detalle | N0 solo total (minimización) | `test_ca003_debt_web_detail_and_whatsapp_minimized`, `test_link_and_minimized_sensitive_answer` | PASS |
+| CA-004 Nota incorrecta | N2 → ticket Secretaría Académica | igual | `test_ca004_grade_discrepancy_is_n2` | PASS |
+| CA-005 Pago no reflejado | N2 → ticket Finanzas, prioridad alta | igual | `test_ca005_payment_not_reflected` | PASS |
+| CA-006 Solicitud ambigua | N4 → ticket + revisión humana (interrupt) | igual | `test_ca006_ambiguous_request_goes_to_human_review`, `ai/tests/test_agent.py::test_n4_ambiguous_pauses_for_human_review` | PASS |
+| CA-007 Error LLM | reintento → respaldo → ticket N4 + revisión | igual | `test_ca007_llm_error_retry_fallback_then_human`, `test_graph_crash_never_loses_request` | PASS |
+| CA-008 Reasignación | auditada, autorizada por rol | n/a | `helpdesk/tests/test_assignment.py::test_agent_reassigns_to_colleague_and_it_is_audited_as_reassign` | PASS |
+| CA-009 Consulta de estado | solo tickets propios | igual | `test_ca009_ticket_status_only_own_tickets`, `test_ca001_ca002_ca009_over_whatsapp` | PASS |
+| CA-010 Conversación contextual | «¿Y mañana?» usa la intención previa | memoria por canal | `test_ca010_contextual_follow_up`, `test_context_expires_and_is_per_channel` | PASS |
+
+**Resto de BE-T20:** integración y E2E (TEST-RUN-014), seguridad (TEST-RUN-013 y revisión independiente, ver abajo), carga y benchmark IA (TEST-RUN-013).
+**Pendiente:** UAT con usuarios reales de la universidad (requiere personas, no automatizable) y objetivo IA de SPEC §50, que depende del proveedor LLM real (ADR-010).
+
