@@ -74,3 +74,26 @@ def test_audit_log_is_read_only_in_admin(admin_client):
     assert log.action != "HACKED"
     assert response.status_code in (302, 403)
     assert admin_client.get(reverse("admin:helpdesk_auditlog_changelist")).status_code == 200
+
+
+def test_admin_sets_area_agents_audited(admin_client, make_user):
+    agent = make_user("agente1", role="Agente")
+    area = Area.objects.get(code="IT")
+    response = admin_client.post(
+        reverse("admin:helpdesk_area_change", args=[area.pk]),
+        {"code": "IT", "name": area.name, "email": "", "is_active": "on", "agents": [agent.pk]},
+    )
+    assert response.status_code == 302
+    assert list(area.agents.all()) == [agent]
+    log = AuditLog.objects.filter(entity_type="helpdesk.area", action=Action.UPDATE).get()
+    assert log.previous_value_json == {"agent_ids": []}
+    assert log.new_value_json == {"agent_ids": [agent.pk]}
+
+
+def test_admin_area_agents_only_offers_agents(admin_client, make_user):
+    make_user("solo_usuario", role="Usuario")
+    agent = make_user("agente1", role="Agente")
+    area = Area.objects.get(code="IT")
+    response = admin_client.get(reverse("admin:helpdesk_area_change", args=[area.pk]))
+    choices = list(response.context["adminform"].form.fields["agents"].queryset)
+    assert choices == [agent]

@@ -91,9 +91,9 @@ Reglas:
 | FE-T01 | REVIEW (implementada y validada en Cloud; pendiente de revisión) | ChatGPT | BE-T01 | 2026-10-12 |
 | FE-T02 | TODO | - | BE-T03, BE-T04 | - |
 | FE-T03 | TODO (desbloqueada: CONTRACT-004/005) | ChatGPT | BE-T03, BE-T03A | 2026-10-13 |
-| FE-T04 | TODO | - | BE-T04 | - |
+| FE-T04 | TODO (desbloqueada: CONTRACT-008) | ChatGPT | BE-T04 | 2026-10-13 |
 | FE-T05 | TODO | - | BE-T05, BE-T07 | - |
-| FE-T06 | TODO | - | BE-T04, BE-T06 | - |
+| FE-T06 | TODO (listado listo: CONTRACT-009; asignación pendiente de BE-T06) | ChatGPT | BE-T04, BE-T06 | 2026-10-13 |
 | FE-T07 | TODO (acciones disponibles: CONTRACT-006; el detalle llega con BE-T05) | ChatGPT | BE-T07 | 2026-10-13 |
 | FE-T08 | TODO (desbloqueada: CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-13 |
 | FE-T09 | TODO | - | BE-T03A, BE-T09 | - |
@@ -110,7 +110,7 @@ Reglas:
 | BE-T02 | CANCELLED (fusionada en BE-T01, v5.2) | - | - | 2026-10-12 |
 | BE-T03A | REVIEW (pendiente de revisión del PR) | Claude | BE-T01 | 2026-10-12 |
 | BE-T03 | REVIEW (pendiente de revisión del PR) | Claude | BE-T01, BE-T03A | 2026-10-13 |
-| BE-T04 | TODO | - | BE-T03 | - |
+| BE-T04 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03 | 2026-10-13 |
 | BE-T05 | TODO | - | BE-T03 | - |
 | BE-T06 | TODO | - | BE-T03 | - |
 | BE-T07 | REVIEW (pendiente de revisión del PR) | Claude | BE-T03 | 2026-10-13 |
@@ -237,6 +237,9 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-027 | 2026-10-13 | Política SLA: primero la de la categoría, si no la general (sin categoría); como máximo una activa por (categoría, prioridad) | Permite excepciones por categoría sin duplicar la general | `sla.policy_for`, restricción única parcial |
 | ADR-028 | 2026-10-13 | `SLA_WARNING`/`SLA_BREACHED` se evalúan sobre el plazo de **resolución** (`sla_due_at`); al vencer, `check_sla` escala automáticamente si el ticket está en ASSIGNED o IN_PROGRESS (filas 6 y 10) | SPEC §34.2 y §38.1 | `check_sla` |
 | ADR-029 | 2026-10-13 | Los plazos se fijan al crear el ticket y no cambian si luego se edita la política; el % consumido usa la política vigente para decidir si contar horario laboral | SPEC: «el SLA se fija al crear el ticket» | `sla.apply_due_dates`, `sla.sla_status` |
+| ADR-030 | 2026-10-13 | Visibilidad: Usuario → sus tickets; Agente → asignados a él + de sus áreas + sin área (triaje) + propios; Supervisor y Administrador → todos | SPEC «tickets autorizados» (§9.2, FE-T06); los tickets sin área deben poder clasificarse (§32.1 fila 1) | `helpdesk.queries.visible_tickets` |
+| ADR-031 | 2026-10-13 | Ticket no visible → **404** (no 403) en descarga, acciones y futuras vistas de ticket; 403 solo si el ticket es visible pero el rol no puede ejecutar la acción | No revelar la existencia de tickets ajenos | CR-004 |
+| ADR-032 | 2026-10-13 | El tipo de actor «Agente» del workflow exige que el agente pueda ver el ticket | Coherencia entre lo que el agente ve y lo que puede hacer | `workflow.actor_kinds` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -436,14 +439,14 @@ Convenciones para todas las vistas:
 **URL name:** `helpdesk:attachment_download` → `/tickets/<ticket_code>/attachments/<id>/`
 **Uso en plantilla:** `{% url 'helpdesk:attachment_download' ticket.ticket_code attachment.id %}`
 **Métodos:** GET · sin plantilla · requiere sesión.
-**Respuestas:** 200 con el archivo (`Content-Disposition: attachment`, nombre original); 403 si el usuario no es el dueño del ticket ni un rol de atención; 404 si el adjunto no pertenece a ese ticket o el archivo no existe.
+**Respuestas:** 200 con el archivo (`Content-Disposition: attachment`, nombre original); 404 si el ticket no es visible para el usuario (CR-004), si el adjunto no pertenece a ese ticket o si el archivo no existe.
 **Datos del adjunto disponibles** (cuando se publique el contrato de detalle): `original_name`, `content_type`, `size_bytes`, `created_at`.
 **Aprobado:** Sí
 
 ### CONTRACT-006 — Acciones de estado (FE-005 / FE-T07)
 **Fecha:** 2026-10-13
 **Origen:** BACK (BE-T07) → consumidor FE-T07
-**Métodos:** solo POST (GET → 405), sin plantilla, requieren sesión y `{% csrf_token %}`. Solo el dueño del ticket o un rol de atención puede llamarlas.
+**Métodos:** solo POST (GET → 405), sin plantilla, requieren sesión y `{% csrf_token %}`. Solo sobre tickets visibles para el usuario (CONTRACT-008).
 
 | URL name | Ruta | Destino | Notas |
 |---|---|---|---|
@@ -460,7 +463,7 @@ Convenciones para todas las vistas:
 - éxito → 302 a `next` (si es interna) o a `accounts:role_redirect`, con mensaje `success`: `"Ticket HD-…: estado cambiado a <Estado>."`;
 - transición no válida, motivo faltante o fuera de plazo → 302 igual, con mensaje `error` (textos de SPEC §19, p. ej. `"Debe indicar un motivo para este cambio de estado."`);
 - versión desactualizada → 302 con mensaje `error`: `"El ticket fue actualizado por otro usuario."`;
-- rol no permitido o ticket ajeno → 403; ticket inexistente → 404; falta `version` o `to_status` inválido → 400.
+- ticket visible pero rol no permitido → 403; ticket inexistente o no visible para el usuario → 404 (CR-004); falta `version` o `to_status` inválido → 400.
 
 **Qué botones mostrar:** FRONT no decide. Cuando se publique el contrato del detalle (BE-T05), su contexto incluirá `allowed_targets` (lista de estados a los que el usuario actual puede llevar el ticket, calculada con `helpdesk.workflow.allowed_targets`). Solo deben mostrarse esas acciones.
 **Aprobado:** Sí
@@ -485,6 +488,68 @@ Convenciones para todas las vistas:
 **Estados SLA para badges (FE-T08 en bandeja y detalle):** el backend expondrá en los contratos de BE-T04/BE-T05 un objeto `sla` por ticket calculado con `helpdesk.sla.sla_status`: `state` (`NONE`, `OK`, `WARNING`, `BREACHED`, `STOPPED`), `due_at`, `remaining_minutes` (negativo si vencido, en minutos laborables si la política es de horario laboral) y `consumed_ratio`. FRONT no calcula SLA.
 **Aprobado:** Sí
 
+### CONTRACT-008 — Listado de tickets (FE-004 / FE-T04)
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T04) → consumidor FE-T04 (y «Tickets» del Supervisor)
+**URL name:** `helpdesk:ticket_list` → `/tickets/`
+**Plantilla:** `helpdesk/ticket_list.html` (versión `TEMPORAL (backend)` a reemplazar)
+**Métodos:** GET. Requiere sesión. Cada rol ve solo sus tickets visibles (ADR-030); para un Usuario es «Mis tickets».
+**Parámetros GET (todos opcionales; los inválidos se ignoran):**
+
+| Parámetro | Valores |
+|---|---|
+| `status` | `OPEN` (no resueltos/cerrados/cancelados), `FINISHED`, o un estado (`NEW`, `IN_PROGRESS`, …) |
+| `priority` | `LOW`, `MEDIUM`, `HIGH`, `CRITICAL` |
+| `category`, `area` | id |
+| `assignee` | `me`, `none` o id de usuario |
+| `date_from`, `date_to` | `AAAA-MM-DD` (fecha de creación, inclusiva) |
+| `sla` | `WARNING` (por vencer) o `BREACHED` (vencido) |
+| `q` | texto en el asunto o código exacto `HD-…` |
+| `sort` | `-created_at` (defecto), `created_at`, `-updated_at`, `sla_due_at` |
+| `page` | número de página (20 por página) |
+
+FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el resto sirve a Supervisor/Agente.
+**Contexto:**
+
+| Variable | Tipo | Descripción |
+|---|---|---|
+| `rows` | `list[dict]` | Una por ticket: `{"ticket": Ticket, "sla": SLAStatus}`. Del ticket: `ticket_code`, `subject`, `status`/`get_status_display`, `priority`/`get_priority_display`, `category.name`, `assigned_area.name`, `assigned_user.get_full_name`/`username`, `user` (solicitante), `created_at`, `updated_at`, `version`. Relacionados pueden ser `None`. `sla`: `state` (`NONE`, `OK`, `WARNING`, `BREACHED`, `STOPPED`), `due_at`, `remaining_minutes`, `consumed_ratio` (ver CONTRACT-007). |
+| `page_obj` | `Page` | Paginación estándar de Django. Conservar los filtros en los enlaces. |
+| `filters` | `dict` | Filtros **aplicados** (ya validados), siempre con `sort`. Usar para repintar el formulario. |
+| `status_choices` | `list[tuple]` | `("OPEN", "Abiertos")` + los 10 estados. |
+| `priority_choices`, `sort_choices` | `list[tuple]` | `(valor, etiqueta)`. |
+| `categories`, `areas` | querysets | Activos, para los selects. |
+
+**Aprobado:** Sí
+
+### CONTRACT-009 — Bandeja del agente (FE-006 / FE-T06)
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T04) → consumidor FE-T06
+**URL name:** `helpdesk:agent_inbox` → `/agent/inbox/`
+**Plantilla:** `helpdesk/agent_inbox.html` (versión `TEMPORAL (backend)` a reemplazar)
+**Métodos:** GET. Roles **Agente** y **Supervisor** (otros → 403).
+**Parámetros GET:** `tab` + los mismos filtros de CONTRACT-008 (los filtros explícitos se suman y pueden reemplazar a los de la pestaña). Orden por defecto: `sla_due_at` (lo que vence antes, primero).
+
+| `tab` | Etiqueta (SPEC §10) | Filtro predefinido |
+|---|---|---|
+| `mine` (defecto) | Mi bandeja | asignados a mí, abiertos |
+| `unassigned` | Sin asignar | sin responsable, abiertos |
+| `in_progress` | En proceso | `IN_PROGRESS` |
+| `waiting_user` | Pendientes de usuario | `WAITING_USER` |
+| `due_soon` | Por vencer | SLA `WARNING` |
+| `overdue` | Vencidos | SLA `BREACHED` |
+| `history` | Historial | resueltos, cerrados y cancelados |
+
+**Contexto:** el mismo de CONTRACT-008 más:
+
+| Variable | Tipo | Descripción |
+|---|---|---|
+| `tab` | `str` | Pestaña activa. |
+| `tabs` | `list[dict]` | `[{"key", "label", "count"}]` en el orden de la tabla; `count` es `None` en `history` (no se cuenta). |
+| `assignees` | queryset de usuarios | Agentes activos, para el filtro «responsable» (`assignee=<id>`). |
+
+**Aprobado:** Sí
+
 ## 12.2 Solicitudes de cambio
 
 ### CHANGE REQUEST CR-001 — Agente LangGraph
@@ -493,6 +558,21 @@ Convenciones para todas las vistas:
 **Cambio:** la IA pasa de llamadas sueltas a un agente orquestado con LangGraph (SPEC §46A). Se levanta la prohibición genérica de “agents” (SPEC §4, §55) y se reemplaza por reglas de agente controlado.
 **Impacto:** nueva tarea BE-T18A; `AIDecision` añade `graph_version`, `node_path`, `thread_id`; nuevas dependencias `langgraph`, `langgraph-checkpoint-postgres` (se añadirán a `requirements.txt` al iniciar BE-T18A, no antes).
 **Consumidores afectados:** FRONT sin cambios hasta FE-T06 (la bandeja mostrará los casos pausados en `human_review`; su contrato se publicará con BE-T18A).
+**Aprobado:** Sí
+
+### CHANGE REQUEST CR-003 — Agentes por área (`Area.agents`)
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T04)
+**Cambio:** la SPEC exige que cada agente vea solo «tickets autorizados» (§9.2, FE-T06) pero no define a qué área pertenece cada agente. Se añade `Area.agents` (ManyToMany con usuarios del grupo Agente), gestionado desde el admin de áreas con auditoría (`catalogs.set_area_agents`).
+**Impacto:** migración `helpdesk/0008_area_agents`. FE-T09 (administración de áreas) deberá permitir elegir los agentes del área. Sin agentes asignados a un área, sus tickets solo los ven Supervisor, Administrador y el agente responsable.
+**Aprobado:** Sí (decisión técnica del agente BACKEND; revisable en el PR)
+
+### CHANGE REQUEST CR-004 — Ticket no visible devuelve 404 (CONTRACT-005 y CONTRACT-006)
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T04)
+**Contrato actual:** descarga de adjunto y acciones de estado devolvían **403** a un usuario que no era dueño ni rol de atención.
+**Cambio:** ahora devuelven **404** si el ticket no es visible para el usuario (ADR-031). El 403 de CONTRACT-006 queda solo para «ticket visible, pero su rol no puede ejecutar esa transición».
+**Consumidores afectados:** FE-T05/FE-T07 (ningún cambio de plantilla: Django muestra la página 404 estándar).
 **Aprobado:** Sí
 
 ### CHANGE REQUEST CR-002 — `Ticket.intent` se añade en BE-T09
@@ -527,6 +607,7 @@ Plantilla:
 - `helpdesk/migrations/0005_ticket_status_history.py` — `TicketStatusHistory` — aplicada y reversible — BE-T07
 - `helpdesk/migrations/0006_sla_and_alerts.py` — `SLAPolicy`, `Alert` y restricciones — aplicada y reversible — BE-T08
 - `helpdesk/migrations/0007_initial_sla_policies.py` — 4 políticas generales (SPEC §34) auditadas como SYSTEM y permisos por rol — aplicada y reversible — BE-T08
+- `helpdesk/migrations/0008_area_agents.py` — `Area.agents` (CR-003) — aplicada y reversible — BE-T04
 
 Formato:
 
@@ -557,6 +638,8 @@ Rutas web (vistas Django, ADR-007):
 - `GET /alerts/` — `helpdesk:alert_list` — REVIEW — BE-T08 — CONTRACT-007
 - `/admin/helpdesk/slapolicy/` (gestión auditada, sin borrado) y `/admin/helpdesk/alert/` (solo lectura) — REVIEW — BE-T08
 - Comando `python manage.py check_sla` — REVIEW — BE-T08 (cron cada 5 min, SPEC §38.1)
+- `GET /tickets/` — `helpdesk:ticket_list` — REVIEW — BE-T04 — CONTRACT-008
+- `GET /agent/inbox/` — `helpdesk:agent_inbox` — REVIEW — BE-T04 — CONTRACT-009
 
 API: ninguna todavía (el webhook WhatsApp llegará con BE-T11).
 
@@ -610,6 +693,14 @@ Formato:
 **Entorno:** PostgreSQL 16 local, `config.settings.test`, sin `.env` (igual que CI)
 **Resultado:** PASS — 451 pruebas, cobertura 99 % (`sla.py`, `alerts.py`, vistas y workflow al 100 %). Incluye cruces de fin de semana, noches, feriados, inversa suma/diferencia de minutos laborables, umbral del 80 % y escalamiento automático.
 **Fallos:** primer intento con 3 expectativas mal calculadas en las propias pruebas (2880 min laborables = 5 días + 180 min → vence el lunes siguiente a las 11:00); el código era correcto y se corrigieron las pruebas. Además se actualizaron 4 pruebas previas cuyo comportamiento cambia a propósito (el ticket ahora tiene SLA al crearse; nuevos permisos por rol).
+
+### TEST-RUN-006
+**Fecha:** 2026-10-13
+**Tarea:** BE-T04
+**Comando:** mismo que TEST-RUN-001 (dos ejecuciones completas)
+**Entorno:** PostgreSQL 16 local, `config.settings.test`, sin `.env` (igual que CI)
+**Resultado:** PASS — 483 pruebas, cobertura 99 % (`queries.py`, vistas, workflow y catálogos al 100 %). Incluye la matriz de visibilidad de 6 roles, todos los filtros, pestañas, paginación y un límite de 2 consultas para listar (sin N+1).
+**Fallos:** 6 pruebas previas cambiaron a propósito (403 → 404 para tickets no visibles; el agente del workflow ahora debe pertenecer al área). Se actualizaron y se añadieron pruebas para el agente de otra área.
 
 Formato:
 
@@ -712,10 +803,10 @@ SPEC aprobada: Sí
 SPEC versión: 5.2
 Front backlog definido: Sí
 Back backlog definido: Sí
-Código implementado: BE-T01 (incluye BE-T02), BE-T03A, BE-T03, BE-T07 y BE-T08 en REVIEW
-Migraciones: accounts 0001, 0002; helpdesk 0001-0007
+Código implementado: BE-T01 (incluye BE-T02), BE-T03A, BE-T03, BE-T04, BE-T07 y BE-T08 en REVIEW
+Migraciones: accounts 0001, 0002; helpdesk 0001-0008
 Endpoints: login, logout, role_redirect, home, ticket_create, attachment_download (vistas web); admin de catálogos, auditoría y tickets
-Pruebas: TEST-RUN-001 a TEST-RUN-005 PASS
+Pruebas: TEST-RUN-001 a TEST-RUN-006 PASS
 Bloqueos: Ninguno
 ```
 
@@ -836,7 +927,7 @@ Bloqueos: Ninguno
 - `Ticket.intent` → BE-T09 (CR-002).
 - `first_response_due_at` / `sla_due_at` → BE-T08.
 - ~~Registro inicial en `TicketStatusHistory` (None → NEW) → BE-T07~~ — resuelto en BE-T07.
-- Restringir la descarga de adjuntos de Agentes a tickets de su área/asignación → BE-T04 (hoy cualquier rol de atención puede).
+- ~~Restringir la descarga de adjuntos de Agentes a tickets de su área/asignación → BE-T04~~ — resuelto en BE-T04.
 - Redirigir tras crear al detalle del ticket → cuando existan BE-T05/FE-T05 (CHANGE REQUEST de CONTRACT-004).
 - Limpieza periódica de archivos huérfanos si una transacción externa revierte tras guardar el archivo → junto a los comandos periódicos (BE-T12).
 
@@ -933,7 +1024,7 @@ Bloqueos: Ninguno
 ### Pendientes derivados
 - ~~Crear `Alert` de tipo `ESCALATED` al escalar (filas 6 y 10) → BE-T08~~ — resuelto en BE-T08.
 - Exponer `allowed_targets` y el historial en el contexto del detalle → BE-T05 (contrato del detalle).
-- Restringir `AGENT` (filas 1, 3 y 8) a tickets de su área → BE-T04.
+- ~~Restringir `AGENT` (filas 1, 3 y 8) a tickets de su área → BE-T04~~ — resuelto en BE-T04.
 - `WAITING_USER → IN_PROGRESS` automático cuando el usuario responda → BE-T05 (al registrar su mensaje).
 
 ## 2026-10-13 — Claude (BACKEND) / BE-T07
@@ -996,3 +1087,44 @@ Bloqueos: Ninguno
 - Archivos: ver cierre de BE-T08.
 - Pruebas: TEST-RUN-005 PASS.
 - Observaciones: FE-T08 queda desbloqueada; desbloquea BE-T10 (métricas).
+
+## BE-T04 — Consulta, filtros y paginación — Cierre
+
+**Estado:** REVIEW (pasa a DONE cuando el PR se apruebe y CI esté en verde)
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- `helpdesk.queries.visible_tickets(user)`: control horizontal por rol (ADR-030), sin duplicados; `can_view_ticket` y `get_visible_ticket_or_404`.
+- `Area.agents` (CR-003) con servicio auditado `catalogs.set_area_agents` (solo agentes activos) y selector en el admin de áreas.
+- `queries.apply_filters`: estado (incl. `OPEN`/`FINISHED`), prioridad, categoría, área, responsable (`me`/`none`/id), fechas, SLA (`WARNING`/`BREACHED`), texto y orden; valores inválidos ignorados; devuelve los filtros aplicados.
+- `queries.ticket_rows`: ticket + estado SLA sin consultas por fila (`sla.policy_index`).
+- Vistas `helpdesk:ticket_list` (CONTRACT-008) y `helpdesk:agent_inbox` con las 7 pestañas de SPEC §10 (CONTRACT-009), 20 por página.
+- La descarga de adjuntos y las acciones de estado usan la misma visibilidad (404 si no es visible, CR-004); el actor «Agente» del workflow exige visibilidad (ADR-032).
+- Eliminado `accounts.permissions.check_owner_or_staff` (y `STAFF_ROLES`): quedó sin uso y era más laxo que la nueva regla; el control horizontal vive solo en `helpdesk.queries`.
+
+### Archivos creados/modificados
+- `apps/helpdesk/{queries,models,catalogs,sla,views,urls,workflow,admin}.py`
+- `apps/helpdesk/migrations/0008_area_agents.py`
+- `apps/helpdesk/tests/test_queries.py` (+ ajustes en `test_workflow`, `test_workflow_views`, `test_ticket_views`, `test_admin`, `test_catalogs`)
+- `apps/accounts/{permissions,roles}.py`, `apps/accounts/tests/test_permissions.py`
+- `templates/helpdesk/{ticket_list,agent_inbox}.html` — **TEMPORAL (backend)**.
+
+### Criterio de aceptación
+- Resultados correctos por rol: matriz de visibilidad para Usuario, Agente (con y sin áreas, asignado fuera de su área, triaje), Supervisor y Administrador.
+
+### Decisiones tomadas
+- ADR-030, ADR-031, ADR-032; CR-003, CR-004.
+
+### Pendientes derivados
+- Pantalla de administración de áreas con selección de agentes → FE-T09 (hoy en Django admin).
+- Mostrar en la bandeja acciones de asignación → BE-T06.
+
+## 2026-10-13 — Claude (BACKEND) / BE-T04
+
+- Estado anterior: TODO.
+- Estado nuevo: REVIEW.
+- Trabajo realizado: visibilidad por rol, agentes por área, filtros, pestañas de bandeja, paginación, CONTRACT-008/009, CR-003/004.
+- Archivos: ver cierre de BE-T04.
+- Pruebas: TEST-RUN-006 PASS.
+- Observaciones: FE-T04 desbloqueada; FE-T06 puede maquetar el listado (la asignación llega con BE-T06).

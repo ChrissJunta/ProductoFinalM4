@@ -156,9 +156,10 @@ def test_owner_downloads_attachment(client, ticket_with_file):
 
 
 def test_other_user_cannot_download(client, make_user, ticket_with_file):
+    # 404 y no 403: no se revela que el ticket existe (BE-T04).
     ticket, item = ticket_with_file
     client.force_login(make_user("otro", role="Usuario"))
-    assert client.get(_download_url(ticket, item)).status_code == 403
+    assert client.get(_download_url(ticket, item)).status_code == 404
 
 
 @pytest.mark.parametrize("role", ["Agente", "Supervisor", "Administrador"])
