@@ -1,4 +1,4 @@
-"""Matriz de permisos de modelo por rol (migración helpdesk.0003)."""
+"""Matriz de permisos de modelo por rol (migraciones helpdesk.0003 y 0007)."""
 
 import pytest
 from django.core.management import call_command
@@ -10,10 +10,12 @@ pytestmark = pytest.mark.django_db
 CATALOGS = ["area", "category", "subcategory"]
 
 EXPECTED = {
-    "Administrador": {f"{a}_{m}" for m in CATALOGS for a in ("add", "change", "view")}
-    | {"view_auditlog"},
-    "Supervisor": {f"view_{m}" for m in CATALOGS} | {"view_auditlog"},
-    "Agente": {f"view_{m}" for m in CATALOGS},
+    "Administrador": {
+        f"{a}_{m}" for m in [*CATALOGS, "slapolicy"] for a in ("add", "change", "view")
+    }
+    | {"view_auditlog", "view_alert"},
+    "Supervisor": {f"view_{m}" for m in [*CATALOGS, "slapolicy"]} | {"view_auditlog", "view_alert"},
+    "Agente": {f"view_{m}" for m in [*CATALOGS, "slapolicy"]},
     "Usuario": set(),
 }
 
@@ -28,7 +30,9 @@ def test_role_permissions(make_user, role):
 @pytest.mark.parametrize("role", EXPECTED)
 def test_nobody_can_delete_catalogs_or_change_audit(make_user, role):
     user = make_user(role=role)
-    for codename in [f"delete_{m}" for m in CATALOGS] + ["change_auditlog", "delete_auditlog"]:
+    forbidden = [f"delete_{m}" for m in [*CATALOGS, "slapolicy"]]
+    forbidden += ["change_auditlog", "delete_auditlog", "add_alert", "change_alert", "delete_alert"]
+    for codename in forbidden:
         assert not user.has_perm(f"helpdesk.{codename}")
 
 

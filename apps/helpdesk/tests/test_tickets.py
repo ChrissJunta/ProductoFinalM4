@@ -34,7 +34,8 @@ def test_create_minimal_ticket(make_user):
     assert ticket.category is None
     assert ticket.assigned_area is None
     assert ticket.classification_source == ""
-    assert ticket.sla_due_at is None  # lo calcula BE-T08
+    assert ticket.sla_due_at is not None  # política general MEDIUM (BE-T08)
+    assert ticket.first_response_due_at < ticket.sla_due_at
 
 
 def test_codes_are_sequential_and_unique(make_user):

@@ -118,3 +118,12 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 WAITING_USER_TIMEOUT_DAYS = 7  # WAITING_USER → CANCELLED sin respuesta del usuario
 AUTO_CLOSE_DAYS = 3  # RESOLVED → CLOSED sin confirmación del usuario
 REOPEN_WINDOW_DAYS = 7  # CLOSED → REOPENED solo dentro de este plazo desde el cierre
+
+# SLA (SPEC §34.1). Calendario laboral como constante, no tabla.
+BUSINESS_HOURS = {
+    "weekdays": [0, 1, 2, 3, 4],  # lunes a viernes (0 = lunes)
+    "start": "08:00",
+    "end": "17:00",
+}
+HOLIDAYS = env.list("HOLIDAYS", default=[])  # fechas ISO, p. ej. 2026-12-25
+SLA_WARNING_RATIO = 0.8  # SLA_WARNING al consumir el 80 % del plazo (§34.2)

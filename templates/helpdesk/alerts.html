@@ -1,0 +1,6 @@
+{# TEMPORAL (backend): plantilla mínima para pruebas. La reemplaza el FRONTEND según CONTRACT-007 en progress.md. #}
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Alertas</title></head>
+<body>
+<ul>{% for alert in alerts %}<li>{{ alert.ticket.ticket_code }} · {{ alert.get_alert_type_display }} · {{ alert.message }}</li>{% empty %}<li>Sin alertas</li>{% endfor %}</ul>
+</body></html>

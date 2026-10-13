@@ -1,16 +1,19 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
+from django.db.models import Count
 from django.http import FileResponse, Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
-from apps.accounts.permissions import check_owner_or_staff
+from apps.accounts.permissions import check_owner_or_staff, role_required
+from apps.accounts.roles import Role
 
 from . import workflow
 from .forms import TicketCreateForm, TransitionForm, category_tree
-from .models import Attachment, Ticket
+from .models import Alert, Attachment, Ticket
 from .tickets import TicketService
 
 S = Ticket.Status
@@ -125,3 +128,42 @@ def ticket_transition(request, code, action=None):
             f"Ticket {ticket.ticket_code}: estado cambiado a {ticket.get_status_display()}.",
         )
     return redirect(_safe_next(request) or "accounts:role_redirect")
+
+
+ALERTS_PER_PAGE = 25
+
+
+@role_required(Role.SUPERVISOR)
+@require_GET
+def alert_list(request):
+    """FE-007 / CONTRACT-007: alertas de SLA y escalados (Supervisor)."""
+    status = request.GET.get("status", Alert.Status.OPEN)
+    alert_type = request.GET.get("type", "")
+    alerts = Alert.objects.select_related("ticket", "ticket__assigned_area")
+    if status in Alert.Status.values:
+        alerts = alerts.filter(status=status)
+    else:
+        status = "ALL"
+    if alert_type in Alert.Type.values:
+        alerts = alerts.filter(alert_type=alert_type)
+    else:
+        alert_type = ""
+
+    open_counts = dict(
+        Alert.objects.filter(status=Alert.Status.OPEN)
+        .values_list("alert_type")
+        .annotate(n=Count("id"))
+    )
+    page = Paginator(alerts, ALERTS_PER_PAGE).get_page(request.GET.get("page"))
+    return render(
+        request,
+        "helpdesk/alerts.html",
+        {
+            "page_obj": page,
+            "alerts": page.object_list,
+            "filters": {"status": status, "type": alert_type},
+            "status_choices": Alert.Status.choices,
+            "type_choices": Alert.Type.choices,
+            "open_counts": {value: open_counts.get(value, 0) for value in Alert.Type.values},
+        },
+    )
