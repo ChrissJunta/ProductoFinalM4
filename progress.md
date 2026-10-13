@@ -842,6 +842,7 @@ Formato:
 **Comando:** `seed_demo` + `runserver` + `python scripts/e2e_demo.py` (Chromium real)
 **Resultado:** PASS — 12 pasos con los 5 roles: login; «Mis tickets»; confirmar solución; responder con PDF (vuelve a «En proceso»); crear ticket y llegar al detalle; agente ve «Sin asignar», se asigna, atiende y resuelve; supervisor en alertas/historial; agente de otra área recibe 404; admin entra a `/admin/`; listado a 360 px sin desbordamiento. Sin respuestas 5xx.
 **Fallos:** en los primeros intentos fallaron aserciones del propio script (texto del aviso con saltos de línea; botón de cerrar sesión ausente en la página 404 de Django), no la aplicación.
+**Repetición final:** tras integrar la identidad institucional de FRONT (`feature/integracion-mvp`: logo Indoamérica, colores, contraste) se reinició el servidor (Django cachea plantillas y `--noreload` no las invalida) y se repitió E2E: PASS, 12 pasos, con logo y estilos nuevos.
 
 Formato:
 
@@ -1457,6 +1458,7 @@ Bloqueos: Ninguno
 ## Entrega integrada BACK + FRONT — 2026-10-13
 
 - Pedido del responsable: una rama funcional única, verificable, para pasar a `main`.
-- `main-r0dfx3` integra FE-T01/03/04/06/08 (ChatGPT) con BE-T01..T08 (Claude) y BE-T05/T06 nuevos.
+- `main-r0dfx3` integra FE-T01/03/04/06/08 y la identidad institucional (`feature/integracion-mvp`, que ya contenía todas las ramas FRONT) de ChatGPT con BE-T01..T08 (Claude).
+- `.env.example` sugiere `TIME_ZONE=America/Guayaquil`.
 - Verificación: TEST-RUN-007 (535 pruebas) y E2E-RUN-001 (navegador real, 5 roles). Guía paso a paso en `README.md` («Cómo verificar el MVP»), usuarios demo con `seed_demo`.
 - Para FRONT: contratos 010-013 publicados; ver sección 3.2 sobre los dos archivos FRONT tocados por BACK y la plantilla temporal del detalle.
