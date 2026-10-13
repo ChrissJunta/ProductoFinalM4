@@ -16,8 +16,8 @@ from django.utils import timezone
 
 from apps.accounts.roles import Role, get_role
 
-from . import audit
-from .models import Ticket, TicketStatusHistory
+from . import alerts, audit
+from .models import Alert, Ticket, TicketStatusHistory
 
 S = Ticket.Status
 
@@ -197,6 +197,7 @@ def transition(ticket, target, *, actor=None, reason="", expected_version=None):
     TicketStatusHistory.objects.create(
         ticket=locked, previous_status=previous, new_status=target, actor=actor, reason=reason
     )
+    _sync_alerts(locked, previous, target, reason)
     audit.record(
         audit.Action.STATUS_CHANGE,
         locked,
@@ -206,6 +207,24 @@ def transition(ticket, target, *, actor=None, reason="", expected_version=None):
         metadata={"reason": reason} if reason else None,
     )
     return locked
+
+
+FINISHED = {S.RESOLVED, S.CLOSED, S.CANCELLED}
+
+
+def _sync_alerts(ticket, previous, target, reason):
+    """Alertas ligadas al estado (SPEC §32.1 nota sobre filas 6 y 10, FE-007)."""
+    if target == S.ESCALATED:
+        alerts.open_alert(
+            ticket,
+            Alert.Type.ESCALATED,
+            severity=Alert.Severity.WARNING,
+            message=f"Ticket escalado: {reason}"[:255],
+        )
+    elif previous == S.ESCALATED:
+        alerts.resolve_alerts(ticket, [Alert.Type.ESCALATED])
+    if target in FINISHED:
+        alerts.resolve_alerts(ticket)
 
 
 def record_initial_status(ticket, actor):

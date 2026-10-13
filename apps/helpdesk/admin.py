@@ -1,7 +1,16 @@
 from django.contrib import admin, messages
 
 from . import catalogs
-from .models import Area, Attachment, AuditLog, Category, Subcategory, Ticket
+from .models import (
+    Alert,
+    Area,
+    Attachment,
+    AuditLog,
+    Category,
+    SLAPolicy,
+    Subcategory,
+    Ticket,
+)
 
 
 class CatalogAdmin(admin.ModelAdmin):
@@ -53,6 +62,20 @@ class SubcategoryAdmin(CatalogAdmin):
     list_select_related = ("category",)
 
 
+@admin.register(SLAPolicy)
+class SLAPolicyAdmin(CatalogAdmin):
+    list_display = (
+        "__str__",
+        "first_response_minutes",
+        "resolution_minutes",
+        "business_hours_only",
+        "is_active",
+    )
+    list_filter = ("is_active", "priority", "business_hours_only", "category")
+    search_fields = ("category__name",)
+    list_select_related = ("category",)
+
+
 class ReadOnlyAdmin(admin.ModelAdmin):
     """Solo consulta: la escritura pasa por los servicios, que auditan cada cambio."""
 
@@ -85,4 +108,12 @@ class TicketAdmin(ReadOnlyAdmin):
 @admin.register(Attachment)
 class AttachmentAdmin(ReadOnlyAdmin):
     list_display = ("original_name", "ticket", "content_type", "size_bytes", "created_at")
+    list_select_related = ("ticket",)
+
+
+@admin.register(Alert)
+class AlertAdmin(ReadOnlyAdmin):
+    list_display = ("created_at", "alert_type", "severity", "ticket", "status", "resolved_at")
+    list_filter = ("status", "alert_type", "severity")
+    search_fields = ("ticket__ticket_code",)
     list_select_related = ("ticket",)
