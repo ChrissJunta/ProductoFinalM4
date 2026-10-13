@@ -1486,7 +1486,9 @@ class LLMProvider:
 
 El proveedor LLM real es una **decisión abierta** (ADR-010 en `progress.md`). Criterios: costo por 1K tokens, latencia P95, soporte de salida JSON estructurada, tratamiento de datos personales y disponibilidad regional.
 
-Hasta cerrar la decisión:
+> **Decisión (2026-10-13, ADR-069):** servidor institucional vLLM con Qwen3-8B, API compatible con OpenAI (`LLM_PROVIDER=openai_compat`).
+
+Hasta cerrar la decisión (y en desarrollo y CI):
 
 - `LLM_PROVIDER=fake` es el valor por defecto en desarrollo y CI (`FakeLLMProvider` determinístico);
 - el proveedor se selecciona por variable de entorno, sin cambiar código de negocio;
