@@ -110,7 +110,7 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | FE-T08 | REVIEW (alertas implementadas y validadas; CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-12 |
 | FE-T09 | REVIEW (administración CONTRACT-016 implementada) | ChatGPT | BE-T03A, BE-T09 | 2026-10-13 |
 | FE-T10 | REVIEW (métricas CONTRACT-017 implementadas) | ChatGPT | BE-T10 | 2026-10-13 |
-| FE-T11 | IN_PROGRESS (vinculación CONTRACT-018) | ChatGPT | BE-T11A | 2026-10-13 |
+| FE-T11 | REVIEW (vinculación CONTRACT-018 implementada) | ChatGPT | BE-T11A | 2026-10-13 |
 | FE-T12 | TODO (nueva: asistente CONTRACT-014 + tarjeta de revisión humana CONTRACT-015; hay plantilla TEMPORAL del asistente) | ChatGPT | BE-T14, BE-T18A | 2026-10-13 |
 
 ---
@@ -2018,3 +2018,7 @@ Bloqueos: Ninguno
 ## 2026-10-13 — ChatGPT (FRONTEND) / FE-T11 — IN_PROGRESS — America/Guayaquil
 
 - Autorización expresa del usuario amplía alcance a vinculación018 y asistente014. Base BACK08cb87e y tareas FRONT previas preservadas. WhatsApp simulado ADR049; solo templates/static y registros FRONT, sin backend ni secretos reales.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T11 — REVIEW
+
+- Pantalla institucional: estado/número/fecha verificados, código de una sola vista y vencimiento suministrados BACK, generar y desvincular POST con CSRF y URL accounts:whatsapp. Navegación autenticada y modo simulado explícito, sin número institucional inventado ni credenciales JS. Funciona sin JS. Validación conjunta pendiente de registrar.
