@@ -48,6 +48,26 @@ class User(AbstractUser):
             ),
         ]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._loaded_phone = (self.phone, self.phone_verified_at)
+
+    def save(self, *args, **kwargs):
+        """Cambiar el teléfono anula la verificación (SPEC §35.1), salvo que la vinculación
+        fije a la vez un nuevo `phone_verified_at`."""
+        phone, verified_at = self._loaded_phone
+        if self.phone != phone and self.phone_verified_at == verified_at and verified_at:
+            self.phone_verified_at = None
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None:
+                kwargs["update_fields"] = {*update_fields, "phone_verified_at"}
+        super().save(*args, **kwargs)
+        self._loaded_phone = (self.phone, self.phone_verified_at)
+
+    def refresh_from_db(self, *args, **kwargs):
+        super().refresh_from_db(*args, **kwargs)
+        self._loaded_phone = (self.phone, self.phone_verified_at)
+
     @property
     def is_phone_verified(self):
         return bool(self.phone) and self.phone_verified_at is not None
