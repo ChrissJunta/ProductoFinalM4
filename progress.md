@@ -90,7 +90,7 @@ Reglas:
 |---|---|---|---|---|
 | FE-T01 | REVIEW (implementada y validada en Cloud; pendiente de revisión) | ChatGPT | BE-T01 | 2026-10-12 |
 | FE-T02 | TODO | - | BE-T03, BE-T04 | - |
-| FE-T03 | TODO (desbloqueada: CONTRACT-004/005) | ChatGPT | BE-T03, BE-T03A | 2026-10-13 |
+| FE-T03 | REVIEW (implementada y validada en Cloud; pendiente de revisión) | ChatGPT | BE-T03, BE-T03A | 2026-10-12 |
 | FE-T04 | REVIEW (listado validado en Cloud; CONTRACT-008) | ChatGPT | BE-T04 | 2026-10-12 |
 | FE-T05 | TODO | - | BE-T05, BE-T07 | - |
 | FE-T06 | REVIEW (lectura validada; asignación pendiente CONTRACT-FRONT-003) | ChatGPT | BE-T04, BE-T06 | 2026-10-12 |
@@ -568,6 +568,15 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Consumidor:** FE-T06. La lectura/filtros se implementa ahora; acciones bloqueadas hasta el contrato.
 **Aprobado:** Pendiente
 
+### CONTRACT-FRONT-004 — Detalle FE-T05 y acciones FE-T07 — Pendiente
+**Fecha:** 2026-10-12 — America/Guayaquil
+**Origen:** FRONT
+**Estado:** Pendiente de publicación BACK / BE-T05
+**Contrato disponible:** CONTRACT-005 define descargas y CONTRACT-006 POST de estado; ninguno publica vista GET/contexto del detalle.
+**Solicitud concreta:** publicar URL name/plantilla del detalle, contexto autorizado del ticket, conversación/histórico ordenados por BACK (remitente/canal/fecha/texto autorizado), adjuntos autorizados, `ticket.version`, `allowed_targets` y datos de acciones permitidas; también URL names/POST de respuesta cuando existan. BACK decide permisos, transiciones y qué contenido puede mostrarse; FRONT no infiere botones, mensajes ni historial desde modelos sin contexto aprobado.
+**Consumidores:** FE-T05/FE-T07. La solicitud equivalente de FE-T07 también consta en PR #3 como CONTRACT-FRONT-001; no implica dos implementaciones ni dos bloqueos distintos.
+**Aprobado:** Pendiente
+
 ## 12.2 Solicitudes de cambio
 
 ### CHANGE REQUEST CR-001 — Agente LangGraph
@@ -849,6 +858,16 @@ Añadir siempre al final, sin borrar entradas anteriores.
 - Base vigente revisada: `b421f24`. No se han publicado dashboard FE-T02, detalle FE-T05/contexto allowed_targets FE-T07, asignación FE-T06 ni catálogos/métricas FE-T09/10. Sus acciones/vistas no se inventan; solicitudes FRONT concretas en sección 12 y PR #3/#5/este PR.
 - Entregas previas: PR #2 FE-T01, #3 FE-T03, #4 FE-T08, #5 FE-T04; todos sin merge automático y con registros BACK preservados. Este PR queda sobre FE-T04 para diff exclusivo de lectura FE-T06.
 - Seguimiento Cloud ACTIVO cada hora confirmado por UI, id `6acd9bd4f1648190a92625ce9eefe1d5`, America/Guayaquil. Primera ejecución/acceso GitHub/continuación automática aún no verificados; no se crea otro monitor.
+
+---
+
+## 2026-10-12 22:17 — ChatGPT (FRONTEND) / Entregas y reanudación Cloud — America/Guayaquil
+
+- Entregas abiertas en REVIEW: FE-T01 PR #2 (`feature/fe-t01-login` → `main-r0dfx3`); FE-T03 PR #3 y FE-T08 PR #4 → FE-T01; FE-T04 PR #5 → FE-T08; FE-T06 lectura PR #6 → FE-T04. Cada diff contiene su tarea, sin merges a main ni force push.
+- No retomar FE-T03 como TODO: su fila se actualiza para reflejar PR #3 ya publicado. Los registros FRONT de ramas separadas se sincronizan al revisar, conservando BACK íntegro.
+- Continuación segura: fetch backend y PR propios, leer contratos/progress y preservar cambios locales. Solo iniciar tareas TODO con dependencia verificada o contrato aprobado; no duplicar trabajo IN_PROGRESS/REVIEW ni abrir segundo PR para la misma tarea. Completar asignación FE-T06 en su PR cuando BE-T06 publique contrato; detalle/acciones requieren BE-T05 y CONTRACT-FRONT-004.
+- Solicitudes concretas pendientes: dashboard FE-T02 (CONTRACT-FRONT-002); asignación FE-T06 (003); detalle/conversación/allowed_targets FE-T05/07 (004; petición previa 001 en PR #3). FE-T09/10 esperan BE-T09/10 y sus contratos. No faltan credenciales de producción porque no se usan.
+- Seguimiento único Cloud ACTIVO cada hora, America/Guayaquil, confirmado por UI: `6acd9bd4f1648190a92625ce9eefe1d5`; monitor local pausado según supervisor. No configurado cada 10 min; no se ha validado aún primera ejecución remota, acceso GitHub desde esa ejecución ni continuación automática de chat.
 
 ---
 
