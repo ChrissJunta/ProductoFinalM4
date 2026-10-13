@@ -1,8 +1,8 @@
 """AutomationService (SPEC §33).
 
 `route_ticket` (BE-T09) vive aquí; `identify_intent` (BE-T13, `intents.py`) y
-`determine_autonomy`/`handle_message` (BE-T14, `autonomy.py`) se exponen como
-fachada. En BE-T18A pasan a ser nodos del grafo LangGraph (SPEC §46A).
+`determine_autonomy` (BE-T14, `autonomy.py`) se exponen como fachada y son
+nodos del grafo LangGraph; `handle_message` ejecuta ese grafo (BE-T18A, §46A).
 """
 
 from django.db.models import Q
@@ -70,9 +70,12 @@ class AutomationService:
         return determine_autonomy(intent, confidence, action)
 
     @staticmethod
-    def handle_message(*, text, user=None, channel="WEB"):
-        """Clasifica, decide N0–N4 y ejecuta. Devuelve un `AutomationResult`."""
-        # Import diferido: autonomy usa TicketService, que a su vez usa este módulo.
-        from .autonomy import handle_message
+    def handle_message(*, text, user=None, channel="WEB", is_verified=True):
+        """Punto de entrada Web/WhatsApp: ejecuta el grafo del agente (SPEC §46A.7).
 
-        return handle_message(text=text, user=user, channel=channel)
+        Devuelve un `AgentResult` (respuesta, nivel, intención, ticket, recorrido).
+        """
+        # Import diferido: el agente usa TicketService, que a su vez usa este módulo.
+        from apps.ai.agent.runner import run_agent
+
+        return run_agent(text=text, user=user, channel=channel, is_verified=is_verified)

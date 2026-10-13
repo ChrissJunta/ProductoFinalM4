@@ -1,6 +1,7 @@
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
+from apps.accounts import ratelimit
 from apps.accounts.permissions import role_required
 from apps.accounts.roles import Role
 from apps.helpdesk.models import Ticket
@@ -26,6 +27,10 @@ def assistant(request):
     POST → Autonomy Engine → redirect (PRG). La última respuesta se muestra una vez.
     """
     form = AssistantForm(request.POST or None)
+    if request.method == "POST" and ratelimit.hit("assistant", request.user.pk):
+        form.add_error(None, "Ha enviado demasiadas consultas seguidas. Espere unos minutos.")
+        context = {"form": form, "exchange": None, "examples": EXAMPLES}
+        return render(request, "automation/assistant.html", context, status=429)
     if request.method == "POST" and form.is_valid():
         text = form.cleaned_data["message"]
         result = AutomationService.handle_message(

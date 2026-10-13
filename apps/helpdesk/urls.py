@@ -9,6 +9,7 @@ urlpatterns = [
     path("tickets/new/", views.ticket_create, name="ticket_create"),
     path("agent/inbox/", views.agent_inbox, name="agent_inbox"),
     path("alerts/", views.alert_list, name="alert_list"),
+    path("metrics/", views.metrics_view, name="metrics"),
     path("tickets/<str:code>/", views.ticket_detail, name="ticket_detail"),
     path("tickets/<str:code>/messages/", views.ticket_message, name="ticket_message"),
     path("tickets/<str:code>/assign/", views.ticket_assign, name="ticket_assign"),

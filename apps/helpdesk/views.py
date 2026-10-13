@@ -13,8 +13,15 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 from apps.accounts.permissions import role_required
 from apps.accounts.roles import Role
 
-from . import assignment, conversations, queries, sla, workflow
-from .forms import AssignForm, MessageForm, TicketCreateForm, TransitionForm, category_tree
+from . import assignment, conversations, metrics, queries, sla, workflow
+from .forms import (
+    AssignForm,
+    MessageForm,
+    MetricsFilterForm,
+    TicketCreateForm,
+    TransitionForm,
+    category_tree,
+)
 from .models import Alert, Area, Attachment, Category, Ticket
 from .tickets import TicketService
 
@@ -307,8 +314,16 @@ def ticket_detail(request, code):
             ),
             "message_form": MessageForm(),
             "assign": assignment.assign_options(ticket, user),
+            "ai_review": _ai_review(ticket, user),
         },
     )
+
+
+def _ai_review(ticket, user):
+    """CONTRACT-015: revisión humana pendiente del agente (solo Agente/Supervisor)."""
+    from apps.ai.agent.runner import review_options  # import diferido: ai depende de helpdesk
+
+    return review_options(ticket, user)
 
 
 def _first_error(form):
@@ -376,3 +391,36 @@ def ticket_assign(request, code):
     else:
         messages.success(request, f"Ticket {ticket.ticket_code} asignado.")
     return redirect(_safe_next(request) or _detail_url(ticket))
+
+
+@role_required(Role.SUPERVISOR)
+@require_GET
+def metrics_view(request):
+    """FE-009 / CONTRACT-017: métricas operativas (BE-T10). Solo Supervisor."""
+    form = MetricsFilterForm(request.GET or None)
+    default_from, default_to = metrics.default_period()
+    data = form.cleaned_data if form.is_valid() else {}
+    date_from = data.get("date_from") or default_from
+    date_to = data.get("date_to") or default_to
+    if date_from > date_to:  # solo una fecha indicada y fuera del periodo por defecto
+        date_from, date_to = min(date_from, date_to), max(date_from, date_to)
+    result = (
+        metrics.compute(
+            date_from,
+            date_to,
+            area=data.get("area"),
+            category=data.get("category"),
+            channel=data.get("channel") or None,
+        )
+        if not form.errors
+        else None
+    )
+    return render(
+        request,
+        "helpdesk/metrics.html",
+        {
+            "form": form,
+            "metrics": result,
+            "period": {"date_from": date_from, "date_to": date_to},
+        },
+    )

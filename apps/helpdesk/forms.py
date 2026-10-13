@@ -1,7 +1,7 @@
 from django import forms
 
 from .attachments import validate_upload
-from .models import Category, Subcategory
+from .models import Area, Category, Subcategory, Ticket
 
 
 class TicketCreateForm(forms.Form):
@@ -80,3 +80,29 @@ class AssignForm(forms.Form):
     version = forms.IntegerField(min_value=1)
     area = forms.IntegerField()
     assignee = forms.IntegerField(required=False)
+
+
+class MetricsFilterForm(forms.Form):
+    """Filtros GET de métricas (CONTRACT-017). Vacío = sin filtro; periodo por defecto 30 días."""
+
+    date_from = forms.DateField(label="Desde", required=False)
+    date_to = forms.DateField(label="Hasta", required=False)
+    area = forms.ModelChoiceField(label="Área", queryset=Area.objects.all(), required=False)
+    category = forms.ModelChoiceField(
+        label="Categoría", queryset=Category.objects.all(), required=False
+    )
+    channel = forms.ChoiceField(
+        label="Canal", choices=[("", "Todos")] + Ticket.Channel.choices, required=False
+    )
+
+    MAX_DAYS = 366
+
+    def clean(self):
+        cleaned = super().clean()
+        start, end = cleaned.get("date_from"), cleaned.get("date_to")
+        if start and end:
+            if start > end:
+                self.add_error("date_to", "La fecha final es anterior a la inicial.")
+            elif (end - start).days >= self.MAX_DAYS:
+                self.add_error("date_to", "El periodo máximo es de un año.")
+        return cleaned

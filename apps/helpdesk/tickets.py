@@ -69,8 +69,10 @@ class TicketService:
             description=description.strip(),
             intent=intent,
             assigned_area=category.default_area if category else None,
+            # None = la elige el usuario si indicó categoría; "" = sin clasificar.
             classification_source=classification_source
-            or (Ticket.ClassificationSource.USER if category else ""),
+            if classification_source is not None
+            else (Ticket.ClassificationSource.USER if category else ""),
             classification_score=classification_score,
         )
         # Routing configurable (BE-T09): puede fijar área y prioridad antes de calcular el SLA.
