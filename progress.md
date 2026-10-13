@@ -104,7 +104,7 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | FE-T03 | REVIEW (implementada y validada en Cloud; pendiente de revisión) | ChatGPT | BE-T03, BE-T03A | 2026-10-12 |
 | FE-T04 | REVIEW (listado validado en Cloud; CONTRACT-008) | ChatGPT | BE-T04 | 2026-10-12 |
 | FE-T05 | REVIEW (detalle y conversación CONTRACT-010/011) | ChatGPT | BE-T05, BE-T07 | 2026-10-13 |
-| FE-T06 | REVIEW (lectura validada; asignación desbloqueada: CONTRACT-012) | ChatGPT | BE-T04, BE-T06 | 2026-10-13 |
+| FE-T06 | REVIEW (lectura y asignación CONTRACT-009/012) | ChatGPT | BE-T04, BE-T06 | 2026-10-13 |
 | FE-T07 | REVIEW (acciones autorizadas CONTRACT-006/010) | ChatGPT | BE-T07 | 2026-10-13 |
 | FE-T08 | REVIEW (alertas implementadas y validadas; CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-12 |
 | FE-T09 | TODO | - | BE-T03A, BE-T09 | - |
@@ -1487,3 +1487,8 @@ Bloqueos: Ninguno
 
 - Formularios separados por acción suministrada por BACK; URL por nombre, CSRF, versión y to_status solo para acción genérica. Motivo obligatorio únicamente según reason_required.
 - Sin inferir transiciones por rol; mensajes del backend permanecen en componente compartido. Pruebas de permisos, versiones y recorrido conjunto pendientes de cierre.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T06 — Asignación REVIEW
+
+- Completa la entrega de lectura con asignación en detalle: opciones exclusivamente assign.areas, responsable opcional, versión y CSRF. JavaScript mínimo filtra responsables del área y conserva selección válida; sin JS el backend valida todas las opciones autorizadas.
+- Rama existente y PR #6 conservados; dependencias FE-T02/05/07 integradas sin alterar código BACK. Validación conjunta PostgreSQL/E2E pendiente de registrar al terminar.

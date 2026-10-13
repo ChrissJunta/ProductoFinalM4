@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {# CONTRACT-010/011: datos y permisos calculados exclusivamente por BACK. #}
-{% load tz %}
+{% load tz static %}
 {% block title %}{{ ticket.ticket_code }}{% endblock %}
 {% block content %}
 <nav aria-label="Ruta" class="mb-3"><a href="{% url 'helpdesk:ticket_list' %}">← Volver a tickets</a></nav>
@@ -70,3 +70,5 @@
 </section>
 {% else %}<p class="text-secondary">La conversación no admite respuestas para tu usuario o para el estado actual del ticket.</p>{% endif %}
 {% endblock %}
+
+{% block scripts %}<script src="{% static 'js/ticket-assignment.js' %}" defer></script>{% endblock %}

@@ -1,5 +1,7 @@
     {% if assign.can_assign %}
-      <form method="post" action="{% url 'helpdesk:ticket_assign' ticket.ticket_code %}" class="border rounded p-2 row g-2 align-items-end">
+      <h3 class="h6">Asignación</h3>
+      <p id="assignment-help" class="small text-secondary">Elige un área autorizada y, opcionalmente, un responsable de esa área.</p>
+      <form aria-describedby="assignment-help" method="post" action="{% url 'helpdesk:ticket_assign' ticket.ticket_code %}" class="border rounded p-2 row g-2 align-items-end">
         {% csrf_token %}
         <input type="hidden" name="version" value="{{ ticket.version }}">
         <div class="col-sm-5">
@@ -18,3 +20,4 @@
         <div class="col-sm-2"><button type="submit" class="btn btn-sm btn-primary w-100">Asignar</button></div>
       </form>
     {% endif %}
+{{ assign.areas|json_script:"assignment-options" }}
