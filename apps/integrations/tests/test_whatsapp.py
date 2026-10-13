@@ -360,3 +360,15 @@ def test_whatsapp_metrics(client, student, monkeypatch):
     assert (wa["inbound"], wa["outbound_sent"], wa["outbound_pending"]) == (2, 1, 1)
     assert (wa["conversations"], wa["retries"]) == (2, 0)
     assert metrics.whatsapp_metrics(date(2020, 1, 1), date(2020, 1, 2))["inbound"] == 0
+
+
+def test_ca001_ca002_ca009_over_whatsapp(client, student, monkeypatch):
+    monkeypatch.setattr("django.utils.timezone.localdate", lambda: date(2026, 10, 14))
+    link(client, student)
+    (schedule,) = send(client, "¿Cuál es mi horario de hoy?")
+    assert "07:00–09:00 Cálculo I (A-201)" in schedule
+    (grades,) = send(client, "mis notas")
+    assert "Programación I: 8.50" in grades
+    ticket = TicketService.create(user=student, subject="Acceso", description="d")
+    (status,) = send(client, f"¿cómo va {ticket.ticket_code}?")
+    assert ticket.ticket_code in status and "Nuevo" in status

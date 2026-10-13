@@ -1967,3 +1967,21 @@ Bloqueos: Ninguno
 ### Pendientes derivados
 - Conectar Meta real: credenciales `WHATSAPP_*`, `WHATSAPP_MODE=cloud` y registrar la URL del webhook en Meta.
 
+## BE-T20 — Matriz de aceptación CA-001 a CA-010 (SPEC §53)
+
+| Caso | Web (grafo) | WhatsApp (simulado) | Prueba automática | Estado |
+|---|---|---|---|---|
+| CA-001 Consultar horario | N0, datos del día | N0 con número verificado | `automation/tests/test_autonomy.py::test_ca001_schedule`, `integrations/tests/test_whatsapp.py::test_ca001_ca002_ca009_over_whatsapp` | PASS |
+| CA-002 Consultar nota | N0 | N0 | `test_ca002_grades`, `test_ca001_ca002_ca009_over_whatsapp` | PASS |
+| CA-003 Consultar deuda | N0 con detalle | N0 solo total (minimización) | `test_ca003_debt_web_detail_and_whatsapp_minimized`, `test_link_and_minimized_sensitive_answer` | PASS |
+| CA-004 Nota incorrecta | N2 → ticket Secretaría Académica | igual | `test_ca004_grade_discrepancy_is_n2` | PASS |
+| CA-005 Pago no reflejado | N2 → ticket Finanzas, prioridad alta | igual | `test_ca005_payment_not_reflected` | PASS |
+| CA-006 Solicitud ambigua | N4 → ticket + revisión humana (interrupt) | igual | `test_ca006_ambiguous_request_goes_to_human_review`, `ai/tests/test_agent.py::test_n4_ambiguous_pauses_for_human_review` | PASS |
+| CA-007 Error LLM | reintento → respaldo → ticket N4 + revisión | igual | `test_ca007_llm_error_retry_fallback_then_human`, `test_graph_crash_never_loses_request` | PASS |
+| CA-008 Reasignación | auditada, autorizada por rol | n/a | `helpdesk/tests/test_assignment.py::test_agent_reassigns_to_colleague_and_it_is_audited_as_reassign` | PASS |
+| CA-009 Consulta de estado | solo tickets propios | igual | `test_ca009_ticket_status_only_own_tickets`, `test_ca001_ca002_ca009_over_whatsapp` | PASS |
+| CA-010 Conversación contextual | «¿Y mañana?» usa la intención previa | memoria por canal | `test_ca010_contextual_follow_up`, `test_context_expires_and_is_per_channel` | PASS |
+
+**Resto de BE-T20:** integración y E2E (TEST-RUN-014), seguridad (TEST-RUN-013 y revisión independiente, ver abajo), carga y benchmark IA (TEST-RUN-013).
+**Pendiente:** UAT con usuarios reales de la universidad (requiere personas, no automatizable) y objetivo IA de SPEC §50, que depende del proveedor LLM real (ADR-010).
+
