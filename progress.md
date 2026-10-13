@@ -581,6 +581,7 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Estado:** Pendiente de publicación BACK
 **Contrato actual:** CONTRACT-002 solo expone variables globales en home.html; CONTRACT-008 aporta listado, no dashboard.
 **Solicitud concreta:** publicar url name/plantilla del dashboard y contexto autorizado de tickets recientes (código, asunto, estado, última actualización, enlace publicado si existe) y acceso de creación. BACK decide selección, orden, límite y privacidad; FRONT no consultará ORM desde plantilla ni simulará tickets recientes.
+**Precisiones de interfaz pendientes:** método GET, ruta y URL name exactos, nombre/estructura de la variable de tickets recientes, selección/límite/orden ya resueltos por BACK y caso vacío. La creación usa la URL aprobada `helpdesk:ticket_create` (CONTRACT-004); no se requiere inventar un formulario POST dentro del dashboard. Si BACK cambia `accounts:role_redirect`/ROLE_HOME_URLS debe registrarlo como cambio de contrato.
 **Consumidor:** FE-T02. No bloquea FE-T04 (listado) ni cambia contratos BACK.
 **Aprobado:** Pendiente
 
@@ -590,6 +591,7 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Estado:** Pendiente de publicación BACK / BE-T06
 **Contrato disponible:** CONTRACT-009 permite filtrar/listar bandeja; `assignees` son opciones de filtro, no autorización para asignar un ticket.
 **Solicitud concreta:** publicar URL names y POST esperado para asignar/reasignar, manejo de versión/CSRF/errores y contexto por ticket con acciones/destinos autorizados calculados por BACK. Definir quién puede elegir área/responsable y cuándo; FRONT no reutilizará el queryset de filtros como lista de asignación autorizada ni deducirá permisos del rol.
+**Precisiones de formulario pendientes:** ruta y URL name de cada POST, variable/instancia del formulario, nombres/tipos/límites/requeridos de sus campos y errores generales/por campo, opciones de área/responsable autorizadas **para el ticket**, campo de versión leída, CSRF, motivo si procede, respuesta/error y destino PRG. BACK publica estos datos; `assignees` del filtro CONTRACT-009 no autoriza una operación de asignación.
 **Consumidor:** FE-T06. La lectura/filtros se implementa ahora; acciones bloqueadas hasta el contrato.
 **Aprobado:** Pendiente
 
@@ -599,6 +601,8 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Estado:** Pendiente de publicación BACK / BE-T05
 **Contrato disponible:** CONTRACT-005 define descargas y CONTRACT-006 POST de estado; ninguno publica vista GET/contexto del detalle.
 **Solicitud concreta:** publicar URL name/plantilla del detalle, contexto autorizado del ticket, conversación/histórico ordenados por BACK (remitente/canal/fecha/texto autorizado), adjuntos autorizados, `ticket.version`, `allowed_targets` y datos de acciones permitidas; también URL names/POST de respuesta cuando existan. BACK decide permisos, transiciones y qué contenido puede mostrarse; FRONT no infiere botones, mensajes ni historial desde modelos sin contexto aprobado.
+**Precisiones de GET/respuesta pendientes:** ruta y URL name GET del detalle; nombres/estructura exactos de ticket, conversación, historial, adjuntos y `sla`; instancias de formularios publicados (campos, obligatorios/límites, errores y adjunto habilitado), URL name/ruta POST de respuesta, enctype si admite archivo y destino PRG. No se declara existente ninguna vista/contexto aún pendiente.
+**Acciones POST ya aprobadas, a consumir solo con contexto de detalle:** CONTRACT-006 publica `helpdesk:ticket_status`, `ticket_resolve`, `ticket_escalate`, `ticket_confirm`, `ticket_reject_resolution`, `ticket_reopen`, `ticket_cancel`; campos `version` leído (entero), `reason` (máx. 2000, requerido según acción), `next` interno opcional, `to_status` solo para genérica, CSRF. Mostrar únicamente `allowed_targets` de BACK; publicación del contexto debe cubrir qué acción/motivo corresponde. Respuestas 400/403/404 y mensajes/PRG se rigen por CONTRACT-006 y CR-004 (no visible → 404), sin lógica de permisos FRONT.
 **Consumidores:** FE-T05/FE-T07. La solicitud equivalente de FE-T07 también consta en PR #3 como CONTRACT-FRONT-001; no implica dos implementaciones ni dos bloqueos distintos.
 **Aprobado:** Pendiente
 
@@ -1011,6 +1015,36 @@ Añadir siempre al final, sin borrar entradas anteriores.
 - Continuación segura: fetch backend y PR propios, leer contratos/progress y preservar cambios locales. Solo iniciar tareas TODO con dependencia verificada o contrato aprobado; no duplicar trabajo IN_PROGRESS/REVIEW ni abrir segundo PR para la misma tarea. Completar asignación FE-T06 en su PR cuando BE-T06 publique contrato; detalle/acciones requieren BE-T05 y CONTRACT-FRONT-004.
 - Solicitudes concretas pendientes: dashboard FE-T02 (CONTRACT-FRONT-002); asignación FE-T06 (003); detalle/conversación/allowed_targets FE-T05/07 (004; petición previa 001 en PR #3). FE-T09/10 esperan BE-T09/10 y sus contratos. No faltan credenciales de producción porque no se usan.
 - Seguimiento único Cloud ACTIVO cada hora, America/Guayaquil, confirmado por UI: `6acd9bd4f1648190a92625ce9eefe1d5`; monitor local pausado según supervisor. No configurado cada 10 min; no se ha validado aún primera ejecución remota, acceso GitHub desde esa ejecución ni continuación automática de chat.
+
+---
+
+## 2026-10-13 01:27 — ChatGPT (FRONTEND) / FE-T01 — Branding y contraste — America/Guayaquil
+
+- Estado: REVIEW; corrección FRONT autorizada por usuario. No se crea otro PR FE-T01.
+- Logo: cherry-pick únicamente del commit de asset `c51bbd0`, rama institucional proporcionada por usuario. PNG original sin edición, 3000×3000, 105687 bytes, SHA256 `a47e0d829d9305a77183f1a2a95cb4a55776118161520737ed4b57ef8ef41fa4`; `object-fit: contain`, dimensiones cuadradas y alt «Universidad Indoamérica».
+- Branding: morado principal `#3C235F`, naranja acento `#EA600A`, fondos blancos/neutros. Botones/enlaces/foco/paginación en morado; naranja reservado a logo/bordes decorativos porque naranja/blanco = 3.40:1. Tipografía de sistema provisional: el usuario no proporcionó fuente oficial; no se deduce del logo.
+- Defectos corregidos: axe-core detectó texto secundario 4.44:1 y pestañas 4.26:1 sobre `#F8F9FA`; se ajustan colores compartidos. Morado/blanco = 13.14:1 y texto secundario/neutro = 5.81:1.
+- Archivos: `static/img/LOGO-UTI-2.png`, `static/css/mesa.css`, `templates/auth/login.html`, `templates/components/navbar.html`, registros FRONT.
+- Validación efectiva: Chromium 360/768/1280, logo no deformado y fondo real de botón morado, login/correo/error genérico/CSRF/logout/teclado PASS; axe-core 4.11.0 (integridad SHA512 verificada) WCAG2A/AA/2.1AA/2.2AA sin violaciones en login/error/inicio. Auditoría automatizada no sustituye revisión humana completa.
+- Observaciones de Claude recibidas a través del usuario/repositorio, no comunicación directa: mergeability de ramas hermanas no demuestra integración. Se preparará rama conjunta `feature/integracion-mvp` autorizada explícitamente, validando navbar/progress y conservando registros BACK/FRONT; prohibido merge/push main hasta validación del usuario.
+- Cambio remoto detectado: `main-r0dfx3` avanzó a `5ac611b` al integrar ramas FRONT por Claude. PR #1 sigue OPEN; PR #2 consta MERGED hacia esa rama, no hacia main. Esta corrección de FE-T01 se revisará en la rama/PR draft conjunto, preservando los PR por tarea existentes.
+
+---
+
+## 2026-10-13 01:35 — ChatGPT (FRONTEND) / Integración funcional para revisión — America/Guayaquil
+
+- Autorización explícita del usuario: entregar una rama conjunta verificable de Claude + ChatGPT **antes** de pasar a main. Rama `feature/integracion-mvp`, base remota `main-r0dfx3` / `5ac611b`; main permanece `48e04a5`.
+- Autoría: Claude = BACK; ChatGPT = FRONT. Coordinación mediante repositorio/progress y observaciones de Claude transmitidas por el usuario; no comunicación directa ni cambios manuales a BACK.
+- Se integra FE-T01 actual (logo/branding), FE-T03 y la punta FE-T06 que contiene FE-T08/04. Todas las ramas/commits de tarea son ancestros de esta rama. Claude ya había integrado sus versiones previas en main-r0dfx3; no se duplican implementaciones.
+- Conflictos de progress.md resueltos conservando las entradas de ambas ramas; navegación combinada mantiene Inicio, Nueva solicitud, Mis tickets/Tickets, Bandeja (Agente/Supervisor), Alertas (Supervisor) y logout POST/CSRF. La combinación se valida realmente, no solo mergeability individual. No se mezcló la rama antigua de identidad: se copió exclusivamente el commit PNG original.
+- Capacidad operativa actual: login usuario/correo y sesión; creación con categoría/subcategoría/adjunto; listado y filtros de tickets autorizados; bandeja de lectura; alertas Supervisor. Django Templates + Bootstrap5 local + JS mínimo, branding morado/naranja accesible y tipografía de sistema provisional.
+- Validación sobre la rama conjunta: **483 pruebas PASS, cobertura 98.78 %** contra PostgreSQL 16.15; Django check, migraciones sin cambios, ruff check/format, node --check y diff check PASS. Chromium real 360/768/1280: navegación de los cuatro roles y respuestas 200/403/302, login/correo/errores/CSRF/logout, crear/adjunto válido-inválido/descarga/uso sin JS, privacidad de listado, filtros/paginación y bandeja por área/asignación/triaje/alertas PASS. Datos y archivos sintéticos solo en BD temporal eliminada.
+- axe-core 4.11.0 verificado SHA512: cero violaciones detectadas en login, error, inicio de los cuatro roles, creación, listado, alertas y bandeja para reglas WCAG2A/AA/2.1AA/2.2AA; no equivale a certificación completa. Logo original no deformado; botones/foco/enlaces morados y acento naranja decorativo, sin fuente oficial inventada.
+- Verificación de conservación: archivos fuente BACK sin diferencias respecto a `5ac611b`; filas/historias/contratos BACK íntegros; IDs de contratos sin colisiones, solicitudes FRONT en espacio `CONTRACT-FRONT-*`; PNG idéntico al asset de usuario.
+- Esta entrega **no es el MVP completo**: dashboard FE-T02, detalle/conversación FE-T05, acciones FE-T07 y asignación FE-T06 requieren contratos BACK pendientes; FE-T06 continúa REVIEW de lectura, sin operaciones de asignación. FE-T09/10 esperan BACK/contratos. No se inventan datos, vistas, formularios ni allowed_targets.
+- Publicación prevista: rama conjunta + PR **DRAFT contra main** para validación del usuario, sin merge automático ni push main. PR #2 figura MERGED solo hacia main-r0dfx3 por la integración de Claude; PR #1 sigue OPEN. PR #3–#6 y ramas por tarea se conservan; no se anticipan retargets de main.
+- Reproducción en este Cloud (helpers fuera del checkout): `source /workspace/.mesa-cloud/env.sh`; `bash /workspace/.mesa-cloud/start-db.sh`; `cd /workspace/ProductoFinalM4`; `source .venv/bin/activate`; `python manage.py migrate --noinput`; `python manage.py check`; `python manage.py runserver 127.0.0.1:8000 --noreload` en sesión persistente. Pruebas: `DJANGO_SETTINGS_MODULE=config.settings.test pytest --cov --cov-fail-under=80`; revisión funcional con `python /workspace/.mesa-cloud/validate_front.py --ticket --nav --audit --audit-strict --branding` y modos independientes `--list`, `--alerts`, `--inbox`. No crear usuarios reales ni usar secretos de producción.
+- Seguimiento Cloud único ACTIVO cada hora según UI, America/Guayaquil, id `6acd9bd4f1648190a92625ce9eefe1d5`; primera ejecución/GitHub/continuación automática aún no verificados. No monitores duplicados ni dependencia de PC local.
 
 ---
 
