@@ -28,7 +28,6 @@ def test_user_locked_after_failed_attempts(client, make_user, settings):
     assert blocked.status_code == 429
     assert "Demasiados intentos" in str(blocked.context["form"].non_field_errors())
     assert "_auth_user_id" not in client.session
-    assert login(client, "ANA", PASSWORD).status_code == 429  # sin distinguir mayúsculas
 
 
 def test_success_resets_user_counter(client, make_user, settings):
@@ -97,3 +96,48 @@ def test_deploy_check_is_clean_with_production_settings():
         env=env, capture_output=True, text=True, check=False,
     )  # fmt: skip
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_username_and_email_share_lock_counter(client, make_user, settings):
+    settings.RATE_LIMITS = {**settings.RATE_LIMITS, "login_user": (3, 60)}
+    make_user("ana", email="ana@demo.local")
+    login(client, "ana", "mala")
+    login(client, "ana@demo.local", "mala")
+    login(client, "ANA@demo.local", "mala")
+    assert login(client, "ana", PASSWORD).status_code == 429
+
+
+def _settings_probe(module, extra_env):
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("DJANGO_", "WHATSAPP_"))}
+    env.update({"DJANGO_SETTINGS_MODULE": module, **extra_env})
+    code = (
+        "import django; from django.conf import settings; django.setup(); "
+        "print(settings.DEBUG, settings.SECRET_KEY[:4], settings.WHATSAPP_APP_SECRET)"
+    )
+    return subprocess.run(
+        [sys.executable, "-c", code], env=env, capture_output=True, text=True, check=False
+    )
+
+
+def test_dev_settings_respect_environment_values():
+    """Hallazgo BE-T20: los valores de desarrollo no deben tapar los configurados."""
+    r = _settings_probe(
+        "config.settings.dev",
+        {"DJANGO_DEBUG": "False", "DJANGO_SECRET_KEY": "real" + "x" * 60,
+         "WHATSAPP_APP_SECRET": "secreto-real"},
+    )  # fmt: skip
+    assert r.stdout.split() == ["False", "real", "secreto-real"], r.stderr
+
+
+def test_prod_settings_refuse_insecure_values():
+    good = {"DJANGO_SECRET_KEY": "p" * 60, "DJANGO_ALLOWED_HOSTS": "mesa.example.edu",
+            "DJANGO_DEBUG": "True"}  # fmt: skip
+    ok = _settings_probe("config.settings.prod", good)
+    assert ok.returncode == 0 and ok.stdout.split()[:2] == ["False", "pppp"], ok.stderr
+    for bad in (
+        {**good, "DJANGO_SECRET_KEY": "dev-insecure-secret-key-no-usar-en-produccion-xxxxxxxx"},
+        {**good, "DJANGO_SECRET_KEY": "corta"},
+        {**good, "DJANGO_ALLOWED_HOSTS": ""},
+        {**good, "WHATSAPP_APP_SECRET": "dev-app-secret"},
+    ):
+        assert _settings_probe("config.settings.prod", bad).returncode != 0

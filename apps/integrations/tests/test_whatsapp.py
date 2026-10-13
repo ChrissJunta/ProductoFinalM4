@@ -372,3 +372,20 @@ def test_ca001_ca002_ca009_over_whatsapp(client, student, monkeypatch):
     ticket = TicketService.create(user=student, subject="Acceso", description="d")
     (status,) = send(client, f"¿cómo va {ticket.ticket_code}?")
     assert ticket.ticket_code in status and "Nuevo" in status
+
+
+def test_link_limit_survives_cache_and_has_global_cap(client, student, settings):
+    from django.core.cache import cache
+
+    from apps.integrations.models import WhatsAppLinkAttempt
+
+    for i in range(5):
+        send(client, f"11111{i}")
+    cache.clear()  # p. ej. otra ejecución del worker: el límite sigue (está en BD)
+    code, _ = linking.generate_code(student)
+    assert send(client, code) == [linking.LOCKED]
+    settings.WHATSAPP_LINK_GLOBAL_MAX_FAILURES = WhatsAppLinkAttempt.objects.count()
+    assert send(client, code, phone="+593990000555") == [linking.LOCKED]  # rotar números no sirve
+    settings.WHATSAPP_LINK_GLOBAL_MAX_FAILURES = 100
+    assert send(client, code, phone="+593990000555") == [linking.LINKED]
+    assert not WhatsAppLinkAttempt.objects.filter(phone="+593990000555").exists()
