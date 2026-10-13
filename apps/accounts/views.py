@@ -3,6 +3,7 @@ from datetime import datetime
 
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
@@ -26,6 +27,17 @@ ROLE_HOME_URLS = {
 }
 
 
+def _account_key(identifier):
+    """Clave del contador por cuenta: el usuario real si existe (usuario o correo
+    comparten contador), si no el texto enviado."""
+    User = get_user_model()
+    user = User.objects.filter(username=identifier).first()
+    if user is None and "@" in identifier:
+        matches = list(User.objects.filter(email__iexact=identifier)[:2])
+        user = matches[0] if len(matches) == 1 else None
+    return f"pk:{user.pk}" if user else identifier.strip().lower()
+
+
 LOCKED_MESSAGE = "Demasiados intentos fallidos. Espere unos minutos e inténtelo de nuevo."
 
 
@@ -36,8 +48,10 @@ class LoginView(auth_views.LoginView):
     redirect_authenticated_user = True
 
     def _keys(self):
-        username = self.request.POST.get("username", "")
-        return (("login_ip", ratelimit.client_ip(self.request)), ("login_user", username))
+        return (
+            ("login_ip", ratelimit.client_ip(self.request)),
+            ("login_user", _account_key(self.request.POST.get("username", ""))),
+        )
 
     def post(self, request, *args, **kwargs):
         if any(ratelimit.is_limited(scope, ident) for scope, ident in self._keys()):
@@ -54,7 +68,7 @@ class LoginView(auth_views.LoginView):
         return super().form_invalid(form)
 
     def form_valid(self, form):
-        ratelimit.reset("login_user", form.get_user().get_username())
+        ratelimit.reset("login_user", f"pk:{form.get_user().pk}")
         return super().form_valid(form)
 
 

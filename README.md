@@ -103,7 +103,7 @@ python manage.py evaluate_intents --agent     # accuracy y latencia P50/P95/P99 
 python manage.py run_sga_mock --port 8099     # SGA simulado (INSTITUTIONAL_PROVIDER=sga, SGA_BASE_URL=…)
 ```
 
-Para producción, ver el bloque «Producción» de `.env.example` (HTTPS, cookies seguras, proxy, caché compartida).
+Para producción: `DJANGO_SETTINGS_MODULE=config.settings.prod` (exige clave secreta y hosts reales; DEBUG siempre apagado) y el bloque «Producción» de `.env.example` (HTTPS, cookies seguras, proxy, caché compartida).
 
 ### Verificación automática en navegador (opcional)
 

@@ -189,4 +189,5 @@ WHATSAPP_PHONE_NUMBER_ID = env("WHATSAPP_PHONE_NUMBER_ID", default="")
 WHATSAPP_API_VERSION = env("WHATSAPP_API_VERSION", default="v21.0")
 WHATSAPP_LINK_CODE_MINUTES = 10
 INTEGRATION_MAX_ATTEMPTS = 5  # reintentos con backoff exponencial (SPEC §38.1)
-RATE_LIMITS["whatsapp_link"] = (5, 60 * 60)  # códigos fallidos por número y hora (§35.1)
+WHATSAPP_LINK_MAX_FAILURES = 5  # códigos fallidos por número y hora (§35.1)
+WHATSAPP_LINK_GLOBAL_MAX_FAILURES = 100  # por hora, sumando todos los números
