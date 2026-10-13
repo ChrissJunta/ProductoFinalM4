@@ -111,7 +111,7 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | FE-T09 | REVIEW (administración CONTRACT-016 implementada) | ChatGPT | BE-T03A, BE-T09 | 2026-10-13 |
 | FE-T10 | REVIEW (métricas CONTRACT-017 implementadas) | ChatGPT | BE-T10 | 2026-10-13 |
 | FE-T11 | REVIEW (vinculación CONTRACT-018 implementada) | ChatGPT | BE-T11A | 2026-10-13 |
-| FE-T12 | IN_PROGRESS (asistente CONTRACT-014; revisión CONTRACT-015 ya implementada FE-T05) | ChatGPT | BE-T14, BE-T18A | 2026-10-13 |
+| FE-T12 | REVIEW (asistente CONTRACT-014; revisión CONTRACT-015 reutilizada FE-T05) | ChatGPT | BE-T14, BE-T18A | 2026-10-13 |
 
 ---
 
@@ -2026,3 +2026,7 @@ Bloqueos: Ninguno
 ## 2026-10-13 — ChatGPT (FRONTEND) / FE-T12 — IN_PROGRESS — America/Guayaquil
 
 - Alcance ampliado expresamente por usuario. Implementar exchange/form/examples de014, sin inventar historial persistente: contrato solo última consulta una vez tras PRG. Tarjeta015 ya existente FE05, no duplicar.
+
+## 2026-10-13 — ChatGPT (FRONTEND) / FE-T12 — REVIEW
+
+- Formulario ligado con errores, última pregunta/respuesta escapadas, saltos de línea y enlace a ticket exclusivamente exchange.ticket_code. Ejemplos POST CSRF funcionales sin JS; navegación/inicio solo Usuario. Sin historial/contexto/autonomía inferidos ni JS con secretos. Tarjeta015 reutilizada, sin duplicar. Validación conjunta pendiente de registrar.

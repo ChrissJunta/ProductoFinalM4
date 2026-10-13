@@ -6,6 +6,7 @@
     <p class="text-secondary small mb-2">{{ user_role }}</p>
     <h1 id="home-title" class="h3">Hola, {{ user.get_full_name|default:user.username }}</h1>
     <p class="text-secondary">Consulta tus solicitudes recientes y las respuestas pendientes.</p>
+    {% if user_role == 'Usuario' %}<a class="btn btn-outline-primary" href="{% url 'automation:assistant' %}">Consultar al asistente</a>{% endif %}
     <a class="btn btn-primary" href="{% url 'helpdesk:ticket_create' %}">Nueva solicitud</a>
     <a class="btn btn-outline-primary" href="{% url 'helpdesk:ticket_list' %}">Consultar tickets</a>
   </div>
