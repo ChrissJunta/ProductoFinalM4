@@ -291,6 +291,7 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-067 | 2026-10-13 | `config/settings/prod.py` sin valores por defecto (DEBUG siempre False; exige `DJANGO_ALLOWED_HOSTS`, `SECRET_KEY` aleatoria de 50+ caracteres y rechaza secretos de desarrollo de WhatsApp); `wsgi.py`/`asgi.py` lo usan por defecto. `dev.py` lee `.env` antes de aplicar sus valores por defecto | Hallazgo ALTO de la revisión de seguridad de BE-T20 | `config/settings` |
 | ADR-068 | 2026-10-13 | Fallos de vinculación de WhatsApp en BD (`WhatsAppLinkAttempt`): 5 por número y hora y 100 globales por hora; el contador de login por cuenta usa el usuario real (usuario y correo comparten contador); `verify_token` con comparación de tiempo constante | Hallazgos MEDIOS/BAJO de la revisión de seguridad | `whatsapp.linking`, `accounts.views` |
 | ADR-069 | 2026-10-13 | **Proveedor LLM real (cierra ADR-010):** servidor propio del Ing. Pato con **Qwen3-8B (AWQ) sobre vLLM**, API compatible con OpenAI (`http://172.16.8.69:8000/v1`, red interna). Adaptador `openai_compat` con `urllib` (sin SDK), `enable_thinking` apagado por defecto, limpieza de `<think>`, extracción del primer objeto JSON, prompt versionado de `AIPromptVersion`; respaldo opcional `LLM_FALLBACK_PROVIDER` (p. ej. `fake`). Solo se envían el mensaje y el catálogo | Decisión del responsable; servidor institucional sin costo por token y sin salida de datos de la red | `ai/providers/openai_compat.py`, comando `llm_ping` |
+| ADR-070 | 2026-10-13 | La cola «Sin área» sigue visible para todo Agente (triaje compartido, CR-003). Con el routing vigente solo llegan ahí los tickets web sin categoría: las solicitudes no identificadas del agente van a Atención General | Decisión delegada por el responsable («lo más óptimo»): no frenar el triaje; observación BAJA de la revisión de seguridad cerrada | `helpdesk.queries.visible_tickets` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -2019,7 +2020,7 @@ Bloqueos: Ninguno
 - 0 críticos. **1 ALTO corregido** (ADR-067): en producción los valores de `dev.py` (SECRET_KEY, DEBUG=True, secreto del webhook) tapaban a los del `.env`, permitiendo firmar eventos de WhatsApp falsos y habilitando `seed_demo`. Verificado con pruebas de settings en subproceso.
 - **2 MEDIOS corregidos** (ADR-068): fuerza bruta de códigos de vinculación (contador en caché local reiniciado por cada ejecución del worker) y doble contador de login (usuario/correo).
 - **BAJO corregido:** comparación del `verify_token` en tiempo constante.
-- **BAJO pendiente de decisión de negocio:** el Agente ve la cola de triaje «Sin área» con tickets de cualquier tema (diseño de BE-T04, CR-003).
+- **BAJO cerrado por decisión (ADR-070):** el Agente ve la cola de triaje «Sin área» (diseño de BE-T04, CR-003).
 - Revisado sin hallazgos: autorización horizontal/vertical, CSRF, XSS, redirecciones, adjuntos, SQL, firma del webhook, herramientas del agente, datos enviados al LLM, secretos en el repositorio.
 **Pendiente:** UAT con usuarios reales de la universidad (requiere personas, no automatizable) y objetivo IA de SPEC §50, que depende del proveedor LLM real (ADR-010).
 
