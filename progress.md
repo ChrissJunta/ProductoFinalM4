@@ -946,6 +946,16 @@ Añadir siempre al final, sin borrar entradas anteriores.
 
 ---
 
+## 2026-10-13 01:39 — ChatGPT (FRONTEND) / Publicación de rama conjunta — America/Guayaquil
+
+- Rama remota `feature/integracion-mvp` publicada; PR **DRAFT #7 contra main**: https://github.com/ChrissJunta/ProductoFinalM4/pull/7. GitHub confirma draft/open/mergeable y CI backend PASS sobre la entrega validada. No se hizo merge ni push a main (`48e04a5` permanece intacto).
+- Descripciones de PR #2–#6 actualizadas con validación combinada real, branding, dependencias y FE-T06 parcial. #2 consta integrado en main-r0dfx3; #3–#6 permanecen abiertos y sus ramas se conservan. No retarget anticipado ni PR FE-T01 duplicado.
+- Solamente fuente FRONT difiere de base `5ac611b`: branding/logo, navbar/login y registros FRONT. Se verifican íntegros archivos/filas/contratos BACK y todas las entradas de Claude/ChatGPT; solicitudes FRONT precisan URL/contexto/formularios/errores/CSRF/versión/PRG y no colisionan con IDs BACK.
+- La rama es verificable en Cloud sin computadora local; helper de revisión usa datos sintéticos temporales y no crea usuarios/tickets reales en la BD de desarrollo. Dashboard/detalle/acciones/asignación siguen pendientes de BACK; próximo trabajo conforme llegue contrato aprobado, sin inferir permisos ni contextos.
+- Seguimiento Cloud único cada hora ACTIVO según UI; primera ejecución/acceso remoto/continuación no verificados. Fuente tipográfica oficial pendiente; fuente de sistema provisional.
+
+---
+
 # 17. Regla anti-repetición
 
 Antes de implementar cualquier funcionalidad, buscar en este archivo:
