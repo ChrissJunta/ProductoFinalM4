@@ -127,3 +127,6 @@ BUSINESS_HOURS = {
 }
 HOLIDAYS = env.list("HOLIDAYS", default=[])  # fechas ISO, p. ej. 2026-12-25
 SLA_WARNING_RATIO = 0.8  # SLA_WARNING al consumir el 80 % del plazo (§34.2)
+
+# Integración institucional (SPEC §39-§41). «local» = datos simulados; «sga» llega con BE-T19.
+INSTITUTIONAL_PROVIDER = env("INSTITUTIONAL_PROVIDER", default="local")

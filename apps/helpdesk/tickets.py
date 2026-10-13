@@ -41,11 +41,14 @@ class TicketService:
         category=None,
         subcategory=None,
         attachment=None,
+        classification_source=None,
+        classification_score=None,
     ):
         """Crea un ticket en estado NEW y registra la auditoría inicial.
 
         El código, el estado, la prioridad y el área los decide el backend: el área
         inicial es la de la categoría, salvo que una regla de routing diga otra cosa.
+        `classification_*` los fija el Autonomy Engine cuando clasificó la intención.
         """
         if attachment is not None:
             validate_upload(attachment)
@@ -66,7 +69,9 @@ class TicketService:
             description=description.strip(),
             intent=intent,
             assigned_area=category.default_area if category else None,
-            classification_source=Ticket.ClassificationSource.USER if category else "",
+            classification_source=classification_source
+            or (Ticket.ClassificationSource.USER if category else ""),
+            classification_score=classification_score,
         )
         # Routing configurable (BE-T09): puede fijar área y prioridad antes de calcular el SLA.
         rule = AutomationService.route_ticket(ticket)

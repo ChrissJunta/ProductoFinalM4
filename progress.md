@@ -131,9 +131,9 @@ Por pedido del responsable del proyecto, **`main-r0dfx3` es la rama funcional ú
 | BE-T11 | TODO | - | BE-T05 | - |
 | BE-T11A | TODO | - | BE-T01, BE-T11 | - |
 | BE-T12 | TODO | - | BE-T11 | - |
-| BE-T13 | TODO | - | BE-T09 | - |
-| BE-T14 | TODO | - | BE-T13, BE-T11A | - |
-| BE-T15 | TODO | - | BE-T14 | - |
+| BE-T13 | REVIEW (pendiente de revisión del PR) | Claude | BE-T09 | 2026-10-13 |
+| BE-T14 | REVIEW (motor web listo; la entrega por WhatsApp espera BE-T11/BE-T11A) | Claude | BE-T13, BE-T11A | 2026-10-13 |
+| BE-T15 | REVIEW (pendiente de revisión del PR) | Claude | BE-T14 | 2026-10-13 |
 | BE-T16 | TODO | - | - | - |
 | BE-T17 | TODO | - | BE-T16 | - |
 | BE-T18 | TODO | - | BE-T16, BE-T17 | - |
@@ -260,6 +260,13 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-039 | 2026-10-13 | Routing: gana la regla activa de menor `order`; intención/categoría/subcategoría vacías son comodín; se aplica al **crear** el ticket, antes del SLA (la prioridad enrutada define los plazos); los tickets existentes no se reenrutan al cambiar reglas | SPEC §28 y criterio «sin redeploy» | `AutomationService.route_ticket` |
 | ADR-040 | 2026-10-13 | Una sola `IntentAction` activa por intención; `provider_method` restringido al contrato de `InstitutionalDataProvider` (§39) | Configuración inequívoca y sin métodos inventados | `automation.IntentAction` |
 | ADR-041 | 2026-10-13 | Las plantillas N1 iniciales son textos genéricos de ejemplo: el Administrador debe reemplazarlas por la información oficial | No inventar datos institucionales (teléfonos, fechas) | `automation/0002_initial_catalog` |
+| ADR-042 | 2026-10-13 | Intent Engine por reglas: el código `HD-AAAA-NNNNNN` → CHECK_TICKET (confianza 1.0); después, `Intent.keywords` puntúa cada coincidencia por su número de palabras («a + b» exige todas). Gana el puntaje mayor con confianza fija 0.90; un empate es solicitud ambigua (0.50 → N4, CA-006); sin coincidencias queda para el LLM (BE-T16/T17) | Determinístico, explicable y configurable sin redeploy; las intenciones de problema combinan tema + síntoma y ganan a la consulta simple | `automation.intents` |
+| ADR-043 | 2026-10-13 | `determine_autonomy`: sin intención o confianza < 0.70 → N4; N0 sin acción de proveedor y N1 sin plantilla activa → N3 (SPEC §31.1); 0.70–0.849 en N2/N3 → ticket + alerta `HUMAN_REVIEW` (SPEC §46A.4) | La decisión de nivel nunca la toma el LLM | `automation.autonomy` |
+| ADR-044 | 2026-10-13 | Un remitente no identificado (`user=None`, p. ej. WhatsApp sin verificar) solo recibe N1; para datos personales o para crear ticket se le piden instrucciones de vinculación/inicio de sesión. Un ticket siempre tiene solicitante | SPEC §35.1; `Ticket.user` es obligatorio | `automation.autonomy` |
+| ADR-045 | 2026-10-13 | Si el proveedor institucional falla (incluido estudiante sin registro), la consulta N0 se convierte en ticket según `IntentAction.fallback_action` (CREATE_TICKET → N3, HUMAN_REVIEW → N4); la solicitud no se pierde | SPEC §39, §46A.4 (`call_tool --error--> create_ticket`) | `automation.autonomy` |
+| ADR-046 | 2026-10-13 | Nueva alerta `HUMAN_REVIEW` (N4 / confianza media); se resuelve sola cuando un humano saca el ticket de NEW (asignación, solicitud de datos…) o al terminarlo | La bandeja/alertas muestran qué revisar sin un modelo nuevo; `interrupt()` de LangGraph llega con BE-T18A | `helpdesk/0011`, `workflow._sync_alerts` |
+| ADR-047 | 2026-10-13 | Por WhatsApp la deuda se responde solo con el total; el detalle solo en web | Minimización de datos (SPEC §35.1) | `automation.responses` |
+| ADR-048 | 2026-10-13 | `INSTITUTIONAL_PROVIDER` (variable de entorno, por defecto `local`) elige el proveedor en `get_provider()`; `sga` falla con `ImproperlyConfigured` hasta BE-T19. `LocalProvider` lee `local_data.json` indexado por `User.external_id` (datos ficticios) | Cambiar de proveedor no toca la lógica de negocio (SPEC §39) | `integrations.institutional` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -674,7 +681,38 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Consumidores afectados:** FE-T03, FE-T07 (sin cambios de plantilla).
 **Aprobado:** Sí
 
+### CONTRACT-014 — Asistente (canal web del agente de atención)
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T14) → consumidor FRONT (nueva pantalla; ver CR-007)
+**URL name:** `automation:assistant` → `/assistant/` · **GET|POST** · solo rol **Usuario** (otros roles: 403; sin sesión: login)
+**Plantilla:** `automation/assistant.html` (hoy **temporal del backend**, mínima; FRONT la reemplaza)
+**POST:** campo `message` (obligatorio, máx. 5000) + CSRF → 302 a la misma URL (PRG). Con errores: 200 y `form.errors`.
+**Contexto:**
+
+| Variable | Tipo | Descripción |
+|---|---|---|
+| `form` | `AssistantForm` | Campo `message` (textarea). |
+| `exchange` | `dict` o `None` | Última consulta, se muestra **una sola vez** tras el redirect: `question`, `response` (texto plano con saltos de línea; usar `white-space: pre-line` o `linebreaksbr`), `level` (`N0`..`N4`), `intent_code` (o `None`), `ticket_code` (o `None`; si existe, enlazar a `helpdesk:ticket_detail`). |
+| `examples` | `list[str]` | Preguntas de ejemplo para sugerir (pueden enviarse como chips). |
+
+**Sugerencia FRONT:** enlace «Asistente» en la navegación para el rol Usuario y acceso desde el inicio.
+**Aprobado:** Sí
+
 ## 12.2 Solicitudes de cambio
+
+### CHANGE REQUEST CR-006 — `Intent.keywords` — **Aplicado** (automation/0003-0004, 2026-10-13)
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T13)
+**Cambio:** la SPEC §30 pide «coincidencias configuradas» pero el modelo `Intent` (§28) no tiene dónde guardarlas. Se añade `Intent.keywords` (texto, una coincidencia por línea, auditado) con palabras clave iniciales en español, editables desde el admin.
+**Impacto:** FE-T09 (administración de intenciones) debe mostrar el campo como textarea.
+**Aprobado:** Sí (decisión técnica del agente BACKEND; revisable en el PR)
+
+### CHANGE REQUEST CR-007 — Ruta web `/assistant/`
+**Fecha:** 2026-10-13
+**Origen:** BACK (BE-T14)
+**Cambio:** SPEC §46A.7 dice que el canal web invoca al agente desde «la vista de nuevo mensaje/solicitud», pero §47.1 no tiene una ruta para preguntar sin abrir ticket. Se añade `automation:assistant` (CONTRACT-014) para que CA-001 a CA-003 se puedan verificar en web antes de WhatsApp. `/tickets/new/` no cambia (el usuario elige categoría).
+**Impacto:** nueva pantalla FRONT (sin tarea FE asignada aún; propuesta: ampliar FE-T02 o crear FE-T12).
+**Aprobado:** Sí (decisión técnica del agente BACKEND; revisable en el PR)
 
 ### CHANGE REQUEST CR-001 — Agente LangGraph
 **Fecha:** 2026-10-12
@@ -736,6 +774,9 @@ Plantilla:
 - `automation/migrations/0001_initial.py` — `Intent`, `IntentAction`, `RoutingRule` — aplicada y reversible — BE-T09
 - `automation/migrations/0002_initial_catalog.py` — 20 intenciones (SPEC §29), 20 acciones, 11 reglas, permisos por rol (auditado como SYSTEM) — aplicada y reversible — BE-T09
 - `helpdesk/migrations/0010_ticket_intent.py` — `Ticket.intent` (CR-002) — aplicada y reversible — BE-T09
+- `automation/migrations/0003_intent_keywords.py` — `Intent.keywords` (CR-006) — aplicada y reversible — BE-T13
+- `automation/migrations/0004_initial_keywords.py` — palabras clave iniciales de 19 intenciones (auditado como SYSTEM) — aplicada y reversible — BE-T13
+- `helpdesk/migrations/0011_alert_human_review.py` — tipo de alerta `HUMAN_REVIEW` — aplicada y reversible — BE-T14
 
 Formato:
 
@@ -774,6 +815,8 @@ Rutas web (vistas Django, ADR-007):
 - `GET /inicio/` — `accounts:home` con resumen — REVIEW — CONTRACT-013
 - Comando `python manage.py seed_demo [--force]` — solo desarrollo (ADR-038)
 - `/admin/automation/{intent,intentaction,routingrule}/` — configuración auditada, sin borrado — REVIEW — BE-T09
+- `GET|POST /assistant/` — `automation:assistant` — REVIEW — BE-T14 — CONTRACT-014
+- Comando `python manage.py ask <usuario> "<mensaje>" [--channel WHATSAPP] [--anonymous]` — demostración del agente — REVIEW — BE-T14
 
 API: ninguna todavía (el webhook WhatsApp llegará con BE-T11).
 
@@ -857,6 +900,14 @@ Formato:
 **Comando:** mismo que TEST-RUN-001 (dos ejecuciones completas)
 **Resultado:** PASS — 558 pruebas, cobertura 99 % (`automation/services.py` y admin al 100 %).
 **Fallos:** ninguno.
+
+### TEST-RUN-009
+**Fecha:** 2026-10-13
+**Tarea:** BE-T13 + BE-T14 + BE-T15
+**Comando:** mismo que TEST-RUN-001 (dos ejecuciones completas, sin `.env`)
+**Resultado:** PASS — 629 pruebas, cobertura 99 % (`intents`, `autonomy`, `responses`, `views`, `ask` e `integrations.institutional` al 100 %).
+**Fallos:** una prueba previa de alertas cambió a propósito (el contador incluye `HUMAN_REVIEW`).
+**Manual:** `seed_demo` + `ask usuario …` sobre la base de desarrollo: horario, notas y deuda (N0), nota incorrecta (N2, ticket a Secretaría Académica), solicitud ambigua (N4 con alerta) y anónimo por WhatsApp (instrucciones de vinculación).
 
 Formato:
 
@@ -1514,3 +1565,65 @@ Bloqueos: Ninguno
 - Trabajo realizado: intenciones, acciones, reglas de routing, catálogo SPEC §29, routing en la creación de tickets, `Ticket.intent`.
 - Pruebas: TEST-RUN-008 PASS.
 - Observaciones: desbloquea BE-T13 (Intent Engine).
+
+## BE-T15 — InstitutionalDataProvider + LocalProvider — Cierre
+
+**Estado:** REVIEW (pasa a DONE cuando el PR se apruebe y CI esté en verde)
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- Contrato `InstitutionalDataProvider` (SPEC §39) con estructuras inmutables (`ScheduleEntry`, `Grade`, `DebtSummary`, `Enrollment`, `Subject`) y errores `ProviderError` / `StudentNotFound`.
+- `LocalProvider` con datos ficticios en `local_data.json` (EST-0001 con horario, notas de dos periodos, deuda, matrícula y asignaturas; EST-0002 sin deuda). `seed_demo` asigna `EST-0001` al usuario `usuario`.
+- `get_provider()` según `INSTITUTIONAL_PROVIDER` (ADR-048) e `InstitutionalQueryService`: solo lecturas del contrato, solo usuario autenticado, errores inesperados → `ProviderError`.
+
+### Criterio de aceptación
+- «CA-001, CA-002 y CA-003 funcionan con datos simulados»: probados de punta a punta a través del Autonomy Engine (web y WhatsApp) y a mano con `ask`.
+
+### Pendientes derivados
+- `SGAProvider` (mock HTTP, timeouts, 4xx/5xx) → BE-T19.
+
+## BE-T13 — Intent Engine — Cierre
+
+**Estado:** REVIEW
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- `automation.intents.identify_intent` (ADR-042): regla determinística del código de ticket y coincidencias configuradas en `Intent.keywords` (CR-006), con normalización (minúsculas, sin tildes ni signos) y detección de ambigüedad.
+- Palabras clave iniciales en español para 19 intenciones; probadas 21 frases reales (consultas y problemas).
+
+### Criterio de aceptación
+- «Intenciones simples se resuelven sin LLM»: no existe aún LLM en el código; las 20 intenciones del catálogo se reconocen por reglas, y lo no reconocido queda marcado para el LLM (hoy → N4).
+
+### Pendientes derivados
+- Nodo `classify_llm` para lo no resuelto → BE-T16/T17/T18A.
+- Fijar intención en tickets creados desde `/tickets/new/` sin categoría (opcional; hoy se triagean a mano).
+
+## BE-T14 — Autonomy Engine — Cierre
+
+**Estado:** REVIEW (motor completo; la entrada por WhatsApp llega con BE-T11/BE-T11A)
+**Agente:** Claude (BACKEND)
+**Fecha:** 2026-10-13
+
+### Implementado
+- `AutomationService.handle_message(text, user, channel)` → `AutomationResult` (respuesta, nivel, intención, confianza, ticket, `path` con los nombres de nodo de SPEC §46A.4).
+- `determine_autonomy` (ADR-043) y ejecución: N0 consulta al proveedor con respaldo a ticket (ADR-045), N1 plantilla, N2/N3 ticket enrutado con `classification_source=RULES` y puntaje, N4 ticket + alerta `HUMAN_REVIEW` (ADR-046). Comprobación de autenticación (ADR-044) y minimización por WhatsApp (ADR-047). CHECK_TICKET solo sobre tickets propios (CA-009).
+- `TicketService.create` acepta `classification_source` / `classification_score`.
+- Vista `automation:assistant` (CONTRACT-014, CR-007; plantilla temporal) y comando `ask`.
+
+### Criterio de aceptación
+- «N0/N1 automáticos; N2/N3 generan ticket; N4 escala»: probado (CA-001 a CA-006 y CA-009).
+
+### Pendientes derivados
+- Registro de cada decisión en `AIDecision` (graph_version, node_path) → BE-T18/BE-T18A.
+- Reemplazar la orquestación lineal por el grafo LangGraph reutilizando estas funciones como nodos → BE-T18A.
+- FRONT: pantalla del asistente y enlace en la navegación (CONTRACT-014).
+
+## 2026-10-13 — Claude (BACKEND) / BE-T15, BE-T13, BE-T14
+
+- Estado anterior: TODO → IN_PROGRESS.
+- Estado nuevo: REVIEW.
+- Trabajo realizado: proveedor institucional simulado, Intent Engine por reglas configurables y Autonomy Engine N0–N4 con canal web y comando de demostración.
+- Pruebas: TEST-RUN-009 PASS.
+- Observaciones: el sistema ya responde solo horario, notas y deuda (CA-001 a CA-003). Siguiente bloque sugerido: BE-T11/BE-T11A/BE-T12 (WhatsApp) o BE-T16-T18A (IA + LangGraph).

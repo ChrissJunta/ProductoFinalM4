@@ -47,6 +47,18 @@ Recorrido sugerido:
 4. `agente_ti` → «Bandeja» → «Sin asignar» → abrir el ticket nuevo → asignarse → «Iniciar atención» → «Resolver» con un mensaje.
 5. `usuario` → abrir ese ticket → ver la resolución en la conversación → confirmar o rechazar.
 6. `supervisor` → «Alertas» y «Bandeja» → «Historial».
+7. `usuario` → abrir **`/assistant/`** (pantalla provisional hasta que FRONT la diseñe) y preguntar:
+   «¿Cuál es mi horario de hoy?», «¿Cuáles son mis notas?», «¿Cuánto debo?» (respuesta automática con datos simulados),
+   «Mi nota de Cálculo I está incorrecta» (crea ticket para Secretaría Académica) o «certificado y contraseña»
+   (ambigua: ticket + alerta de revisión humana, visible para `supervisor` en «Alertas»).
+
+El mismo agente se puede probar desde consola (muestra intención, nivel N0–N4 y recorrido):
+
+```bash
+python manage.py ask usuario "¿Cuánto debo?"
+python manage.py ask usuario "¿Cuánto debo?" --channel WHATSAPP    # solo el total (minimización)
+python manage.py ask --anonymous "¿Cuáles son los requisitos?"      # sin identificar: solo respuestas N1
+```
 
 Tareas periódicas (en producción, con cron; en desarrollo se pueden lanzar a mano):
 

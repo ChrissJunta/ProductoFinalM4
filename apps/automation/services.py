@@ -1,7 +1,8 @@
-"""AutomationService (SPEC §33). BE-T09 implementa `route_ticket`.
+"""AutomationService (SPEC §33).
 
-`identify_intent`, `determine_autonomy` y `execute_intent_action` llegan con
-BE-T13/BE-T14 (y como nodos del grafo LangGraph en BE-T18A, SPEC §46A).
+`route_ticket` (BE-T09) vive aquí; `identify_intent` (BE-T13, `intents.py`) y
+`determine_autonomy`/`handle_message` (BE-T14, `autonomy.py`) se exponen como
+fachada. En BE-T18A pasan a ser nodos del grafo LangGraph (SPEC §46A).
 """
 
 from django.db.models import Q
@@ -55,3 +56,23 @@ class AutomationService:
         if rule.priority:
             ticket.priority = rule.priority
         return rule
+
+    @staticmethod
+    def identify_intent(text):
+        from .intents import identify_intent
+
+        return identify_intent(text)
+
+    @staticmethod
+    def determine_autonomy(intent, confidence, action=None):
+        from .autonomy import determine_autonomy
+
+        return determine_autonomy(intent, confidence, action)
+
+    @staticmethod
+    def handle_message(*, text, user=None, channel="WEB"):
+        """Clasifica, decide N0–N4 y ejecuta. Devuelve un `AutomationResult`."""
+        # Import diferido: autonomy usa TicketService, que a su vez usa este módulo.
+        from .autonomy import handle_message
+
+        return handle_message(text=text, user=user, channel=channel)

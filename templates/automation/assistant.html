@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{# Plantilla TEMPORAL del backend (BE-T14). El frontend la reemplaza según CONTRACT-014. #}
+{% block content %}
+<h1 class="h4">Asistente</h1>
+{% if exchange %}
+  <div class="mb-3" data-testid="assistant-exchange">
+    <p class="fw-semibold mb-1">{{ exchange.question }}</p>
+    <p class="mb-1" style="white-space: pre-line">{{ exchange.response }}</p>
+    {% if exchange.ticket_code %}<a href="{% url 'helpdesk:ticket_detail' exchange.ticket_code %}">{{ exchange.ticket_code }}</a>{% endif %}
+  </div>
+{% endif %}
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit" class="btn btn-primary">Enviar</button>
+</form>
+<ul class="small mt-3">{% for e in examples %}<li>{{ e }}</li>{% endfor %}</ul>
+{% endblock %}

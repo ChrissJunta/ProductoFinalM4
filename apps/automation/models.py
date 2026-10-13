@@ -33,6 +33,16 @@ class Intent(CatalogModel):
     )
     requires_llm = models.BooleanField("requiere LLM", default=False)
     requires_human = models.BooleanField("requiere humano", default=False)
+    # CR-006: coincidencias configuradas del Intent Engine (SPEC §30).
+    keywords = models.TextField(
+        "palabras clave",
+        blank=True,
+        default="",
+        help_text=(
+            "Una por línea. «a + b» exige que aparezcan todas las partes. Cada coincidencia "
+            "suma tantos puntos como palabras tenga. No distingue mayúsculas ni tildes."
+        ),
+    )
 
     audit_fields = (
         "code",
@@ -41,6 +51,7 @@ class Intent(CatalogModel):
         "requires_authentication",
         "requires_llm",
         "requires_human",
+        "keywords",
         "is_active",
     )
 

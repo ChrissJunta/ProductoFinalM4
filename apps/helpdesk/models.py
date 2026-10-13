@@ -425,6 +425,7 @@ class Alert(models.Model):
         SLA_WARNING = "SLA_WARNING", "SLA por vencer"
         SLA_BREACHED = "SLA_BREACHED", "SLA vencido"
         ESCALATED = "ESCALATED", "Escalado"
+        HUMAN_REVIEW = "HUMAN_REVIEW", "Revisión humana"  # N4 / baja confianza (BE-T14)
 
     class Severity(models.TextChoices):
         INFO = "INFO", "Informativa"
