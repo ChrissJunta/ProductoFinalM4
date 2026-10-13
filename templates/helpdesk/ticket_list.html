@@ -1,6 +1,31 @@
-{# TEMPORAL (backend): plantilla mínima para pruebas. La reemplaza el FRONTEND según CONTRACT-008 en progress.md. #}
-<!doctype html>
-<html lang="es"><head><meta charset="utf-8"><title>Tickets</title></head>
-<body>
-<ul>{% for row in rows %}<li>{{ row.ticket.ticket_code }} · {{ row.ticket.subject }} · {{ row.ticket.get_status_display }} · SLA {{ row.sla.state }}</li>{% empty %}<li>Sin tickets</li>{% endfor %}</ul>
-</body></html>
+{% extends 'base.html' %}
+{% load tz %}
+{% block title %}{% if user_role == 'Usuario' %}Mis tickets{% else %}Tickets{% endif %}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-2">{% if user_role == 'Usuario' %}Mis tickets{% else %}Tickets{% endif %}</h1>
+<p class="text-secondary mb-4">Consulta el estado y la última actualización de tus solicitudes autorizadas.</p>
+<form method="get" action="{% url 'helpdesk:ticket_list' %}" class="card card-body border-0 shadow-sm mb-4" aria-label="Filtrar tickets">
+  <div class="row g-3">
+    <div class="col-12 col-md-4"><label for="filter-status" class="form-label">Estado</label><select id="filter-status" class="form-select" name="status"><option value="">Todos</option>{% for value, label in status_choices %}<option value="{{ value }}"{% if filters.status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}<option value="FINISHED"{% if filters.status == 'FINISHED' %} selected{% endif %}>Finalizados</option></select></div>
+    <div class="col-12 col-md-4"><label for="filter-from" class="form-label">Creada desde</label><input id="filter-from" class="form-control" type="date" name="date_from" value="{{ filters.date_from|default:'' }}"></div>
+    <div class="col-12 col-md-4"><label for="filter-to" class="form-label">Creada hasta</label><input id="filter-to" class="form-control" type="date" name="date_to" value="{{ filters.date_to|default:'' }}"></div>
+    <div class="col-12 col-md-8"><label for="filter-q" class="form-label">Buscar por asunto o código</label><input id="filter-q" class="form-control" type="search" name="q" value="{{ filters.q|default:'' }}"></div>
+    <div class="col-12 col-md-4"><label for="filter-sort" class="form-label">Ordenar</label><select id="filter-sort" class="form-select" name="sort">{% for value, label in sort_choices %}<option value="{{ value }}"{% if filters.sort == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    {% if user_role != 'Usuario' %}
+    <div class="col-12 col-md-3"><label for="filter-priority" class="form-label">Prioridad</label><select id="filter-priority" class="form-select" name="priority"><option value="">Todas</option>{% for value, label in priority_choices %}<option value="{{ value }}"{% if filters.priority == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="col-12 col-md-3"><label for="filter-category" class="form-label">Categoría</label><select id="filter-category" class="form-select" name="category"><option value="">Todas</option>{% for category in categories %}<option value="{{ category.pk }}"{% if filters.category|stringformat:'s' == category.pk|stringformat:'s' %} selected{% endif %}>{{ category.name }}</option>{% endfor %}</select></div>
+    <div class="col-12 col-md-3"><label for="filter-area" class="form-label">Área</label><select id="filter-area" class="form-select" name="area"><option value="">Todas</option>{% for area in areas %}<option value="{{ area.pk }}"{% if filters.area|stringformat:'s' == area.pk|stringformat:'s' %} selected{% endif %}>{{ area.name }}</option>{% endfor %}</select></div>
+    <div class="col-12 col-md-3"><label for="filter-sla" class="form-label">SLA</label><select id="filter-sla" class="form-select" name="sla"><option value="">Todos</option><option value="WARNING"{% if filters.sla == 'WARNING' %} selected{% endif %}>Por vencer</option><option value="BREACHED"{% if filters.sla == 'BREACHED' %} selected{% endif %}>Vencido</option></select></div>
+    {% endif %}
+    <div class="col-12 d-flex flex-wrap gap-2"><button type="submit" class="btn btn-primary">Aplicar filtros</button><a class="btn btn-outline-secondary" href="{% url 'helpdesk:ticket_list' %}">Limpiar</a></div>
+  </div>
+</form>
+{% get_current_timezone as current_timezone %}
+<p class="small text-secondary">Fechas en {{ current_timezone }}. El tiempo restante de SLA lo proporciona el servicio; un valor negativo indica vencimiento.</p>
+{% if rows %}
+  {% include 'components/ticket_table.html' with rows=rows user_role=user_role only %}
+  {% include 'components/pagination.html' with page_obj=page_obj only %}
+{% else %}
+  <section class="card border-0 shadow-sm p-4" aria-labelledby="empty-title"><h2 id="empty-title" class="h5">Sin tickets</h2><p class="mb-0 text-secondary">No hay solicitudes que coincidan con los filtros.</p></section>
+{% endif %}
+{% endblock %}
