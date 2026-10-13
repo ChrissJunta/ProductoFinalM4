@@ -95,7 +95,7 @@ Reglas:
 | FE-T05 | TODO | - | BE-T05, BE-T07 | - |
 | FE-T06 | TODO | - | BE-T04, BE-T06 | - |
 | FE-T07 | TODO (acciones disponibles: CONTRACT-006; el detalle llega con BE-T05) | ChatGPT | BE-T07 | 2026-10-13 |
-| FE-T08 | TODO (desbloqueada: CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-13 |
+| FE-T08 | REVIEW (alertas implementadas y validadas; CONTRACT-007) | ChatGPT | BE-T08 | 2026-10-12 |
 | FE-T09 | TODO | - | BE-T03A, BE-T09 | - |
 | FE-T10 | TODO | - | BE-T10 | - |
 | FE-T11 | TODO | - | BE-T11A | - |
@@ -661,6 +661,29 @@ Añadir siempre al final, sin borrar entradas anteriores.
 - Observaciones: la ejecución inicial limitada a accounts pasó 72 pruebas pero no alcanzó el umbral global (77.22 %, helpdesk no ejecutado); suite completa resuelve la selección y supera 80 %. El helper de navegador necesitó cerrar conexiones del servidor antes de eliminar la BD temporal; corregido y revalidado con salida 0. No cambios en pruebas BACK.
 - Coordinación: CONTRACT-001/002/003 aprobados habilitan FRONT aunque BE-T01 siga REVIEW. No se cambia estado BACK ni se considera aprobado/merged PR #1. Un PR FE-T01 contra `main-r0dfx3`, sin merge automático. Los componentes de §18 sin consumidor habilitado (paginación, SLA, conversación) se implementarán con sus tareas/contratos.
 - Publicación: entorno publicado confirmado por UI del usuario; implementación corre enteramente en Cloud. Git push dry-run autorizado; creación de PR bloqueada por CONNECT 403 a `api.github.com`. Dominio añadido al borrador de red para revisión/aplicación. Estado en ese momento: sin scheduler configurado. Actualización: UI confirmó seguimiento Cloud ACTIVO cada hora, America/Guayaquil, id `6acd9bd4f1648190a92625ce9eefe1d5`; primera ejecución aún no verificada.
+
+---
+
+## 2026-10-12 21:54 — ChatGPT (FRONTEND) / FE-T08 — Inicio — America/Guayaquil
+
+- Estado anterior: TODO, CONTRACT-007 recién publicado y aprobado en backend `5ea6941`.
+- Estado nuevo: IN_PROGRESS; rama `feature/fe-t08-alertas` sobre FE-T01, sin duplicar FE-T03.
+- Trabajo previsto: `templates/helpdesk/alerts.html`, componentes de paginación y badges de presentación con consumidor real, navegación Supervisor y registros FRONT.
+- Alcance: indicadores `open_counts`, filtros y 25 filas por página, fechas/estados/severidades recibidos del backend. No calcular SLA, plazos, permisos ni acciones. El tiempo restante por ticket se reservará al objeto `sla` de futuros contratos BE-T04/BE-T05.
+- No tocar: BACK/config/dependencias/CI/pruebas ni filas BACK. Seguimiento Cloud ya ACTIVO cada hora según UI; primera ejecución aún no validada. No crear monitor duplicado.
+
+---
+
+## 2026-10-12 21:59 — ChatGPT (FRONTEND) / FE-T08 — Cierre — America/Guayaquil
+
+- Estado anterior: IN_PROGRESS.
+- Estado nuevo: REVIEW; rama `feature/fe-t08-alertas`, base FRONT FE-T01. Contrato aprobado habilita la UI aunque BACK siga REVIEW.
+- Implementado: pantalla de alertas Supervisor, indicadores de alertas abiertas obtenidos de BACK, filtros GET por estado/tipo, 25 filas por página, paginación con filtros preservados, estados/severidades con texto, fechas y vencimiento recibido, estado vacío y tabla móvil desplazable por teclado. Componentes reutilizables `pagination.html` y `ticket_badge.html` con consumidor real; no se calculan SLA ni permisos en FRONT.
+- Archivos: `templates/helpdesk/alerts.html`, `templates/components/{pagination,ticket_badge,navbar}.html` y registros FRONT de `progress.md`.
+- Pruebas sobre backend `5ea6941`: 451 PASS, cobertura 98.62 %; ruff check/format, Django check y makemigrations --check --dry-run PASS. Chromium 360/768/1280: Supervisor autorizado, Usuario 403, anónimo 302, contadores, filtros/limpiar/estado vacío, 25 filas y página 2 conservando filtros, escape de mensaje script, fechas iguales a BACK y ausencia de overflow del documento PASS. BD y archivos de prueba sintéticos y temporales, eliminados al terminar.
+- Migraciones/endpoints nuevos: ninguno. Valores SLA de bandeja/detalle requieren el objeto `sla` de los contratos BE-T04/BE-T05; no se infiere tiempo restante en esta pantalla de alertas.
+- Coordinación: FE-T03 PR #3 ya usa base `feature/fe-t01-login`; diff limitado al formulario/JS/enlaces/registros FRONT de esa tarea. PR #2 y #3 MERGEABLE y CI PASS. Seguimiento Cloud confirmado por UI ACTIVO cada hora en America/Guayaquil (id `6acd9bd4f1648190a92625ce9eefe1d5`); primera ejecución/GitHub/continuación pendientes de verificar, sin monitor duplicado.
+- Nueva base detectada al cerrar: `b421f24` publica CONTRACT-008/009. Se sincronizará antes de publicar; FE-T04 queda habilitada por CONTRACT-008. FE-T02 aún no tiene contexto de dashboard: `home.html` solo recibe variables globales según CONTRACT-002. FE-T06 tiene contrato de listado, asignación todavía pendiente. No inferir endpoints ni acciones.
 
 ---
 
