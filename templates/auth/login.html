@@ -2,16 +2,20 @@
 {% load static %}
 {% block title %}Iniciar sesión{% endblock %}
 {% block content %}
-<div class="row justify-content-center">
-  <section class="col-12 col-md-8 col-lg-5" aria-labelledby="login-title">
-    <div class="brand-card card border-0 shadow-sm p-3 p-md-4">
-      <div class="card-body">
+<div class="mesa-login-layout">
+  <aside class="mesa-login-story" aria-labelledby="welcome-title">
+    <span class="mesa-eyebrow">Universidad Indoamérica</span>
+    <h2 id="welcome-title">Tu solicitud,<br>en un solo lugar.</h2>
+    <p>Consulta, conversa y da seguimiento a tus solicitudes con la Mesa de Ayuda.</p>
+    <ul><li>Atención por Web y WhatsApp</li><li>Historial de respuestas y adjuntos</li><li>Seguimiento del estado de tu ticket</li></ul>
+  </aside>
+  <section class="mesa-login-panel" aria-labelledby="login-title">
         <img class="login-logo" src="{% static 'img/LOGO-UTI-2.png' %}" width="160" height="160" alt="Universidad Indoamérica">
         <p class="text-primary fw-semibold small mb-2">PORTAL DE ATENCIÓN</p>
         <h1 id="login-title" class="h3 mb-2">Iniciar sesión</h1>
         <p class="text-secondary mb-4">Ingresa con tu usuario o correo para acceder a la Mesa de Ayuda.</p>
         {% if form.non_field_errors %}
-          <div id="login-errors" class="alert alert-danger" role="alert">Usuario o contraseña incorrectos.</div>
+          <div id="login-errors" class="alert alert-danger" role="alert">{% for error in form.non_field_errors.as_data %}{% if error.code == 'invalid_login' or error.code == 'inactive' %}Usuario o contraseña incorrectos.{% else %}{{ error.message }}{% endif %}{% endfor %}</div>
         {% endif %}
         <form method="post" action="{% url 'accounts:login' %}">
           {% csrf_token %}
@@ -28,8 +32,6 @@
           </div>
           <button class="btn btn-primary w-100" type="submit">Ingresar</button>
         </form>
-      </div>
-    </div>
   </section>
 </div>
 {% endblock %}

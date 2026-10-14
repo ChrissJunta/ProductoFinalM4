@@ -1333,6 +1333,21 @@ Añadir siempre al final, sin borrar entradas anteriores.
 
 ---
 
+## 2026-10-14 — ChatGPT (FRONTEND) / Mejora visual UTI
+
+- Estado: REVIEW de presentación; no cambia el estado de las tareas BACK ni acredita UAT.
+- Solicitud: adaptar los estilos de https://github.com/andresinose/plantilla-UTI al MVP existente. Referencia React/Tailwind consultada como guía visual; implementación Django Templates + Bootstrap 5 + CSS y JavaScript mínimo.
+- Rama: `feature/fe-estilos-uti`, base `origin/main` (`9728620`).
+- Trabajo: cabecera morada con logo original sobre placa blanca, navegación activa y menú móvil progresivo, login de dos columnas, inicio con tarjetas de resumen, conversación como línea de tiempo y etiquetas de canal. Estilos compartidos para tarjetas, tablas, filtros, formularios, administración, métricas, alertas y perfil/asistente.
+- Paleta: marca/texto `#2c1547`, acento `#f57021`, fondo `#f4f0f9`, superficie blanca, texto secundario `#6e5987`, borde `#e2d9ee`. Fuente de sistema de la referencia; no se atribuye una tipografía institucional no proporcionada.
+- Archivos: `static/css/mesa.css`, `static/js/navigation.js`, `templates/base.html`, `templates/components/{navbar,nav_link}.html`, `templates/auth/login.html`, `templates/home.html`, `templates/helpdesk/ticket_detail.html`, `templates/automation/assistant.html` y este registro FRONT.
+- Verificaciones realizadas: todas las plantillas compilan con Django 5.2.18; `manage.py check` sin incidencias; `node --check` del menú y `git diff --check`; revisión de CSRF/URL names en formularios POST modificados. Navegador real sobre HTML renderizado con contextos sintéticos: login/inicio en 360/768/1280, navegación móvil abrir/cerrar/Escape con retorno del foco y ausencia de desbordamiento global en 360. Contraste medido: blanco/morado 16,09:1, secundario/fondo 5,43:1, morado/naranja 5,53:1. Se evita blanco sobre naranja (2,91:1).
+- Evidencia: vistas y capturas locales en `C:/cursos/Proyecto Final/.mesa-review-uti/`, fuera del checkout. No se conecta a datos reales; las vistas de ejemplo no son una prueba de login/operaciones backend.
+- Limitaciones: Cloud no pudo iniciar el ejecutor (`failed to query executor configuration capabilities`). No se ejecutó en esta revisión la suite PostgreSQL ni E2E completo ni auditoría axe; los resultados previos del MVP no se presentan como pruebas de este cambio. Queda validación funcional/visual completa y UAT. No se agrega modo oscuro sin validar todas las pantallas.
+- Contratos: mismos URL names y contextos aprobados; sin selector de rol, permisos calculados en FRONT, datos nuevos, cambios de modelo o de backend. Logo PNG original intacto.
+
+---
+
 # 17. Regla anti-repetición
 
 Antes de implementar cualquier funcionalidad, buscar en este archivo:
@@ -2093,3 +2108,36 @@ Bloqueos: Ninguno
 - Argon2id + política de 10+ caracteres con letras y números; contraseñas demo aleatorias (`seed_demo`, `--rotate`, `--password`); `reset_password` con cambio obligatorio; cambio de contraseña propio (CONTRACT-019, plantilla temporal); cierre por inactividad; login del admin protegido y ruta configurable; auditoría de accesos; checks `accounts.W001/W002`.
 - Scripts E2E y de carga leen la contraseña de `E2E_PASSWORD` / `LOAD_PASSWORD`.
 - **Acción local del equipo:** `pip install -r requirements.txt`, `migrate`, `seed_demo --rotate` (la base local conserva `Demo-2026!` hasta rotar).
+
+
+## Mejora visual UTI — Cierre FRONT
+
+**Estado:** REVIEW
+**Agente:** ChatGPT (FRONTEND)
+**Fecha:** 2026-10-14 — America/Guayaquil
+**Dependencias:** contratos de vistas existentes FE-T01..12; no requiere nuevos contratos BACK.
+
+### Implementado
+Presentación institucional basada en el playground solicitado, adaptada a Django Templates y Bootstrap 5. Ver archivos, alcance y verificaciones en el historial FRONT de sección 16.
+
+### Migraciones y endpoints
+Ninguno nuevo; ninguna modificación de backend.
+
+### Pendientes
+Suite PostgreSQL/E2E completo y revisión de las pantallas restantes en el entorno funcional; UAT y aprobación del PR. Se mantiene REVIEW.
+
+
+## 2026-10-14 — ChatGPT (FRONTEND) / Sincronización visual con CONTRACT-019
+
+- Se incorporó `main` (`643d8a7`, seguridad de contraseñas BACK) a la rama visual, conservando todas las entradas de Claude y el registro FRONT; conflicto de texto de `progress.md` resuelto sin borrar registros.
+- `auth/password_change.html` reemplaza la plantilla temporal según CONTRACT-019 aprobado: formulario ligado, errores y política entregada por BACK, CSRF, navegación retirada cuando `forced` y cierre de sesión disponible. Enlace de contraseña para usuarios autenticados. El login conserva el error genérico de credenciales y muestra el mensaje de bloqueo entregado por BACK para los errores no `invalid_login`/`inactive`.
+- Ningún archivo BACK editado manualmente; la diferencia del PR frente a main contiene solo FRONT y coordinación. No se modificaron contraseñas, usuarios, migraciones ni base de datos durante esta revisión.
+- Estado REVIEW; pruebas funcionales con PostgreSQL siguen pendientes del entorno de ejecución y CI.
+
+
+## 2026-10-14 — ChatGPT (FRONTEND) / Validación CI de estilos UTI
+
+- PR #20, código `d4f538f`: CI #91 (run `38632251883`, job `116086540017`) SUCCESS. **844 pruebas PASS en 72,57 s; cobertura 99,00 %**, Python 3.12.15 y PostgreSQL. Lint, Django check y migraciones sin cambios pendientes también PASS.
+- Navegador local sobre contextos sintéticos: detalle con línea de tiempo Web/WhatsApp, asistente y cambio obligatorio de contraseña revisados visualmente; no se efectuaron escrituras ni autenticación en una BD real local. Se conservan las capturas fuera del checkout.
+- Este resultado de CI actualiza el pendiente de suite PostgreSQL del registro inicial. La revisión E2E completa del nuevo diseño, axe y UAT siguen pendientes; no se extrapolan a ellas las pruebas backend ni se marca DONE.
+- Estado REVIEW. Sin cambios manuales BACK ni merge a main. Esta entrada posterior modifica solamente coordinación, no el código validado.

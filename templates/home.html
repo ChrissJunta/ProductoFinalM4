@@ -1,28 +1,28 @@
 {% extends 'base.html' %}
 {% block title %}Inicio{% endblock %}
 {% block content %}
-<section class="card border-0 shadow-sm p-3 p-md-4" aria-labelledby="home-title">
-  <div class="card-body">
-    <p class="text-secondary small mb-2">{{ user_role }}</p>
-    <h1 id="home-title" class="h3">Hola, {{ user.get_full_name|default:user.username }}</h1>
-    <p class="text-secondary">Consulta tus solicitudes recientes y las respuestas pendientes.</p>
-    {% if user_role == 'Usuario' %}<a class="btn btn-outline-primary" href="{% url 'automation:assistant' %}">Consultar al asistente</a>{% endif %}
-    <a class="btn btn-primary" href="{% url 'helpdesk:ticket_create' %}">Nueva solicitud</a>
+<section class="mesa-hero" aria-labelledby="home-title">
+  <p class="mesa-eyebrow mb-2">Portal de atención · {{ user_role }}</p>
+  <h1 id="home-title">Hola, {{ user.get_full_name|default:user.username }}</h1>
+  <p class="text-secondary mb-4">Tu espacio para consultar solicitudes, revisar las respuestas y continuar la atención.</p>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-primary" href="{% url 'helpdesk:ticket_create' %}">Nueva solicitud <span aria-hidden="true">→</span></a>
     <a class="btn btn-outline-primary" href="{% url 'helpdesk:ticket_list' %}">Consultar tickets</a>
+    {% if user_role == 'Usuario' %}<a class="btn btn-outline-primary" href="{% url 'automation:assistant' %}">Consultar al asistente</a>{% endif %}
   </div>
 </section>
-<section class="my-4" aria-labelledby="summary-title">
-  <h2 id="summary-title" class="h5">Resumen de tus tickets</h2>
-  <dl class="row g-3">
-    <div class="col-sm-4"><dt class="card rounded-top p-3 pb-0 border-bottom-0">Abiertos</dt><dd class="card rounded-bottom p-3 pt-0 border-top-0 fs-3 mb-0">{{ summary.open }}</dd></div>
-    <div class="col-sm-4"><dt class="card rounded-top p-3 pb-0 border-bottom-0">Esperando al usuario</dt><dd class="card rounded-bottom p-3 pt-0 border-top-0 fs-3 mb-0">{{ summary.waiting_user }}</dd></div>
-    <div class="col-sm-4"><dt class="card rounded-top p-3 pb-0 border-bottom-0">Soluciones por confirmar</dt><dd class="card rounded-bottom p-3 pt-0 border-top-0 fs-3 mb-0">{{ summary.resolved }}</dd></div>
+<section aria-labelledby="summary-title">
+  <div class="mesa-section-heading"><h2 id="summary-title" class="h5">Resumen de tus tickets</h2><span class="small text-secondary">El estado de tus solicitudes</span></div>
+  <dl class="mesa-stats mb-0">
+    <div class="mesa-stat"><dt><span class="mesa-stat-marker" aria-hidden="true"></span>Abiertos</dt><dd>{{ summary.open }}</dd></div>
+    <div class="mesa-stat"><dt><span class="mesa-stat-marker accent" aria-hidden="true"></span>Esperando al usuario</dt><dd>{{ summary.waiting_user }}</dd></div>
+    <div class="mesa-stat"><dt><span class="mesa-stat-marker" aria-hidden="true"></span>Soluciones por confirmar</dt><dd>{{ summary.resolved }}</dd></div>
   </dl>
 </section>
 <section aria-labelledby="recent-title">
-  <h2 id="recent-title" class="h5">Tickets recientes</h2>
-  <p class="text-secondary">Hasta cinco solicitudes, ordenadas por última actualización.</p>
+  <div class="mesa-section-heading"><h2 id="recent-title" class="h5">Tickets recientes</h2><a class="small fw-semibold" href="{% url 'helpdesk:ticket_list' %}">Ver todos los tickets <span aria-hidden="true">→</span></a></div>
+  <p class="text-secondary small">Hasta cinco solicitudes, ordenadas por última actualización.</p>
   {% if recent_rows %}{% include 'components/ticket_table.html' with rows=recent_rows table_caption="Solicitudes recientes · hasta cinco resultados" %}
-  {% else %}<p class="border rounded bg-white p-3">Todavía no tienes tickets. Crea una solicitud para comenzar.</p>{% endif %}
+  {% else %}<div class="card card-body"><h3 class="h6 mt-0">Tu primera solicitud comienza aquí</h3><p class="text-secondary mb-0">Todavía no tienes tickets. Crea una solicitud cuando necesites atención.</p></div>{% endif %}
 </section>
 {% endblock %}

@@ -1,23 +1,29 @@
 {% load static %}
-<header class="brand-header bg-white border-bottom">
-  <nav class="container py-3 d-flex flex-wrap align-items-center gap-3" aria-label="Navegación principal">
-    <a class="fw-bold fs-5 text-decoration-none text-primary d-flex align-items-center gap-2 me-auto" href="{% url 'accounts:role_redirect' %}"><img class="brand-logo" src="{% static 'img/LOGO-UTI-2.png' %}" width="72" height="72" alt="Universidad Indoamérica"><span>Mesa de Ayuda</span></a>
+<header class="mesa-header">
+  <div class="container mesa-header-top">
+    <a class="mesa-brand" href="{% url 'accounts:role_redirect' %}">
+      <span class="mesa-logo-plate"><img class="brand-logo" src="{% static 'img/LOGO-UTI-2.png' %}" width="72" height="72" alt="Universidad Indoamérica"></span>
+      <span><span class="mesa-brand-title">Mesa de Ayuda</span><span class="mesa-brand-subtitle">Universidad Tecnológica Indoamérica</span></span>
+    </a>
     {% if user.is_authenticated %}
-      <a class="nav-link" href="{% url 'accounts:role_redirect' %}">Inicio</a>
-      <a class="nav-link" href="{% url 'helpdesk:ticket_create' %}">Nueva solicitud</a>
-      <a class="nav-link" href="{% url 'helpdesk:ticket_list' %}">{% if user_role == 'Usuario' %}Mis tickets{% else %}Tickets{% endif %}</a>
-      {% if user_role == 'Agente' or user_role == 'Supervisor' %}<a class="nav-link" href="{% url 'helpdesk:agent_inbox' %}">Bandeja</a>{% endif %}
-      {% if user_role == 'Administrador' %}<a class="nav-link" href="{% url 'manage:index' %}">Administración</a>{% endif %}
-      {% if user_role == 'Supervisor' %}<a class="nav-link" href="{% url 'helpdesk:alert_list' %}">Alertas</a><a class="nav-link" href="{% url 'helpdesk:metrics' %}">Métricas</a>{% endif %}
-      {% if user_role == 'Usuario' %}<a class="nav-link" href="{% url 'automation:assistant' %}">Asistente</a>{% endif %}
-      <a class="nav-link" href="{% url 'accounts:whatsapp' %}">WhatsApp</a>
-      <span class="small text-secondary account-label">{{ user.get_full_name|default:user.username }}{% if user_role %} · {{ user_role }}{% endif %}</span>
-      <form method="post" action="{% url 'accounts:logout' %}">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-outline-secondary btn-sm">Cerrar sesión</button>
-      </form>
-    {% else %}
-      <span class="small text-secondary">Portal de atención</span>
-    {% endif %}
+      <div class="mesa-account"><span class="mesa-account-name">{{ user.get_full_name|default:user.username }}</span><span class="mesa-role">{{ user_role }}</span></div>
+      <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button type="submit" class="btn mesa-logout btn-sm">Cerrar sesión</button></form>
+      <button class="btn mesa-menu-toggle" type="button" aria-expanded="true" aria-controls="mesa-navigation" data-navigation-toggle hidden>Menú</button>
+    {% else %}<span class="mesa-header-note">Portal de atención omnicanal</span>{% endif %}
+  </div>
+  {% if user.is_authenticated and not forced %}
+  <nav id="mesa-navigation" class="mesa-navigation" aria-label="Navegación principal">
+    <div class="container mesa-navigation-links">
+      {% include 'components/nav_link.html' with destination='accounts:role_redirect' label='Inicio' active_view='accounts:home' %}
+      {% include 'components/nav_link.html' with destination='helpdesk:ticket_create' label='Nueva solicitud' %}
+      {% if user_role == 'Usuario' %}{% include 'components/nav_link.html' with destination='helpdesk:ticket_list' label='Mis tickets' %}{% else %}{% include 'components/nav_link.html' with destination='helpdesk:ticket_list' label='Tickets' %}{% endif %}
+      {% if user_role == 'Agente' or user_role == 'Supervisor' %}{% include 'components/nav_link.html' with destination='helpdesk:agent_inbox' label='Bandeja' %}{% endif %}
+      {% if user_role == 'Administrador' %}{% include 'components/nav_link.html' with destination='manage:index' label='Administración' active_namespace='manage' %}{% endif %}
+      {% if user_role == 'Supervisor' %}{% include 'components/nav_link.html' with destination='helpdesk:alert_list' label='Alertas' %}{% include 'components/nav_link.html' with destination='helpdesk:metrics' label='Métricas' %}{% endif %}
+      {% if user_role == 'Usuario' %}{% include 'components/nav_link.html' with destination='automation:assistant' label='Asistente' %}{% endif %}
+      {% include 'components/nav_link.html' with destination='accounts:whatsapp' label='WhatsApp' %}
+      {% include 'components/nav_link.html' with destination='accounts:password_change' label='Contraseña' %}
+    </div>
   </nav>
+  {% endif %}
 </header>
