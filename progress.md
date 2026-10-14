@@ -292,6 +292,11 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-068 | 2026-10-13 | Fallos de vinculación de WhatsApp en BD (`WhatsAppLinkAttempt`): 5 por número y hora y 100 globales por hora; el contador de login por cuenta usa el usuario real (usuario y correo comparten contador); `verify_token` con comparación de tiempo constante | Hallazgos MEDIOS/BAJO de la revisión de seguridad | `whatsapp.linking`, `accounts.views` |
 | ADR-069 | 2026-10-13 | **Proveedor LLM real (cierra ADR-010):** servidor propio del Ing. Pato con **Qwen3-8B (AWQ) sobre vLLM**, API compatible con OpenAI (`http://172.16.8.69:8000/v1`, red interna). Adaptador `openai_compat` con `urllib` (sin SDK), `enable_thinking` apagado por defecto, limpieza de `<think>`, extracción del primer objeto JSON, prompt versionado de `AIPromptVersion`; respaldo opcional `LLM_FALLBACK_PROVIDER` (p. ej. `fake`). Solo se envían el mensaje y el catálogo | Decisión del responsable; servidor institucional sin costo por token y sin salida de datos de la red | `ai/providers/openai_compat.py`, comando `llm_ping` |
 | ADR-070 | 2026-10-13 | La cola «Sin área» sigue visible para todo Agente (triaje compartido, CR-003). Con el routing vigente solo llegan ahí los tickets web sin categoría: las solicitudes no identificadas del agente van a Atención General | Decisión delegada por el responsable («lo más óptimo»): no frenar el triaje; observación BAJA de la revisión de seguridad cerrada | `helpdesk.queries.visible_tickets` |
+| ADR-071 | 2026-10-14 | Contraseñas: mínimo 10 caracteres con letras y números (`LettersAndDigitsValidator`) además de los validadores de Django; hash principal **Argon2id** (`Django[argon2]`), PBKDF2 se conserva para verificar y migrar en el siguiente ingreso | Solicitud del responsable: proteger contraseñas antes de compartir el sistema | `config/settings/base.py`, `accounts.validators` |
+| ADR-072 | 2026-10-14 | Sin contraseñas publicadas: `seed_demo` genera una aleatoria por usuario y la muestra una vez (`--password` fija una común para E2E/carga, `--rotate` regenera). `User.must_change_password` + `ForcePasswordChangeMiddleware`: contraseña temporal (`reset_password`, alta o cambio de clave de otro desde el admin) obliga a cambiarla en `/accounts/password/` | `Demo-2026!` estaba en el README público | `accounts.middleware`, `accounts.passwords`, `seed_demo`, `reset_password` |
+| ADR-073 | 2026-10-14 | El login del admin de Django redirige al login del portal (límite de intentos y auditoría); ruta del admin configurable con `DJANGO_ADMIN_URL`. Usuario autenticado sin `is_staff` → 403 (evita el bucle admin ↔ login) | `/admin/login/` no tenía límite de intentos | `config/urls.py`, `accounts.views.admin_login` |
+| ADR-074 | 2026-10-14 | Sesión: cierre por inactividad (`SESSION_IDLE_TIMEOUT_MINUTES`, 30 por defecto; marca reescrita como máximo una vez por minuto), al cerrar el navegador y como máximo 8 h; `SameSite=Lax`, cookie CSRF `HttpOnly`. Auditoría de accesos en `AuditLog` (`entity_type=accounts.user`): `LOGIN`, `LOGIN_FAILED`, `LOGIN_LOCKED`, `LOGOUT`, `PASSWORD_CHANGE`, `PASSWORD_RESET` con IP y user agent, nunca la contraseña | Equipos compartidos en laboratorio; trazabilidad de accesos | `accounts.middleware`, `accounts.signals` |
+| ADR-075 | 2026-10-14 | `check --deploy` propio: `accounts.W001` si un usuario demo activo conserva `Demo-2026!`; `accounts.W002` si el admin sigue en `/admin/` | Detectar configuraciones inseguras antes de exponer el sistema | `accounts.checks` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -788,6 +793,15 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **URL name:** `accounts:whatsapp` → `/profile/whatsapp/` · GET, POST · cualquier usuario autenticado (sin sesión → login). Plantilla `accounts/whatsapp.html` (TEMPORAL).
 **Contexto:** `phone` (str, vacío si no hay), `is_verified` (bool), `verified_at` (datetime o `None`), `code` (str de 6 dígitos **solo en el GET inmediatamente posterior** a generarlo; luego `None`), `code_expires_at` (datetime o `None`), `code_minutes` (10).
 **POST** (CSRF): `action=generate` → genera código y 302 a la misma URL (mostrar `code` con la instrucción «envíalo por WhatsApp al número de la mesa»); `action=unlink` → desvincula (302 + mensaje). Otra acción → mensaje de error.
+**Aprobado:** Sí
+
+### CONTRACT-019 — Cambio de contraseña
+**Fecha:** 2026-10-14
+**Origen:** BACK (ADR-072) → consumidor FRONT
+**URL name:** `accounts:password_change` → `/accounts/password/` · GET, POST · cualquier usuario autenticado (sin sesión → login). Plantilla `auth/password_change.html` (TEMPORAL mínima del backend).
+**Contexto:** `form` (`PasswordChangeForm`: `old_password`, `new_password1`, `new_password2`; `new_password1.help_text` trae la política), `forced` (bool: contraseña temporal, mostrar aviso «debes cambiarla para continuar»).
+**POST** (CSRF): válido → 302 a `accounts:role_redirect` con mensaje «Contraseña actualizada.» (la sesión actual sigue; las demás se cierran). Inválido → 200 con errores por campo.
+**Comportamiento global:** con `forced`, cualquier otra página redirige aquí (solo se permiten esta vista, `accounts:logout` y estáticos), así que el menú debe ofrecer «Cerrar sesión». Sugerido: enlace «Cambiar contraseña» en el menú de usuario. Mensaje `info` «Tu sesión se cerró por inactividad.» en el login tras el cierre por inactividad. El login bloqueado (429) muestra hoy «Usuario o contraseña incorrectos.»: sugerido mostrar el texto de `form.non_field_errors` cuando el estado sea 429.
 **Aprobado:** Sí
 
 ### CONTRACT-FRONT-005 — Pantallas administrativas FE-T09 — Respondida (CONTRACT-016)
@@ -2072,3 +2086,10 @@ Bloqueos: Ninguno
 - El responsable entregó el servidor del Ing. Pato (Qwen3-8B sobre vLLM, API compatible con OpenAI, `172.16.8.69:8000`). Desde el entorno de desarrollo en la nube el servidor no es alcanzable (IP de red interna); el adaptador se probó contra un servidor vLLM simulado (formato real de `/v1/models` y `/v1/chat/completions`, `<think>`, JSON con texto alrededor, 500, timeout, respaldo).
 - **Pendiente en la red de la universidad:** `python manage.py llm_ping` y `python manage.py evaluate_intents --agent` con `LLM_PROVIDER=openai_compat` para medir accuracy/macro F1 reales frente al objetivo de SPEC §50 (≥ 85 % / ≥ 0.80).
 
+
+## 2026-10-14 — Claude (BACKEND) / Seguridad de contraseñas y accesos (ADR-071..075, CONTRACT-019)
+
+- Solicitud del responsable antes de compartir el sistema con el grupo: proteger contraseñas y accesos.
+- Argon2id + política de 10+ caracteres con letras y números; contraseñas demo aleatorias (`seed_demo`, `--rotate`, `--password`); `reset_password` con cambio obligatorio; cambio de contraseña propio (CONTRACT-019, plantilla temporal); cierre por inactividad; login del admin protegido y ruta configurable; auditoría de accesos; checks `accounts.W001/W002`.
+- Scripts E2E y de carga leen la contraseña de `E2E_PASSWORD` / `LOAD_PASSWORD`.
+- **Acción local del equipo:** `pip install -r requirements.txt`, `migrate`, `seed_demo --rotate` (la base local conserva `Demo-2026!` hasta rotar).

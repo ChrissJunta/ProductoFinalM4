@@ -90,6 +90,9 @@ def test_deploy_check_is_clean_with_production_settings():
         "DJANGO_SECURE_SSL_REDIRECT": "True",
         "DJANGO_HSTS_SECONDS": "31536000",
         "DJANGO_SECURE_COOKIES": "True",
+        "DJANGO_ADMIN_URL": "gestion-interna/",
+        # Base inexistente: el check de usuarios demo (accounts.W001) no depende de la local.
+        "POSTGRES_DB": "no_existe_check_deploy",
     }
     result = subprocess.run(
         [sys.executable, "manage.py", "check", "--deploy", "--fail-level", "WARNING"],

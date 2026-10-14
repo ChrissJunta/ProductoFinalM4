@@ -3,20 +3,26 @@
 Crea un usuario por rol, asigna agentes a sus áreas y genera tickets en varios
 estados usando los mismos servicios que la aplicación (con auditoría e historial).
 Es idempotente: si los usuarios demo ya existen, no duplica nada.
+
+Contraseñas (ADR-072): por defecto una aleatoria distinta por usuario, mostrada una sola
+vez; `--password` fija una común (pruebas automatizadas) y `--rotate` las regenera en
+usuarios demo ya creados. No hay contraseña publicada en el repositorio.
 """
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from apps.accounts import passwords
 from apps.accounts.roles import Role
 from apps.helpdesk import assignment, conversations, workflow
 from apps.helpdesk.models import Area, Category, Subcategory, Ticket
 from apps.helpdesk.tickets import TicketService
 
-DEMO_PASSWORD = "Demo-2026!"
 # Código institucional del estudiante demo en los datos simulados del LocalProvider.
 DEMO_EXTERNAL_IDS = {"usuario": "EST-0001"}
 
@@ -39,30 +45,67 @@ class Command(BaseCommand):
             action="store_true",
             help="Permite ejecutarlo con DEBUG=False (no en producción).",
         )
+        parser.add_argument(
+            "--password",
+            help="Contraseña común para todos los usuarios demo (por defecto, aleatorias).",
+        )
+        parser.add_argument(
+            "--rotate",
+            action="store_true",
+            help="Regenera las contraseñas de los usuarios demo existentes.",
+        )
 
-    def handle(self, *args, force=False, **options):
+    def handle(self, *args, force=False, password=None, rotate=False, **options):
         if not settings.DEBUG and not force:
             raise CommandError(
                 "seed_demo solo se ejecuta en desarrollo (DEBUG=True) o con --force."
             )
+        if password:
+            try:
+                validate_password(password)
+            except ValidationError as exc:
+                raise CommandError(" ".join(exc.messages)) from exc
         User = get_user_model()
         if User.objects.filter(username="usuario").exists():
-            self.stdout.write("Los datos demo ya existen; no se crea nada.")
-            return
-        with transaction.atomic():
-            users = self._users(User)
-            self._tickets(users)
-        self.stdout.write(self.style.SUCCESS("Datos demo creados."))
-        self.stdout.write(f"Contraseña de todos los usuarios demo: {DEMO_PASSWORD}")
-        for username, *_rest, role, _staff in USERS:
-            self.stdout.write(f"  {username:<11} → {role}")
+            if not rotate:
+                self.stdout.write(
+                    "Los datos demo ya existen; no se crea nada "
+                    "(use --rotate para regenerar las contraseñas)."
+                )
+                return
+            with transaction.atomic():
+                credentials = self._rotate(User, password)
+            self.stdout.write(self.style.SUCCESS("Contraseñas demo regeneradas."))
+        else:
+            with transaction.atomic():
+                users, credentials = self._users(User, password)
+                self._tickets(users)
+            self.stdout.write(self.style.SUCCESS("Datos demo creados."))
+        self._print(credentials)
 
-    def _users(self, User):
-        users = {}
+    def _print(self, credentials):
+        self.stdout.write("Credenciales (se muestran una sola vez; guárdelas):")
+        roles = {username: role for username, *_rest, role, _staff in USERS}
+        for username, secret in credentials.items():
+            self.stdout.write(f"  {username:<11} {secret:<16} → {roles[username]}")
+
+    def _rotate(self, User, password):
+        credentials = {}
+        for username, *_rest in USERS:
+            user = User.objects.filter(username=username).first()
+            if user is not None:
+                credentials[username] = password or passwords.generate()
+                user.set_password(credentials[username])
+                user.save(update_fields=["password"])
+        return credentials
+
+    def _users(self, User, password):
+        users, credentials = {}, {}
         for username, first, last, role, staff in USERS:
+            credentials[username] = password or passwords.generate()
             user = User.objects.create_user(
                 username=username,
-                password=DEMO_PASSWORD,
+                password=credentials[username],
                 first_name=first,
                 last_name=last,
                 email=f"{username}@demo.local",
@@ -73,7 +116,7 @@ class Command(BaseCommand):
             users[username] = user
         Area.objects.get(code="IT").agents.add(users["agente_ti"])
         Area.objects.get(code="FINANCE").agents.add(users["agente_fin"])
-        return users
+        return users, credentials
 
     def _tickets(self, u):
         ana, ti, fin, sup = u["usuario"], u["agente_ti"], u["agente_fin"], u["supervisor"]

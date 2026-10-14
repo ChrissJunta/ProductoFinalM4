@@ -3,12 +3,14 @@
 Inicia sesión con los usuarios demo y lanza peticiones concurrentes a las
 pantallas principales. Mide latencia (P50/P95/P99), errores y throughput.
 
-Uso (con `seed_demo` y el servidor corriendo):
-    python scripts/load_test.py --base http://127.0.0.1:8000 --threads 10 --requests 50
+Uso (con `seed_demo --password <clave>` y el servidor corriendo):
+    LOAD_PASSWORD=<clave> python scripts/load_test.py --base http://127.0.0.1:8000 \
+        --threads 10 --requests 50
 """
 
 import argparse
 import http.cookiejar
+import os
 import re
 import statistics
 import threading
@@ -16,7 +18,7 @@ import time
 import urllib.parse
 import urllib.request
 
-PASSWORD = "Demo-2026!"
+PASSWORD = os.environ["LOAD_PASSWORD"]  # la de `seed_demo --password` (ADR-072)
 PAGES = {
     "usuario": ["/inicio/", "/tickets/", "/assistant/"],
     "agente_ti": ["/inicio/", "/agent/inbox/", "/tickets/"],

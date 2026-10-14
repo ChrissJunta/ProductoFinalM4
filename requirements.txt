@@ -1,4 +1,4 @@
-Django>=5.2,<5.3
+Django[argon2]>=5.2,<5.3
 psycopg[binary]>=3.2,<4
 django-environ>=0.11,<1
 langgraph==1.2.15
