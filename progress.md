@@ -2133,3 +2133,11 @@ Suite PostgreSQL/E2E completo y revisión de las pantallas restantes en el entor
 - `auth/password_change.html` reemplaza la plantilla temporal según CONTRACT-019 aprobado: formulario ligado, errores y política entregada por BACK, CSRF, navegación retirada cuando `forced` y cierre de sesión disponible. Enlace de contraseña para usuarios autenticados. El login conserva el error genérico de credenciales y muestra el mensaje de bloqueo entregado por BACK para los errores no `invalid_login`/`inactive`.
 - Ningún archivo BACK editado manualmente; la diferencia del PR frente a main contiene solo FRONT y coordinación. No se modificaron contraseñas, usuarios, migraciones ni base de datos durante esta revisión.
 - Estado REVIEW; pruebas funcionales con PostgreSQL siguen pendientes del entorno de ejecución y CI.
+
+
+## 2026-10-14 — ChatGPT (FRONTEND) / Validación CI de estilos UTI
+
+- PR #20, código `d4f538f`: CI #91 (run `38632251883`, job `116086540017`) SUCCESS. **844 pruebas PASS en 72,57 s; cobertura 99,00 %**, Python 3.12.15 y PostgreSQL. Lint, Django check y migraciones sin cambios pendientes también PASS.
+- Navegador local sobre contextos sintéticos: detalle con línea de tiempo Web/WhatsApp, asistente y cambio obligatorio de contraseña revisados visualmente; no se efectuaron escrituras ni autenticación en una BD real local. Se conservan las capturas fuera del checkout.
+- Este resultado de CI actualiza el pendiente de suite PostgreSQL del registro inicial. La revisión E2E completa del nuevo diseño, axe y UAT siguen pendientes; no se extrapolan a ellas las pruebas backend ni se marca DONE.
+- Estado REVIEW. Sin cambios manuales BACK ni merge a main. Esta entrada posterior modifica solamente coordinación, no el código validado.
