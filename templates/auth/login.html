@@ -15,7 +15,7 @@
         <h1 id="login-title" class="h3 mb-2">Iniciar sesión</h1>
         <p class="text-secondary mb-4">Ingresa con tu usuario o correo para acceder a la Mesa de Ayuda.</p>
         {% if form.non_field_errors %}
-          <div id="login-errors" class="alert alert-danger" role="alert">Usuario o contraseña incorrectos.</div>
+          <div id="login-errors" class="alert alert-danger" role="alert">{% for error in form.non_field_errors.as_data %}{% if error.code == 'invalid_login' or error.code == 'inactive' %}Usuario o contraseña incorrectos.{% else %}{{ error.message }}{% endif %}{% endfor %}</div>
         {% endif %}
         <form method="post" action="{% url 'accounts:login' %}">
           {% csrf_token %}

@@ -11,7 +11,7 @@
       <button class="btn mesa-menu-toggle" type="button" aria-expanded="true" aria-controls="mesa-navigation" data-navigation-toggle hidden>Menú</button>
     {% else %}<span class="mesa-header-note">Portal de atención omnicanal</span>{% endif %}
   </div>
-  {% if user.is_authenticated %}
+  {% if user.is_authenticated and not forced %}
   <nav id="mesa-navigation" class="mesa-navigation" aria-label="Navegación principal">
     <div class="container mesa-navigation-links">
       {% include 'components/nav_link.html' with destination='accounts:role_redirect' label='Inicio' active_view='accounts:home' %}
@@ -22,6 +22,7 @@
       {% if user_role == 'Supervisor' %}{% include 'components/nav_link.html' with destination='helpdesk:alert_list' label='Alertas' %}{% include 'components/nav_link.html' with destination='helpdesk:metrics' label='Métricas' %}{% endif %}
       {% if user_role == 'Usuario' %}{% include 'components/nav_link.html' with destination='automation:assistant' label='Asistente' %}{% endif %}
       {% include 'components/nav_link.html' with destination='accounts:whatsapp' label='WhatsApp' %}
+      {% include 'components/nav_link.html' with destination='accounts:password_change' label='Contraseña' %}
     </div>
   </nav>
   {% endif %}

@@ -2125,3 +2125,11 @@ Ninguno nuevo; ninguna modificación de backend.
 
 ### Pendientes
 Suite PostgreSQL/E2E completo y revisión de las pantallas restantes en el entorno funcional; UAT y aprobación del PR. Se mantiene REVIEW.
+
+
+## 2026-10-14 — ChatGPT (FRONTEND) / Sincronización visual con CONTRACT-019
+
+- Se incorporó `main` (`643d8a7`, seguridad de contraseñas BACK) a la rama visual, conservando todas las entradas de Claude y el registro FRONT; conflicto de texto de `progress.md` resuelto sin borrar registros.
+- `auth/password_change.html` reemplaza la plantilla temporal según CONTRACT-019 aprobado: formulario ligado, errores y política entregada por BACK, CSRF, navegación retirada cuando `forced` y cierre de sesión disponible. Enlace de contraseña para usuarios autenticados. El login conserva el error genérico de credenciales y muestra el mensaje de bloqueo entregado por BACK para los errores no `invalid_login`/`inactive`.
+- Ningún archivo BACK editado manualmente; la diferencia del PR frente a main contiene solo FRONT y coordinación. No se modificaron contraseñas, usuarios, migraciones ni base de datos durante esta revisión.
+- Estado REVIEW; pruebas funcionales con PostgreSQL siguen pendientes del entorno de ejecución y CI.
