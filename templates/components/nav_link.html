@@ -1,0 +1,3 @@
+{% with current=request.resolver_match.view_name namespace=request.resolver_match.namespace %}
+<a class="mesa-nav-link{% if current == destination or current == active_view or active_namespace and namespace == active_namespace %} is-active{% endif %}" href="{% url destination %}"{% if current == destination or current == active_view or active_namespace and namespace == active_namespace %} aria-current="page"{% endif %}>{{ label }}</a>
+{% endwith %}

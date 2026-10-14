@@ -33,11 +33,11 @@
 <section class="card border-0 shadow-sm mb-4" aria-labelledby="historial">
   <div class="card-body">
     <h2 id="historial" class="h5">Conversación e historial</h2>
-    <ol class="list-unstyled mb-0">
+    <ol class="list-unstyled mb-0 mesa-timeline">
       {% for item in timeline %}
-        <li class="border-bottom py-3">
+        <li class="mesa-timeline-entry">
           <div class="small text-secondary">{{ item.created_at|localtime|date:'d/m/Y H:i' }}
-          {% if item.kind == 'message' %}· [{% if item.channel == 'WHATSAPP' %}WhatsApp{% else %}Web{% endif %}] {{ item.message.get_sender_type_display }}{% if item.message.sender %} ({{ item.message.sender.get_full_name|default:item.message.sender.username }}){% endif %}{% if item.message.message_type != 'TEXT' %} · {{ item.message.get_message_type_display }}{% endif %}
+          {% if item.kind == 'message' %}· <span class="mesa-channel{% if item.channel == 'WHATSAPP' %} mesa-channel-whatsapp{% endif %}">{% if item.channel == 'WHATSAPP' %}WhatsApp{% else %}Web{% endif %}</span> {{ item.message.get_sender_type_display }}{% if item.message.sender %} ({{ item.message.sender.get_full_name|default:item.message.sender.username }}){% endif %}{% if item.message.message_type != 'TEXT' %} · {{ item.message.get_message_type_display }}{% endif %}
           {% else %}· [Sistema] Estado: {{ item.entry.get_previous_status_display|default:'—' }} → {{ item.entry.get_new_status_display }}{% if item.entry.actor %} ({{ item.entry.actor.username }}){% endif %}{% endif %}</div>
           {% if item.kind == 'message' %}
             <p class="mb-1 mesa-preserve-lines">{{ item.message.content }}</p>
