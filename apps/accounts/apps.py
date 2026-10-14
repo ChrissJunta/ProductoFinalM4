@@ -6,3 +6,6 @@ class AccountsConfig(AppConfig):
     name = "apps.accounts"
     label = "accounts"
     verbose_name = "Cuentas"
+
+    def ready(self):
+        from . import checks, signals  # noqa: F401  (registra receptores y checks)

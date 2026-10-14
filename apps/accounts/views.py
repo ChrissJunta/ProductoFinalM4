@@ -6,12 +6,15 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import redirect_to_login
+from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, render
+from django.urls import reverse, reverse_lazy
 from django.views.decorators.http import require_http_methods
 
 from apps.helpdesk.queries import dashboard
 
-from . import ratelimit
+from . import ratelimit, signals
 from .roles import Role, get_role
 
 logger = logging.getLogger(__name__)
@@ -59,6 +62,11 @@ class LoginView(auth_views.LoginView):
             form.errors.clear()
             form.add_error(None, LOCKED_MESSAGE)
             logger.warning("Login bloqueado por límite de intentos (%s)", self._keys()[0][1])
+            signals.record_access(
+                signals.Action.LOGIN_LOCKED,
+                request=request,
+                username=request.POST.get("username", ""),
+            )
             return self.render_to_response(self.get_context_data(form=form), status=429)
         return super().post(request, *args, **kwargs)
 
@@ -70,6 +78,40 @@ class LoginView(auth_views.LoginView):
     def form_valid(self, form):
         ratelimit.reset("login_user", f"pk:{form.get_user().pk}")
         return super().form_valid(form)
+
+
+class PasswordChangeView(auth_views.PasswordChangeView):
+    """CONTRACT-019: cambio de contraseña propio; obligatorio si la contraseña es temporal.
+
+    Django mantiene la sesión actual y cierra las demás sesiones del usuario (el hash de
+    sesión cambia con la contraseña).
+    """
+
+    template_name = "auth/password_change.html"
+    success_url = reverse_lazy("accounts:role_redirect")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["forced"] = self.request.user.must_change_password
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        user = self.request.user
+        signals.record_access(signals.Action.PASSWORD_CHANGE, user=user, request=self.request)
+        if user.must_change_password:
+            user.must_change_password = False
+            user.save(update_fields=["must_change_password"])
+        messages.success(self.request, "Contraseña actualizada.")
+        return response
+
+
+def admin_login(request):
+    """El admin de Django usa el mismo login (con límite de intentos y auditoría) que el
+    portal, en lugar de su formulario propio sin protección (ADR-073)."""
+    if request.user.is_authenticated:  # sin is_staff: evita el bucle admin ↔ login
+        raise PermissionDenied
+    return redirect_to_login(request.GET.get("next") or reverse("admin:index"))
 
 
 @login_required

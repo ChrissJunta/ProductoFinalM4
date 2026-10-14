@@ -40,6 +40,8 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "apps.accounts.middleware.SessionIdleTimeoutMiddleware",
+    "apps.accounts.middleware.ForcePasswordChangeMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
@@ -90,11 +92,26 @@ LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "accounts:role_redirect"
 LOGOUT_REDIRECT_URL = "accounts:login"
 
+# Política de contraseñas (ADR-071): 10+ caracteres, con letras y números, no común,
+# no parecida a los datos del usuario y no solo numérica.
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 10},
+    },
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {"NAME": "apps.accounts.validators.LettersAndDigitsValidator"},
+]
+
+# Argon2id como algoritmo principal (ADR-071). Los hashes PBKDF2 existentes siguen siendo
+# válidos y se migran a Argon2 de forma transparente en el siguiente login.
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.ScryptPasswordHasher",
 ]
 
 # Internacionalización
@@ -185,7 +202,13 @@ if TRUSTED_PROXY_COUNT:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 SECURE_REFERRER_POLICY = "same-origin"
-SESSION_COOKIE_AGE = 8 * 60 * 60  # jornada laboral
+SESSION_COOKIE_AGE = 8 * 60 * 60  # duración máxima absoluta: jornada laboral
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # no deja sesiones abiertas en equipos compartidos
+SESSION_IDLE_TIMEOUT = env.int("SESSION_IDLE_TIMEOUT_MINUTES", default=30) * 60  # 0 = sin límite
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_HTTPONLY = True
+# Ruta del admin de Django configurable (ADR-073): reduce el escaneo automático de /admin/.
+ADMIN_URL = env("DJANGO_ADMIN_URL", default="admin/").strip("/") + "/"
 
 # WhatsApp (SPEC §35, ADR-049): «simulated» registra la salida sin enviarla (sin acceso a
 # Meta Developer); «cloud» usa Meta WhatsApp Cloud API con las credenciales de abajo.

@@ -3,9 +3,9 @@
 Requisitos (fuera de requirements, solo para esta verificación):
     pip install playwright && playwright install chromium
 
-Uso, con la base recién preparada (python manage.py seed_demo) y el servidor
-corriendo (python manage.py runserver):
-    python scripts/e2e_demo.py salida_e2e/
+Uso, con la base recién preparada con una contraseña común para los usuarios demo
+(python manage.py seed_demo --password <clave>) y el servidor corriendo:
+    E2E_PASSWORD=<clave> python scripts/e2e_demo.py salida_e2e/
 
 Variables opcionales: E2E_BASE_URL (por defecto http://127.0.0.1:8000) y
 E2E_CHROMIUM (ruta a un Chromium ya instalado).
@@ -19,7 +19,7 @@ from pathlib import Path
 from playwright.sync_api import expect, sync_playwright
 
 BASE = os.environ.get("E2E_BASE_URL", "http://127.0.0.1:8000")
-PWD = "Demo-2026!"
+PWD = os.environ["E2E_PASSWORD"]  # la de `seed_demo --password` (ADR-072)
 OUT = Path(sys.argv[1] if len(sys.argv) > 1 else "salida_e2e")
 OUT.mkdir(exist_ok=True)
 CHROME = os.environ.get("E2E_CHROMIUM")  # None = el Chromium de Playwright

@@ -31,6 +31,11 @@ class User(AbstractUser):
         "identificador institucional", max_length=64, blank=True, default=""
     )
     source = models.CharField("origen", max_length=16, choices=Source.choices, default=Source.LOCAL)
+    must_change_password = models.BooleanField(
+        "debe cambiar la contraseña",
+        default=False,
+        help_text="Obliga a cambiar la contraseña en el próximo ingreso (contraseña temporal).",
+    )
 
     class Meta:
         verbose_name = "usuario"
