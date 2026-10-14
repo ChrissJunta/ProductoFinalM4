@@ -23,7 +23,7 @@ pip install -r requirements-dev.txt
 cp .env.example .env                 # poner DJANGO_SECRET_KEY; credenciales ya coinciden
 
 python manage.py migrate
-python manage.py seed_demo           # usuarios y tickets de ejemplo (solo desarrollo)
+python manage.py seed_demo           # usuarios y tickets demo; muestra las contraseñas UNA vez
 python manage.py runserver
 ```
 
@@ -75,7 +75,8 @@ python manage.py seed_demo
 python manage.py runserver
 ```
 
-Abrir http://127.0.0.1:8000/ (usuarios abajo, contraseña `Demo-2026!`). Las siguientes veces basta:
+Abrir http://127.0.0.1:8000/ con los usuarios y contraseñas que imprimió `seed_demo` (ver
+«Seguridad de accesos»). Las siguientes veces basta:
 `cd C:\cursos\ProductoFinalM4`, `.venv\Scripts\activate`, `python manage.py runserver`.
 
 **Errores frecuentes**
@@ -91,7 +92,8 @@ Abrir http://127.0.0.1:8000/ (usuarios abajo, contraseña `Demo-2026!`). Las sig
 
 ## Cómo verificar el MVP
 
-`seed_demo` crea un usuario por rol, todos con contraseña **`Demo-2026!`**:
+`seed_demo` crea un usuario por rol, cada uno con una **contraseña aleatoria distinta** que
+se imprime una sola vez (si se pierde: `python manage.py seed_demo --rotate`):
 
 | Usuario | Rol | Qué probar |
 |---|---|---|
@@ -169,7 +171,7 @@ En producción el worker corre por cron: `* * * * * python manage.py process_int
 ### Carga y benchmark (opcional)
 
 ```bash
-python scripts/load_test.py --base http://127.0.0.1:8000 --threads 10 --requests 50
+LOAD_PASSWORD=<clave de seed_demo --password> python scripts/load_test.py --threads 10 --requests 50
 python manage.py evaluate_intents --agent     # accuracy y latencia P50/P95/P99 del agente
 python manage.py run_sga_mock --port 8099     # SGA simulado (INSTITUTIONAL_PROVIDER=sga, SGA_BASE_URL=…)
 ```
@@ -180,10 +182,35 @@ Para producción: `DJANGO_SETTINGS_MODULE=config.settings.prod` (exige clave sec
 
 ```bash
 pip install playwright && playwright install chromium   # solo para esta verificación
-python manage.py seed_demo                                # sobre una base recién migrada
+python manage.py seed_demo --password Prueba-E2E-2026     # sobre una base recién migrada
 python manage.py runserver &
-python scripts/e2e_demo.py salida_e2e/                    # 12 pasos con los 5 roles + capturas
+E2E_PASSWORD=Prueba-E2E-2026 python scripts/e2e_demo.py salida_e2e/   # 12 pasos, 5 roles
 ```
+
+## Seguridad de accesos
+
+| Protección | Detalle |
+|---|---|
+| Contraseñas | Mínimo 10 caracteres, con letras y números, no comunes ni parecidas al usuario. Hash **Argon2id** (las PBKDF2 antiguas se migran solas al ingresar). |
+| Usuarios demo | Sin contraseña publicada: `seed_demo` genera una aleatoria por usuario. `seed_demo --rotate` las regenera. |
+| Contraseña temporal | `python manage.py reset_password <usuario>` (o crear/cambiar la clave de otro desde el admin) obliga a cambiarla en el siguiente ingreso. Cada usuario la cambia en `/accounts/password/`. |
+| Fuerza bruta | 5 fallos por cuenta y 20 por IP cada 15 min → bloqueo temporal (HTTP 429). El login de `/admin/` usa el mismo formulario protegido. |
+| Sesión | Se cierra tras `SESSION_IDLE_TIMEOUT_MINUTES` (30) de inactividad, al cerrar el navegador y como máximo a las 8 h. Cambiar la contraseña cierra las demás sesiones. |
+| Auditoría | Ingresos, fallos, bloqueos, salidas y cambios de contraseña quedan en el registro de auditoría con IP (nunca la contraseña). |
+| Admin | Ruta configurable con `DJANGO_ADMIN_URL` (p. ej. `gestion-7k2/`). |
+| Revisión | `python manage.py check --deploy` avisa si queda un usuario demo con la contraseña antigua `Demo-2026!` o el admin en `/admin/`. |
+
+**Antes de compartir el sistema con otras personas** (red local o túnel):
+
+```bash
+pip install -r requirements.txt        # incluye argon2-cffi
+python manage.py migrate
+python manage.py seed_demo --rotate    # contraseñas nuevas; entregar a cada quien solo la suya
+python manage.py check --deploy        # sin avisos accounts.W001/W002
+```
+
+y en `.env`: una `DJANGO_SECRET_KEY` propia (comando en `.env.example`), `DJANGO_DEBUG=False`
+y `DJANGO_ADMIN_URL` distinta de `admin/`.
 
 ## Pruebas
 
