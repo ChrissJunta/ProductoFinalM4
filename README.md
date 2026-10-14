@@ -10,23 +10,84 @@ Backend: Claude · Frontend (`templates/`, `static/`): ChatGPT.
 - Python 3.12+
 - PostgreSQL 16
 
-## Puesta en marcha
+## Puesta en marcha (resumen, Linux/macOS)
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate            # Windows: .venv\Scripts\activate
-pip install -r requirements-dev.txt
-cp .env.example .env                 # ajustar credenciales de PostgreSQL y TIME_ZONE
+# usuario y base de PostgreSQL (una vez)
+sudo -u postgres psql -c "CREATE ROLE helpdesk WITH LOGIN PASSWORD 'helpdesk' CREATEDB;"
+sudo -u postgres createdb -O helpdesk helpdesk
 
-# crear la base de datos (una vez)
-createdb -U postgres -O helpdesk helpdesk
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env                 # poner DJANGO_SECRET_KEY; credenciales ya coinciden
 
 python manage.py migrate
 python manage.py seed_demo           # usuarios y tickets de ejemplo (solo desarrollo)
 python manage.py runserver
 ```
 
-Abrir http://127.0.0.1:8000/ e iniciar sesión.
+Abrir http://127.0.0.1:8000/ e iniciar sesión. En Windows, ver la sección siguiente.
+
+## Instalación desde cero (Windows + pgAdmin)
+
+Requisitos: PostgreSQL 16 con pgAdmin, Python 3.12+ y Git (`python --version`, `git --version`).
+
+**1. Usuario y base de datos (pgAdmin).** Servers → PostgreSQL → clic derecho en la base
+`postgres` → **Query Tool**. Ejecutar **una sentencia a la vez** (F5); juntas fallan con
+«CREATE DATABASE no puede ser ejecutado dentro de un bloque de transacción»:
+
+```sql
+CREATE ROLE helpdesk WITH LOGIN PASSWORD 'helpdesk' CREATEDB;
+```
+```sql
+CREATE DATABASE helpdesk OWNER helpdesk ENCODING 'UTF8';
+```
+
+Si el usuario ya existía con otra clave: `ALTER ROLE helpdesk WITH LOGIN PASSWORD 'helpdesk' CREATEDB;`.
+Si la base se creó con otro dueño: `ALTER DATABASE helpdesk OWNER TO helpdesk;`.
+
+**2. Código y dependencias** (cmd):
+
+```bat
+cd C:\cursos
+git clone https://github.com/ChrissJunta/ProductoFinalM4.git
+cd ProductoFinalM4
+python -m venv .venv
+.venv\Scripts\activate
+python -m pip install --upgrade pip
+pip install -r requirements-dev.txt
+copy .env.example .env
+notepad .env
+```
+
+**3. `.env`.** Cambiar solo `DJANGO_SECRET_KEY=` por un texto largo cualquiera; las credenciales
+`POSTGRES_*` ya coinciden con el paso 1 (ajustar `POSTGRES_PORT` si no es 5432).
+Para usar el LLM real (Qwen3-8B, solo en la red de la universidad): `LLM_PROVIDER=openai_compat`
+y quitar el `#` de `LLM_BASE_URL` y `LLM_FALLBACK_PROVIDER`. Cada línea debe empezar en la
+clave: sin espacios delante ni comentarios al final.
+
+**4. Tablas, datos demo y servidor:**
+
+```bat
+python manage.py migrate
+python manage.py seed_demo
+python manage.py runserver
+```
+
+Abrir http://127.0.0.1:8000/ (usuarios abajo, contraseña `Demo-2026!`). Las siguientes veces basta:
+`cd C:\cursos\ProductoFinalM4`, `.venv\Scripts\activate`, `python manage.py runserver`.
+
+**Errores frecuentes**
+
+| Mensaje | Causa y solución |
+|---|---|
+| `la autentificación password falló para el usuario «helpdesk»` | El usuario no existe o tiene otra clave: paso 1 (`CREATE ROLE` / `ALTER ROLE`). |
+| `CREATE DATABASE no puede ser ejecutado dentro de un bloque de transacción` | Se ejecutaron varias sentencias juntas: una por vez. |
+| `Invalid line: LLM_...` | Línea del `.env` con espacio inicial o comentario al final. |
+| `connection refused` | El servicio de PostgreSQL no está iniciado o el puerto no es 5432. |
+| `permission denied for schema public` | La base no es del usuario `helpdesk`: `ALTER DATABASE helpdesk OWNER TO helpdesk;`. |
+| `'python' no se reconoce…` | Python no está en el PATH (reinstalar marcando «Add python.exe to PATH»). |
 
 ## Cómo verificar el MVP
 
