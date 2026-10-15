@@ -222,3 +222,42 @@ WHATSAPP_LINK_CODE_MINUTES = 10
 INTEGRATION_MAX_ATTEMPTS = 5  # reintentos con backoff exponencial (SPEC §38.1)
 WHATSAPP_LINK_MAX_FAILURES = 5  # códigos fallidos por número y hora (§35.1)
 WHATSAPP_LINK_GLOBAL_MAX_FAILURES = 100  # por hora, sumando todos los números
+
+# Logs (ADR-076). La traza del agente sale por `apps.ai.agent.trace`: una línea por nodo y
+# un resumen por ejecución. `LOG_FILE` añade un archivo rotativo (p. ej. logs/agent.log).
+AGENT_LOG_LEVEL = env("AGENT_LOG_LEVEL", default="INFO")
+LOG_FILE = env("LOG_FILE", default="")
+if LOG_FILE:
+    LOG_FILE = Path(LOG_FILE) if Path(LOG_FILE).is_absolute() else BASE_DIR / LOG_FILE
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"},
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "simple"},
+        **(
+            {
+                "file": {
+                    "class": "logging.handlers.RotatingFileHandler",
+                    "filename": LOG_FILE,
+                    "maxBytes": 5 * 1024 * 1024,
+                    "backupCount": 3,
+                    "encoding": "utf-8",
+                    "formatter": "simple",
+                }
+            }
+            if LOG_FILE
+            else {}
+        ),
+    },
+    "loggers": {
+        "apps": {
+            "handlers": ["console", *(["file"] if LOG_FILE else [])],
+            "level": AGENT_LOG_LEVEL,
+            "propagate": False,
+        },
+    },
+}

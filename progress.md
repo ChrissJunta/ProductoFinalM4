@@ -297,6 +297,7 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-073 | 2026-10-14 | El login del admin de Django redirige al login del portal (límite de intentos y auditoría); ruta del admin configurable con `DJANGO_ADMIN_URL`. Usuario autenticado sin `is_staff` → 403 (evita el bucle admin ↔ login) | `/admin/login/` no tenía límite de intentos | `config/urls.py`, `accounts.views.admin_login` |
 | ADR-074 | 2026-10-14 | Sesión: cierre por inactividad (`SESSION_IDLE_TIMEOUT_MINUTES`, 30 por defecto; marca reescrita como máximo una vez por minuto), al cerrar el navegador y como máximo 8 h; `SameSite=Lax`, cookie CSRF `HttpOnly`. Auditoría de accesos en `AuditLog` (`entity_type=accounts.user`): `LOGIN`, `LOGIN_FAILED`, `LOGIN_LOCKED`, `LOGOUT`, `PASSWORD_CHANGE`, `PASSWORD_RESET` con IP y user agent, nunca la contraseña | Equipos compartidos en laboratorio; trazabilidad de accesos | `accounts.middleware`, `accounts.signals` |
 | ADR-075 | 2026-10-14 | `check --deploy` propio: `accounts.W001` si un usuario demo activo conserva `Demo-2026!`; `accounts.W002` si el admin sigue en `/admin/` | Detectar configuraciones inseguras antes de exponer el sistema | `accounts.checks` |
+| ADR-076 | 2026-10-15 | **Trazabilidad del agente:** cada nodo del grafo se envuelve con `traced` (mismos nodos y aristas, sin cambio de `GRAPH_VERSION`): mide la duración, recoge las llamadas al LLM de `AIService` vía `contextvars`, añade un paso resumido a `state["trace"]` (persistido en `AIDecision.trace` + `duration_ms`) y escribe una línea en el logger `apps.ai.agent.trace`. Se guarda el mensaje recortado (300) y datos de decisión; nunca el texto de la respuesta. Consulta: `/ai/traces/` (Supervisor/Administrador), `agent_trace`, `LOG_FILE` | Solicitud del responsable: ver en logs cómo el agente procesa cada petición. La skill pedida (`trace-llm-langgraph`) no existe en el catálogo; se implementó sin servicios externos (sin LangSmith/Langfuse: los datos no salen de la red) | `ai/agent/trace.py`, `ai/traces.py`, `config/settings/base.py` (`LOGGING`) |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -802,6 +803,17 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Contexto:** `form` (`PasswordChangeForm`: `old_password`, `new_password1`, `new_password2`; `new_password1.help_text` trae la política), `forced` (bool: contraseña temporal, mostrar aviso «debes cambiarla para continuar»).
 **POST** (CSRF): válido → 302 a `accounts:role_redirect` con mensaje «Contraseña actualizada.» (la sesión actual sigue; las demás se cierran). Inválido → 200 con errores por campo.
 **Comportamiento global:** con `forced`, cualquier otra página redirige aquí (solo se permiten esta vista, `accounts:logout` y estáticos), así que el menú debe ofrecer «Cerrar sesión». Sugerido: enlace «Cambiar contraseña» en el menú de usuario. Mensaje `info` «Tu sesión se cerró por inactividad.» en el login tras el cierre por inactividad. El login bloqueado (429) muestra hoy «Usuario o contraseña incorrectos.»: sugerido mostrar el texto de `form.non_field_errors` cuando el estado sea 429.
+**Aprobado:** Sí
+
+### CONTRACT-020 — Trazas del agente
+**Fecha:** 2026-10-15
+**Origen:** BACK (ADR-076) → consumidor FRONT
+**Permisos:** Supervisor y Administrador (otro rol → 403; sin sesión → login). Enlace «Trazas IA» ya agregado al menú para esos roles.
+**`ai:trace_list`** → `/ai/traces/` · GET · plantilla `ai/trace_list.html` (funcional del backend, refinable). Contexto: `form` (`TraceFilterForm`: `q`, `level`, `channel`, `source`, `status` ∈ pending|errors|llm|ticket, `date_from`, `date_to`), `page_obj` (25 por página), `querystring` (filtros sin `page`), `runs` (lista de dict: `id`, `created_at`, `user`, `channel`, `intent_code`, `autonomy_level`, `classification_source`, `confidence`, `duration_ms`, `steps`, `used_llm`, `llm_calls`, `has_errors`, `pending_review`, `ticket_code`, `message`).
+**`ai:trace_detail`** → `/ai/traces/<id>/` · GET · plantilla `ai/trace_detail.html`. Contexto: `decision` (AIDecision: `thread_id`, `graph_version`, `raw_output`, `errors`, `node_path`), `run` (mismo dict del listado), `steps` (lista: `index`, `node`, `stage` ∈ percepcion|razonamiento|decision|accion|respuesta|revision|error|otro, `description`, `at`, `ms`, `offset_ms`, `data` (dict de decisión: intent, confidence, autonomy_level, tool_calls, errors, response_chars, ticket_code…; en el primer paso `message` y `channel`), `llm_calls` (lista: provider, model, operation, latency_ms, input_tokens, output_tokens, success, error_code), `has_error`), `llm_calls`, `llm_ms`, `llm_failures`, `nodes_ms`, `has_trace` (False en ejecuciones anteriores a ADR-076: mostrar `decision.node_path`), `review` (`pending`, `accepted`, `corrected`, `corrected_by`, `reviewed_at`, `corrected_to`). Id inexistente o que no es ejecución del agente → 404.
+**`ai:trace_json`** → `/ai/traces/<id>/json/` · GET · descarga JSON (`traza-<id>.json`).
+**Detalle del ticket** (`helpdesk:ticket_detail`): nuevo `agent_traces` (lista de `id`, `created_at`, `autonomy_level`, `intent_code`; vacía salvo Supervisor/Administrador) para enlazar a `ai:trace_detail`.
+**Sugerencias FRONT:** línea de tiempo visual por etapa (colores por `stage`), barra de duración proporcional a `ms`, resaltar `has_error`, `data` como chips legibles en lugar de `<code>`, enlace «Ver traza» en el detalle del ticket usando `agent_traces`.
 **Aprobado:** Sí
 
 ### CONTRACT-FRONT-005 — Pantallas administrativas FE-T09 — Respondida (CONTRACT-016)
@@ -2141,3 +2153,9 @@ Suite PostgreSQL/E2E completo y revisión de las pantallas restantes en el entor
 - Navegador local sobre contextos sintéticos: detalle con línea de tiempo Web/WhatsApp, asistente y cambio obligatorio de contraseña revisados visualmente; no se efectuaron escrituras ni autenticación en una BD real local. Se conservan las capturas fuera del checkout.
 - Este resultado de CI actualiza el pendiente de suite PostgreSQL del registro inicial. La revisión E2E completa del nuevo diseño, axe y UAT siguen pendientes; no se extrapolan a ellas las pruebas backend ni se marca DONE.
 - Estado REVIEW. Sin cambios manuales BACK ni merge a main. Esta entrada posterior modifica solamente coordinación, no el código validado.
+
+## 2026-10-15 — Claude (BACKEND) / Trazabilidad del agente (ADR-076, CONTRACT-020)
+
+- Solicitud del responsable: visualizar en logs cómo el agente procesa cada petición y poder consultarlo; la skill `trace-llm-langgraph` no existe en el catálogo disponible, se implementó en el proyecto.
+- Traza por nodo (duración, decisión, herramientas, llamadas al LLM, errores, revisión humana) en `AIDecision.trace`; logs `apps.ai.agent.trace` en consola y archivo opcional; `/ai/traces/` con filtros, detalle y JSON; comando `agent_trace`.
+- Plantillas `ai/trace_list.html` y `ai/trace_detail.html` funcionales con las clases del rediseño UTI; **FRONT puede refinarlas** según CONTRACT-020.

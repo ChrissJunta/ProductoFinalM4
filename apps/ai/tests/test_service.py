@@ -249,7 +249,8 @@ def test_ai_migrations_are_reversible_with_existing_decisions():
         operation="AGENT_RUN", prompt_version=AIService.prompt_for("CLASSIFY")
     )
     call_command("migrate", "ai", "0001", verbosity=0)
-    assert AIDecision.objects.get().prompt_version is None  # la decisión se conserva
+    # la decisión se conserva (solo esa columna: el esquema revertido no tiene los campos nuevos)
+    assert AIDecision.objects.values_list("prompt_version", flat=True).get() is None
     call_command("migrate", "ai", "zero", verbosity=0)
     call_command("migrate", verbosity=0)
     assert AIPromptVersion.objects.count() == 4 and AIModelConfig.objects.count() == 8

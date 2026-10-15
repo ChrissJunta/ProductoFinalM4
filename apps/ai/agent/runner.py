@@ -7,6 +7,7 @@ humana pendiente (CR-008). El hilo pausado se reanuda con `resume_agent`.
 """
 
 import logging
+import time
 import uuid
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -29,6 +30,7 @@ from apps.helpdesk.tickets import TicketService
 from ..models import AIDecision, Operation
 from ..service import AIService
 from .graph import GRAPH_VERSION, build_graph
+from .trace import log_run
 
 logger = logging.getLogger(__name__)
 
@@ -133,16 +135,20 @@ def run_agent(*, text, user=None, channel=Ticket.Channel.WEB, is_verified=True):
         "tool_calls": [],
         "errors": [],
         "node_path": [],
+        "trace": [],
         "attempts": 0,
     }
+    start = time.monotonic()
     try:
         state = get_graph().invoke(initial, _config(thread_id))
     except Exception as exc:  # error del grafo, límite de pasos, bug: la solicitud sigue
         logger.exception("Fallo del agente en %s", thread_id)
         state = _fallback(initial, user, exc)
+    duration_ms = (time.monotonic() - start) * 1000
     pending = bool(state.get("__interrupt__"))
+    log_run(state, duration_ms, pending)
     ticket = Ticket.objects.filter(pk=state.get("ticket_id")).first()
-    decision = _record(state, user, ticket, pending)
+    decision = _record(state, user, ticket, pending, duration_ms)
     if user is not None:
         conversation = get_conversation(user, channel)
         conversation.active_intent = state.get("intent") or ""
@@ -173,6 +179,18 @@ def _fallback(initial, user, exc):
         "requires_human": True,
         "errors": [f"{exc.__class__.__name__}: {exc}"[:300]],
         "node_path": ["agent_error"],
+        "trace": [
+            {
+                "node": "agent_error",
+                "at": timezone.now().isoformat(),
+                "ms": 0,
+                "data": {
+                    "message": initial["message"][:300],
+                    "channel": initial["channel"],
+                    "errors": [f"{exc.__class__.__name__}: {exc}"[:300]],
+                },
+            }
+        ],
     }
     if user is None:
         from apps.automation.responses import LOGIN_FOR_TICKET
@@ -203,7 +221,7 @@ def _fallback(initial, user, exc):
     }
 
 
-def _record(state, user, ticket, pending):
+def _record(state, user, ticket, pending, duration_ms=None):
     """AIDecision por ejecución con versión del grafo y recorrido (SPEC §43, §46A.7)."""
     used_llm = "classify_llm" in (state.get("node_path") or [])
     confidence = state.get("confidence")
@@ -232,6 +250,8 @@ def _record(state, user, ticket, pending):
         node_path=list(state.get("node_path") or []),
         thread_id=state["thread_id"],
         errors=list(state.get("errors") or []),
+        trace=list(state.get("trace") or []),
+        duration_ms=round(duration_ms) if duration_ms is not None else None,
     )
 
 
@@ -299,6 +319,7 @@ def resume_agent(ticket, *, actor, action, intent_code=None):
             Command(resume={"action": action, "intent": intent_code, "by": actor.pk}), config
         )
         decision.node_path = list(state.get("node_path") or decision.node_path)
+        decision.trace = list(state.get("trace") or decision.trace)
     else:  # checkpoint perdido (p. ej. memoria tras reinicio): la decisión igual queda aplicada
         decision.errors = [*decision.errors, "Hilo no disponible para reanudar."]
     decision.save()

@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{# Plantilla funcional del backend (CONTRACT-020): el frontend puede refinar su diseño. #}
+{% load tz %}
+{% block title %}Traza #{{ run.id }}{% endblock %}
+{% block content %}
+<p class="mb-3"><a href="{% url 'ai:trace_list' %}">← Volver a las trazas</a></p>
+<div class="mesa-hero mb-4">
+  <p class="mesa-eyebrow mb-2">Ejecución #{{ run.id }} · {{ run.created_at|localtime|date:'d/m/Y H:i:s' }}</p>
+  <h1>{{ run.intent_code|default:'Sin intención' }} <span class="badge text-bg-{% if run.autonomy_level == 'N0' or run.autonomy_level == 'N1' %}success{% elif run.autonomy_level == 'N4' %}danger{% else %}warning{% endif %} align-middle">{{ run.autonomy_level|default:'—' }}</span></h1>
+  <p class="text-secondary mb-0">{{ run.user.username|default:'Anónimo' }} · canal {{ run.channel }} · origen {{ run.classification_source|default:'—' }}{% if run.confidence is not None %} · confianza {{ run.confidence }}{% endif %}{% if run.ticket_code %} · <a href="{% url 'helpdesk:ticket_detail' run.ticket_code %}">ticket {{ run.ticket_code }}</a>{% endif %}</p>
+</div>
+<dl class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="card card-body h-100"><dt class="small text-secondary">Duración total</dt><dd class="h4 mb-0">{% if run.duration_ms is not None %}{{ run.duration_ms }} ms{% else %}—{% endif %}</dd></div></div>
+  <div class="col-6 col-md-3"><div class="card card-body h-100"><dt class="small text-secondary">Nodos</dt><dd class="h4 mb-0">{{ steps|length }}</dd></div></div>
+  <div class="col-6 col-md-3"><div class="card card-body h-100"><dt class="small text-secondary">Llamadas al LLM</dt><dd class="h4 mb-0">{{ llm_calls|length }}{% if llm_failures %} <span class="small text-danger">({{ llm_failures }} fallidas)</span>{% endif %}</dd></div></div>
+  <div class="col-6 col-md-3"><div class="card card-body h-100"><dt class="small text-secondary">Tiempo en el LLM</dt><dd class="h4 mb-0">{{ llm_ms }} ms</dd></div></div>
+</dl>
+{% if run.message %}<section class="card card-body mb-4" aria-labelledby="msg-title"><h2 id="msg-title" class="h6">Mensaje recibido</h2><p class="mb-0 mesa-preserve-lines">{{ run.message }}</p></section>{% endif %}
+<section aria-labelledby="steps-title" class="mb-4">
+  <h2 id="steps-title" class="h5">Recorrido nodo por nodo</h2>
+  {% if has_trace %}
+  <ol class="list-unstyled">
+    {% for step in steps %}
+    <li class="card card-body mb-2 {% if step.has_error %}border-danger{% endif %}">
+      <div class="d-flex flex-wrap justify-content-between gap-2">
+        <div><span class="badge text-bg-light border">{{ step.index }}</span> <code>{{ step.node }}</code> <span class="badge text-bg-secondary">{{ step.stage }}</span></div>
+        <div class="small text-secondary">+{{ step.offset_ms }} ms · {{ step.ms }} ms</div>
+      </div>
+      <p class="small mb-2 mt-1">{{ step.description }}</p>
+      {% if step.data %}<dl class="row small mb-0">{% for key, value in step.data.items %}{% if key != 'message' %}<dt class="col-sm-4 col-lg-3 text-secondary">{{ key }}</dt><dd class="col-sm-8 col-lg-9 mb-1"><code>{{ value }}</code></dd>{% endif %}{% endfor %}</dl>{% endif %}
+      {% for call in step.llm_calls %}<div class="small mt-2 {% if not call.success %}text-danger{% endif %}">LLM {{ call.provider }}/{{ call.model }} · {{ call.operation }} · {{ call.latency_ms }} ms · tokens {{ call.input_tokens }}→{{ call.output_tokens }} · {% if call.success %}ok{% else %}error {{ call.error_code }}{% endif %}</div>{% endfor %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="text-secondary">Esta ejecución es anterior a la trazabilidad por nodo; solo se conserva el recorrido: <code>{{ decision.node_path|join:' → ' }}</code></p>
+  {% endif %}
+</section>
+{% if decision.errors %}<section class="card card-body border-danger mb-4" aria-labelledby="err-title"><h2 id="err-title" class="h6 text-danger">Errores</h2><ul class="mb-0">{% for e in decision.errors %}<li>{{ e }}</li>{% endfor %}</ul></section>{% endif %}
+{% if decision.raw_output %}<section class="card card-body mb-4" aria-labelledby="raw-title"><h2 id="raw-title" class="h6">Salida cruda del LLM</h2><pre class="small mb-0 mesa-preserve-lines">{{ decision.raw_output }}</pre></section>{% endif %}
+<section class="card card-body mb-4" aria-labelledby="rev-title"><h2 id="rev-title" class="h6">Revisión humana</h2>
+  {% if review.pending %}<p class="mb-0">Pendiente{% if run.ticket_code %}: se decide en el <a href="{% url 'helpdesk:ticket_detail' run.ticket_code %}">detalle del ticket</a>{% endif %}.</p>
+  {% elif review.accepted is None %}<p class="mb-0 text-secondary">No requirió revisión.</p>
+  {% else %}<p class="mb-0">{% if review.corrected %}Corregida a <code>{{ review.corrected_to }}</code>{% elif review.accepted %}Aceptada{% else %}Rechazada{% endif %} por {{ review.corrected_by.username|default:'—' }} el {{ review.reviewed_at|localtime|date:'d/m/Y H:i' }}.</p>{% endif %}
+</section>
+<p class="small text-secondary">Hilo <code>{{ decision.thread_id }}</code> · grafo {{ decision.graph_version|default:'—' }} · <a href="{% url 'ai:trace_json' run.id %}">Descargar JSON</a></p>
+{% endblock %}

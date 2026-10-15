@@ -169,6 +169,10 @@ class AIDecision(models.Model):
     node_path = models.JSONField("recorrido de nodos", default=list, blank=True)
     thread_id = models.CharField("hilo", max_length=64, blank=True, default="", db_index=True)
     errors = models.JSONField("errores", default=list, blank=True)
+    trace = models.JSONField(
+        "traza", default=list, blank=True, help_text="Pasos del agente por nodo (ADR-076)."
+    )
+    duration_ms = models.PositiveIntegerField("duración (ms)", null=True, blank=True)
     created_at = models.DateTimeField("creada", auto_now_add=True, db_index=True)
 
     class Meta:
