@@ -42,7 +42,7 @@ a { text-underline-offset: .2em; }
 .skip-link { position: absolute; top: -6rem; left: 1rem; z-index: 100; padding: .8rem 1rem; background: #fff; color: #2c1547; border-radius: .5rem; }
 .skip-link:focus { top: 1rem; }
 :focus-visible { outline: 3px solid #2c1547; outline-offset: 3px; }
-.card { border: 1px solid #e2d9ee !important; border-radius: 1rem; background: #fff; color: #2c1547; box-shadow: var(--mesa-shadow); overflow-wrap: anywhere; }
+.card { --bs-card-border-color:#e2d9ee; border-radius: 1rem; background: #fff; color: #2c1547; box-shadow: var(--mesa-shadow); overflow-wrap: anywhere; }
 .card-body { padding: 1.6rem; }
 .card h2 { margin-bottom: 1rem; }
 .card h3 { margin-top: 1.25rem; }
@@ -132,3 +132,68 @@ a { text-underline-offset: .2em; }
   .mesa-timeline-entry::before { left:-1.4rem; }
 }
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto !important; transition:none !important; } }
+
+/* Refinamiento de pantallas: mantiene Bootstrap y los contratos de cada vista. */
+.mesa-page-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.5rem; padding-left:1rem; border-left:4px solid var(--mesa-accent); }
+.mesa-page-heading p { max-width:52rem; }
+.mesa-filters { padding:1.25rem; }
+.mesa-filter-advanced { margin-top:.5rem; border-top:1px solid var(--bs-border-color); padding-top:1rem; }
+.mesa-filter-advanced summary { cursor:pointer; font-weight:650; padding:.5rem 0; }
+.mesa-filter-advanced summary::marker { color:var(--bs-body-color); }
+.mesa-filter-advanced[open] summary { margin-bottom:1rem; }
+.mesa-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 1.25rem; }
+.mesa-form-grid > .alert { grid-column:1/-1; }
+.mesa-ticket-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem 1.5rem; padding:1.25rem; background:#f4f0f9; border-radius:.75rem; }
+.mesa-ticket-summary dt { color:#6e5987; font-size:.8rem; margin-bottom:.35rem; }
+.mesa-ticket-summary dd { margin:0; font-weight:550; }
+.mesa-ticket-summary .mesa-summary-sla { grid-column:span 2; }
+.mesa-detail-jumps { display:flex; flex-wrap:wrap; gap:.75rem; margin:1rem 0; }
+.mesa-detail-jumps a { font-size:.9rem; }
+.mesa-timeline-system { background:#fff; border-style:dashed; }
+.mesa-timeline-meta { margin-bottom:.5rem; }
+.mesa-answer { background:#f4f0f9; border-radius:.75rem; padding:1.25rem; border-left:3px solid #2c1547; }
+.mesa-question { padding:0 0 1rem; border-bottom:1px solid var(--bs-border-color); margin-bottom:1rem; }
+.mesa-examples { background:#eae3f4; border-radius:.75rem; padding:1.25rem; }
+.mesa-examples .btn { background:#fff; }
+.mesa-examples .btn:hover { background:#2c1547; }
+.mesa-metric-stats { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.mesa-metric-secondary { display:flex; flex-wrap:wrap; gap:.5rem 1.5rem; padding:1rem 0; }
+.mesa-metric-secondary div { display:flex; gap:.4rem; }
+.mesa-metric-secondary dt { color:#6e5987; font-weight:500; }
+.mesa-metric-secondary dd { margin:0; font-weight:700; }
+.mesa-metric-key { font-size:2rem; font-weight:750; margin:.5rem 0 1rem; }
+.mesa-metric-key small { display:block; font-size:.8rem; font-weight:500; color:#6e5987; }
+.mesa-status-list { display:flex; flex-wrap:wrap; gap:.5rem; list-style:none; padding:0; }
+.mesa-status-list li { padding:.45rem .7rem; border-radius:.5rem; background:#eae3f4; }
+.mesa-catalog-card { display:flex; flex-direction:column; }
+.mesa-catalog-card a { text-decoration:none; }
+.mesa-catalog-card a:hover { text-decoration:underline; }
+.mesa-catalog-count { font-size:1.8rem; font-weight:750; margin:.5rem 0; }
+.mesa-link-code { font-size:clamp(1.8rem,6vw,2.5rem); letter-spacing:.15em; font-weight:750; display:block; padding:1rem; margin:.75rem 0; background:#eae3f4; border:1px dashed #6e5987; border-radius:.75rem; width:fit-content; max-width:100%; overflow-wrap:anywhere; }
+.mesa-table-tickets th:first-child { min-width:14rem; }
+.mesa-table-tickets td { min-width:7rem; }
+.mesa-table-tickets td:last-child { min-width:11rem; }
+.mesa-table-tickets tbody tr:hover { --bs-table-bg:#f4f0f9; }
+@media (min-width:992px) {
+  .mesa-table-tickets > :not(caption) > * > * { padding:.85rem; }
+}
+@media (max-width:991.98px) {
+  .mesa-metric-stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .mesa-ticket-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:575.98px) {
+  .mesa-login-story { padding:1rem 1.5rem; }
+  .mesa-login-story h2 { font-size:1.25rem; margin:.5rem 0; }
+  .mesa-login-story h2 br { display:none; }
+  .mesa-login-story p { font-size:.85rem; }
+  .mesa-login-panel .login-logo { display:none; }
+  .mesa-page-heading { padding-left:.75rem; }
+  .mesa-form-grid,.mesa-ticket-summary { grid-template-columns:1fr; }
+  .mesa-ticket-summary .mesa-summary-sla { grid-column:auto; }
+  .mesa-ticket-summary { padding:1rem; gap:.75rem; }
+  .mesa-ticket-summary dt { margin-bottom:.15rem; }
+  .mesa-table-tickets > :not(caption) > * > * { padding:.7rem; }
+  .mesa-metric-stats .mesa-stat dd { font-size:1.65rem; }
+  .mesa-metric-stats .mesa-stat { padding:1rem; }
+  .mesa-metric-secondary { flex-direction:column; gap:.5rem; }
+}

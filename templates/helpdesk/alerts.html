@@ -2,8 +2,7 @@
 {% load tz %}
 {% block title %}Alertas y SLA{% endblock %}
 {% block content %}
-<h1 class="h3 mb-2">Alertas y SLA</h1>
-<p class="text-secondary mb-4">Revisa solicitudes por vencer, vencidas y escaladas.</p>
+{% include 'components/page_heading.html' with heading='Alertas y SLA' eyebrow='Prioridades de atención' description='Revisa los vencimientos y accede al ticket para continuar la atención.' only %}
 <section aria-label="Alertas abiertas" class="row g-3 mb-4">
   <div class="col-12 col-md-4"><div class="card h-100 border-warning"><div class="card-body"><h2 class="h6">SLA por vencer</h2><p class="display-6 mb-1" data-count="SLA_WARNING">{{ open_counts.SLA_WARNING }}</p><p class="small text-secondary mb-0">Alertas abiertas</p></div></div></div>
   <div class="col-12 col-md-4"><div class="card h-100 border-danger"><div class="card-body"><h2 class="h6">SLA vencido</h2><p class="display-6 mb-1" data-count="SLA_BREACHED">{{ open_counts.SLA_BREACHED }}</p><p class="small text-secondary mb-0">Alertas abiertas</p></div></div></div>
@@ -38,7 +37,7 @@
     <tbody>
     {% for alert in alerts %}
       <tr>
-        <th scope="row" class="fw-normal"><span class="fw-semibold">{{ alert.ticket.ticket_code }}</span><div>{{ alert.ticket.subject }}</div><div class="d-flex flex-wrap gap-1 mt-2">{% include 'components/ticket_badge.html' with label=alert.ticket.get_status_display only %}{% include 'components/ticket_badge.html' with label=alert.ticket.get_priority_display only %}</div></th>
+        <th scope="row" class="fw-normal"><a class="fw-semibold" href="{% url 'helpdesk:ticket_detail' alert.ticket.ticket_code %}">{{ alert.ticket.ticket_code }}</a><div>{{ alert.ticket.subject }}</div><div class="d-flex flex-wrap gap-1 mt-2">{% include 'components/ticket_badge.html' with label=alert.ticket.get_status_display only %}{% include 'components/ticket_badge.html' with label=alert.ticket.get_priority_display only %}</div></th>
         <td><span class="badge text-wrap {% if alert.severity == 'CRITICAL' %}text-bg-danger{% elif alert.severity == 'WARNING' %}text-bg-warning{% else %}text-bg-info{% endif %}">{{ alert.get_alert_type_display }}</span><p class="small mb-1 mt-2">{{ alert.get_severity_display }}</p><p class="small mb-0">{{ alert.message }}</p></td>
         <td>{{ alert.get_status_display }}</td>
         <td>{{ alert.ticket.assigned_area.name|default:'Sin área asignada' }}</td>

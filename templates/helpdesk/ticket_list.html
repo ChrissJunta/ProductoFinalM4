@@ -2,8 +2,7 @@
 {% load tz %}
 {% block title %}{% if user_role == 'Usuario' %}Mis tickets{% else %}Tickets{% endif %}{% endblock %}
 {% block content %}
-<h1 class="h3 mb-2">{% if user_role == 'Usuario' %}Mis tickets{% else %}Tickets{% endif %}</h1>
-<p class="text-secondary mb-4">Consulta el estado y la última actualización de tus solicitudes autorizadas.</p>
+{% if user_role == 'Usuario' %}{% include 'components/page_heading.html' with heading='Mis tickets' eyebrow='Seguimiento de solicitudes' description='Consulta el estado, las respuestas y la última actualización de tus solicitudes.' only %}{% else %}{% include 'components/page_heading.html' with heading='Tickets' eyebrow='Gestión de atención' description='Consulta y filtra las solicitudes disponibles para tu rol.' only %}{% endif %}
 {% url 'helpdesk:ticket_list' as filter_action %}
 {% include 'components/ticket_filters.html' %}
 {% get_current_timezone as current_timezone %}

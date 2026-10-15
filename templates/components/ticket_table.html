@@ -1,12 +1,12 @@
 {% load tz %}
 <div class="table-responsive bg-white rounded border" role="region" aria-label="Tickets; tabla desplazable horizontalmente" tabindex="0">
-<table class="table align-middle mb-0">
+<table class="table align-middle mb-0 mesa-table-tickets">
   <caption class="caption-top px-3">{{ table_caption|default:"Solicitudes autorizadas · 20 resultados por página" }}</caption>
   <thead class="table-light"><tr><th scope="col">Solicitud</th><th scope="col">Estado</th><th scope="col">Prioridad</th><th scope="col">Categoría</th>{% if user_role != 'Usuario' %}<th scope="col">Solicitante</th><th scope="col">Área y responsable</th>{% endif %}<th scope="col">Fechas</th><th scope="col">SLA</th></tr></thead>
   <tbody>
   {% for row in rows %}
     <tr>
-      <th scope="row" class="fw-normal"><a class="fw-semibold" href="{% url 'helpdesk:ticket_detail' row.ticket.ticket_code %}">{{ row.ticket.ticket_code }}</a><div>{{ row.ticket.subject }}</div></th>
+      <th scope="row" class="fw-normal"><a class="fw-semibold" href="{% url 'helpdesk:ticket_detail' row.ticket.ticket_code %}">{{ row.ticket.ticket_code }}</a><div class="mt-1">{{ row.ticket.subject }}</div></th>
       <td>{% include 'components/ticket_badge.html' with label=row.ticket.get_status_display only %}</td>
       <td>{{ row.ticket.get_priority_display }}</td>
       <td>{{ row.ticket.category.name|default:'Sin categoría' }}</td>
