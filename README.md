@@ -203,6 +203,31 @@ ticket), las llamadas al LLM (modelo, latencia, tokens, errores) y la revisión 
 La traza guarda el mensaje recibido (recortado) y las decisiones, pero **no** el texto de la
 respuesta (puede traer notas o deudas): solo su longitud.
 
+## Decisiones propias del agente (revisa sus métricas y se ajusta)
+
+El agente revisa a diario sus métricas por intención (revisiones humanas aceptadas o
+corregidas, fallas del LLM, SLA incumplidos) y ajusta su comportamiento. **Modo mixto**:
+lo seguro lo aplica solo; lo que le da más autonomía lo propone y un Supervisor o
+Administrador lo aprueba en **Decisiones IA** (`/ai/decisions/`).
+
+| Decisión | Cuándo | Efecto | Aplicación |
+|---|---|---|---|
+| D1 Ganar confianza | ≥ 10 revisiones y ≥ 90 % aceptadas | Deja de pedir revisión humana (sigue revisando 1 de cada 10) | Propuesta |
+| D2 Perder confianza | ≥ 5 revisiones y ≥ 30 % corregidas | Revisión humana siempre | Automática |
+| D3 Aprender palabras | Palabra repetida en ≥ 3 mensajes corregidos a la misma intención | La agrega a las palabras clave | Propuesta |
+| D4 Pausar el LLM | > 50 % de fallas con ≥ 6 llamadas en 1 h | No lo llama 15 min; luego prueba y se reactiva solo | Automática |
+| D5 Prioridad por SLA | ≥ 30 % de SLA incumplido con ≥ 5 tickets | Sube un nivel la prioridad (tope: Alta) | Propuesta |
+
+Límites: solo N2/N3 cambian de revisión (N4 siempre se revisa), nunca toca datos
+institucionales, cada decisión guarda su evidencia y se puede revertir. Umbrales en
+`AGENT_POLICY` (`config/settings/base.py`).
+
+```bash
+python manage.py evaluate_agent_policies            # programar a diario (cron/Tareas de Windows)
+python manage.py evaluate_agent_policies --dry-run  # qué decidiría, sin guardar
+python manage.py agent_policy_demo [--llm-failures] # historial demo para comprobar D1–D5
+```
+
 ## Seguridad de accesos
 
 | Protección | Detalle |

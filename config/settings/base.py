@@ -261,3 +261,21 @@ LOGGING = {
         },
     },
 }
+
+# Decisiones propias del agente (ADR-077). Umbrales sobre la ventana de métricas.
+AGENT_POLICY = {
+    "window_days": 30,
+    "trust_up_min_reviews": 10,  # D1: revisiones mínimas para dejar de pedir revisión
+    "trust_up_rate": 0.90,  # D1: % aceptadas sin corregir
+    "trust_down_min_reviews": 5,  # D2
+    "trust_down_rate": 0.30,  # D2: % corregidas o rechazadas
+    "review_sample_rate": 0.10,  # con D1 aplicada, 1 de cada 10 sigue yendo a revisión
+    "keyword_min_messages": 3,  # D3: mensajes corregidos distintos con la palabra
+    "keyword_max": 5,
+    "sla_min_tickets": 5,  # D5: tickets con SLA decidido
+    "sla_breach_rate": 0.30,
+    "llm_window_minutes": 60,  # D4
+    "llm_min_calls": 6,
+    "llm_failure_rate": 0.50,
+    "llm_pause_minutes": 15,
+}

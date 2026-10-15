@@ -62,6 +62,8 @@ def summarize(update):
         data["summary"] = update["summary"][:SUMMARY_PREVIEW]
     if update.get("review"):
         data["review"] = update["review"]
+    if update.get("policy"):
+        data["policy"] = update["policy"]
     return data
 
 
@@ -121,6 +123,9 @@ def format_step(step):
     for call in step.get("llm_calls", []):
         status = "ok" if call.get("success") else f"✗ {call.get('error_code')}"
         details.append(f"llm={call.get('model')} {call.get('latency_ms')} ms {status}")
+    if policy := data.get("policy"):
+        sampled = " muestreo" if policy.get("sampled") else ""
+        details.append(f"política={policy['review_mode']}{sampled}")
     for error in data.get("errors", []):
         details.append(f"error={error}")
     if details:

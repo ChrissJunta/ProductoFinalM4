@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{# Plantilla funcional del backend (CONTRACT-021): el frontend puede refinar su diseño. #}
+{% load tz %}
+{% block title %}Decisiones del agente{% endblock %}
+{% block content %}
+<div class="mesa-hero mb-4"><p class="mesa-eyebrow mb-2">Inteligencia artificial</p><h1>Decisiones del agente</h1><p class="text-secondary mb-0">El agente revisa sus métricas y ajusta su comportamiento. Las decisiones seguras se aplican solas; las que le dan más autonomía esperan tu aprobación.</p></div>
+
+<dl class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="card card-body h-100"><dt class="small text-secondary">Propuestas por aprobar</dt><dd class="h4 mb-0">{{ summary.proposed }}</dd></div></div>
+  <div class="col-6 col-md-3"><div class="card card-body h-100"><dt class="small text-secondary">Aplicadas</dt><dd class="h4 mb-0">{{ summary.applied }}</dd></div></div>
+  <div class="col-6 col-md-3"><div class="card card-body h-100"><dt class="small text-secondary">Intenciones con política propia</dt><dd class="h4 mb-0">{{ summary.active_policies }}</dd></div></div>
+  <div class="col-6 col-md-3"><div class="card card-body h-100 {% if circuit.state == 'OPEN' %}border-danger{% endif %}"><dt class="small text-secondary">LLM</dt><dd class="h4 mb-0">{{ circuit.get_state_display }}</dd>{% if circuit.state == 'OPEN' %}<p class="small text-danger mb-0">Prueba desde {{ circuit.retry_at|localtime|date:'H:i' }}</p>{% endif %}<p class="small text-secondary mb-0">{{ llm_stats.failed }}/{{ llm_stats.calls }} fallidas en {{ llm_stats.window_minutes }} min</p></div></div>
+</dl>
+
+<form method="post" action="{% url 'ai:policy_evaluate' %}" class="mb-4">{% csrf_token %}<button class="btn btn-primary" type="submit">Revisar métricas ahora</button> <span class="small text-secondary ms-2">También corre a diario con <code>python manage.py evaluate_agent_policies</code>.</span></form>
+
+<section class="mb-4" aria-labelledby="metrics-title">
+  <h2 id="metrics-title" class="h5">Métricas por intención <span class="small text-secondary fw-normal">(últimos {{ thresholds.window_days }} días)</span></h2>
+  <div class="table-responsive bg-white rounded border" role="region" aria-label="Métricas por intención; tabla desplazable horizontalmente" tabindex="0">
+    <table class="table align-middle mb-0 small">
+      <thead class="table-light"><tr><th scope="col">Intención</th><th scope="col">Nivel</th><th scope="col">Revisiones</th><th scope="col">Aceptadas</th><th scope="col">Corregidas / rechazadas</th><th scope="col">SLA incumplido</th><th scope="col">Política vigente</th></tr></thead>
+      <tbody>
+      {% for row in metrics %}
+        <tr>
+          <th scope="row" class="fw-semibold">{{ row.code }}</th>
+          <td>{{ row.level }}</td>
+          <td>{{ row.reviewed }}</td>
+          <td>{{ row.accepted }}{% if row.accept_rate is not None %} <span class="text-secondary">({% widthratio row.accept_rate 1 100 %} %)</span>{% endif %}</td>
+          <td>{{ row.corrected }} / {{ row.rejected }}{% if row.error_rate is not None %} <span class="text-secondary">({% widthratio row.error_rate 1 100 %} %)</span>{% endif %}</td>
+          <td>{{ row.sla_breached }}/{{ row.sla_decided }}{% if row.breach_rate is not None %} <span class="text-secondary">({% widthratio row.breach_rate 1 100 %} %)</span>{% endif %}</td>
+          <td>{% if row.review_mode == 'SKIP' %}<span class="badge text-bg-success">Sin revisión</span>{% elif row.review_mode == 'ALWAYS' %}<span class="badge text-bg-warning">Revisión siempre</span>{% else %}<span class="text-secondary">Según confianza</span>{% endif %}{% if row.priority_override %} <span class="badge text-bg-info">Prioridad ≥ {{ row.priority_override }}</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="small text-secondary mt-2">Umbrales: D1 ≥ {{ thresholds.trust_up_min_reviews }} revisiones y ≥ {% widthratio thresholds.trust_up_rate 1 100 %} % aceptadas · D2 ≥ {{ thresholds.trust_down_min_reviews }} revisiones y ≥ {% widthratio thresholds.trust_down_rate 1 100 %} % corregidas · D3 palabra repetida en ≥ {{ thresholds.keyword_min_messages }} mensajes corregidos · D4 &gt; {% widthratio thresholds.llm_failure_rate 1 100 %} % de fallas del LLM con ≥ {{ thresholds.llm_min_calls }} llamadas · D5 ≥ {% widthratio thresholds.sla_breach_rate 1 100 %} % de SLA incumplido con ≥ {{ thresholds.sla_min_tickets }} tickets.</p>
+</section>
+
+<section aria-labelledby="decisions-title">
+  <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
+    <h2 id="decisions-title" class="h5 mb-0">Decisiones</h2>
+    <form method="get" action="{% url 'ai:policy_list' %}" class="d-flex gap-2 align-items-end mesa-form">
+      <div><label for="filter-status" class="form-label small mb-1">Estado</label><select id="filter-status" name="status" class="form-select form-select-sm"><option value="">Todas</option>{% for value, label in status_choices %}<option value="{{ value }}"{% if status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      <button class="btn btn-outline-secondary btn-sm" type="submit">Filtrar</button>
+    </form>
+  </div>
+  {% if decisions %}
+  <ol class="list-unstyled">
+    {% for d in decisions %}
+    <li class="card card-body mb-2 {% if d.status == 'PROPOSED' %}border-warning{% endif %}">
+      <div class="d-flex flex-wrap justify-content-between gap-2">
+        <div><span class="fw-semibold">#{{ d.pk }} {{ d.get_kind_display }}</span>{% if d.intent %} · <code>{{ d.intent.code }}</code>{% endif %}</div>
+        <div><span class="badge {% if d.status == 'PROPOSED' %}text-bg-warning{% elif d.status == 'APPLIED' %}text-bg-success{% else %}text-bg-secondary{% endif %}">{{ d.get_status_display }}</span>{% if d.auto %} <span class="badge text-bg-light border">automática</span>{% endif %}</div>
+      </div>
+      <p class="mb-1 mt-1">{{ d.summary }}</p>
+      <p class="small text-secondary mb-2">Evidencia: <code>{{ d.evidence }}</code> · {{ d.created_at|localtime|date:'d/m/Y H:i' }}{% if d.decided_at %} · {% if d.decided_by %}{{ d.decided_by.username }}{% else %}agente{% endif %} el {{ d.decided_at|localtime|date:'d/m/Y H:i' }}{% endif %}{% if d.note %} · «{{ d.note }}»{% endif %}</p>
+      {% if d.status == 'PROPOSED' or d.status == 'APPLIED' %}
+      <form method="post" action="{% url 'ai:policy_decide' d.pk %}" class="d-flex flex-wrap gap-2 align-items-center">
+        {% csrf_token %}
+        <label class="visually-hidden" for="note-{{ d.pk }}">Nota</label><input id="note-{{ d.pk }}" class="form-control form-control-sm" style="max-width:18rem" name="note" maxlength="255" placeholder="Nota (opcional)">
+        {% if d.status == 'PROPOSED' %}<button class="btn btn-primary btn-sm" name="action" value="approve">Aprobar</button><button class="btn btn-outline-secondary btn-sm" name="action" value="reject">Rechazar</button>{% else %}<button class="btn btn-outline-danger btn-sm" name="action" value="revert">Revertir</button>{% endif %}
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+  {% include 'components/pagination.html' with page_obj=page_obj only %}
+  {% else %}
+  <section class="card border-0 shadow-sm p-4"><h3 class="h6">Sin decisiones</h3><p class="text-secondary mb-0">Pulsa «Revisar métricas ahora» o espera la evaluación diaria.</p></section>
+  {% endif %}
+</section>
+{% endblock %}

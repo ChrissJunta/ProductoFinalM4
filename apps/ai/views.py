@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -78,3 +79,70 @@ def trace_json(request, pk):
     response = JsonResponse(traces.export(decision), json_dumps_params={"ensure_ascii": False})
     response["Content-Disposition"] = f'attachment; filename="traza-{decision.pk}.json"'
     return response
+
+
+POLICY_ACTIONS = {"approve": "aprobada", "reject": "rechazada", "revert": "revertida"}
+
+
+@role_required(*TRACE_ROLES)
+@require_GET
+def policy_list(request):
+    """CONTRACT-021: métricas por intención y decisiones propias del agente (ADR-077)."""
+    from . import circuit, policies
+    from .models import AgentPolicyDecision
+
+    decisions = AgentPolicyDecision.objects.select_related("intent", "decided_by")
+    status = request.GET.get("status", "")
+    if status in AgentPolicyDecision.Status.values:
+        decisions = decisions.filter(status=status)
+    page = Paginator(decisions, TRACES_PER_PAGE).get_page(request.GET.get("page"))
+    return render(
+        request,
+        "ai/policy_list.html",
+        {
+            "summary": policies.summary(),
+            "circuit": circuit.state(),
+            "llm_stats": circuit.failure_stats(),
+            "metrics": policies.intent_metrics(),
+            "page_obj": page,
+            "decisions": page.object_list,
+            "status": status,
+            "status_choices": AgentPolicyDecision.Status.choices,
+            "thresholds": settings.AGENT_POLICY,
+        },
+    )
+
+
+@role_required(*TRACE_ROLES)
+@require_POST
+def policy_evaluate(request):
+    """CONTRACT-021: el agente revisa sus métricas ahora (lo mismo que el comando diario)."""
+    from . import policies
+
+    created = policies.evaluate()
+    if created:
+        messages.success(request, f"El agente tomó {len(created)} decisiones nuevas.")
+    else:
+        messages.info(request, "Sin decisiones nuevas: las métricas no superan los umbrales.")
+    return redirect("ai:policy_list")
+
+
+@role_required(*TRACE_ROLES)
+@require_POST
+def policy_decide(request, pk):
+    """CONTRACT-021: aprobar o rechazar una propuesta, o revertir una decisión aplicada."""
+    from . import policies
+    from .models import AgentPolicyDecision
+
+    decision = get_object_or_404(AgentPolicyDecision, pk=pk)
+    action = request.POST.get("action", "")
+    if action not in POLICY_ACTIONS:
+        messages.error(request, "Acción inválida.")
+        return redirect("ai:policy_list")
+    try:
+        getattr(policies, action)(decision, request.user, request.POST.get("note", ""))
+    except ValidationError as exc:
+        messages.error(request, exc.messages[0])
+    else:
+        messages.success(request, f"Decisión #{decision.pk} {POLICY_ACTIONS[action]}.")
+    return redirect("ai:policy_list")

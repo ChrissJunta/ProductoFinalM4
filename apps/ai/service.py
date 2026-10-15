@@ -20,6 +20,7 @@ from apps.automation.catalog import INTENT_CATEGORY
 from apps.automation.models import Intent
 from apps.helpdesk.models import Category, Subcategory, Ticket
 
+from . import circuit
 from .agent.trace import record_llm_call
 from .models import AIModelConfig, AIPromptVersion, AIUsage, Operation
 from .providers import LLMError, get_llm_provider
@@ -190,6 +191,8 @@ class AIService:
         return chain
 
     def _call(self, operation, method, *args):
+        if not circuit.allow():  # D4: el agente pausó el LLM por fallas repetidas
+            raise AIUnavailable("LLM en pausa por fallas repetidas (decisión D4)")
         errors = []
         for provider, attempts in self.chain(operation):
             for _ in range(attempts):
@@ -202,7 +205,9 @@ class AIService:
                     continue
                 self._usage(provider, operation, start, response, "")
                 self.last_provider = provider
+                circuit.after_call(True)
                 return response
+        circuit.after_call(False)
         raise AIUnavailable("; ".join(errors))
 
     def _usage(self, provider, operation, start, response, error_code):

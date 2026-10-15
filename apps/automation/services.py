@@ -50,11 +50,14 @@ class AutomationService:
             category_id=ticket.category_id,
             subcategory_id=ticket.subcategory_id,
         )
-        if rule is None:
-            return None
-        ticket.assigned_area = rule.area
-        if rule.priority:
-            ticket.priority = rule.priority
+        if rule is not None:
+            ticket.assigned_area = rule.area
+            if rule.priority:
+                ticket.priority = rule.priority
+        # Decisión propia del agente D5 (ADR-077): prioridad mínima por intención.
+        from apps.ai.policies import apply_priority  # diferido: ai depende de automation
+
+        apply_priority(ticket)
         return rule
 
     @staticmethod
