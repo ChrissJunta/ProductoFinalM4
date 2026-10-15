@@ -31,6 +31,7 @@ from apps.helpdesk.models import Alert, Category, Subcategory, Ticket
 from apps.helpdesk.tickets import TicketService
 from apps.integrations.institutional.base import ProviderError
 
+from .. import policies
 from ..service import AIInvalidOutput, AIService, AIUnavailable
 from .tools import ToolNotAllowed, run_read_tool
 
@@ -167,11 +168,15 @@ def decide_autonomy(state):
     confidence = state.get("confidence") or 0.0
     level = determine_autonomy(intent, confidence, active_action(intent))
     needs_review = level == L.N4 or (level in (L.N2, L.N3) and confidence < REVIEW_CONFIDENCE)
+    # Decisiones propias del agente D1/D2 (ADR-077): política de revisión por intención.
+    needs_review, policy = policies.review_decision(intent, level, needs_review)
+    update = {"policy": policy} if policy else {}
     return _step(
         "decide_autonomy",
         autonomy_level=level,
         needs_review=needs_review,
         requires_human=level in (L.N2, L.N3, L.N4),
+        **update,
     )
 
 

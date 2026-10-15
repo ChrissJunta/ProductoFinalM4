@@ -205,3 +205,38 @@ class RoutingRule(models.Model):
             and self.subcategory.category_id != self.category_id
         ):
             raise ValidationError({"subcategory": "La subcategoría no pertenece a la categoría."})
+
+
+class IntentPolicy(models.Model):
+    """Política vigente que el agente ajusta por intención con sus decisiones (ADR-077).
+
+    Solo la modifican las decisiones aplicadas (`apps.ai.policies`): cada cambio queda
+    en `AgentPolicyDecision` con su evidencia y se puede revertir.
+    """
+
+    class ReviewMode(models.TextChoices):
+        DEFAULT = "DEFAULT", "Según confianza"
+        SKIP = "SKIP", "Sin revisión (muestreo de control)"
+        ALWAYS = "ALWAYS", "Revisión siempre"
+
+    intent = models.OneToOneField(
+        Intent, on_delete=models.CASCADE, related_name="policy", verbose_name="intención"
+    )
+    review_mode = models.CharField(
+        "revisión humana", max_length=8, choices=ReviewMode.choices, default=ReviewMode.DEFAULT
+    )
+    priority_override = models.CharField(
+        "prioridad mínima",
+        max_length=10,
+        blank=True,
+        default="",
+        help_text="Prioridad mínima de sus tickets nuevos (vacío = la del routing).",
+    )
+    updated_at = models.DateTimeField("actualizada", auto_now=True)
+
+    class Meta:
+        verbose_name = "política de intención"
+        verbose_name_plural = "políticas de intención"
+
+    def __str__(self):
+        return f"{self.intent.code}: {self.get_review_mode_display()}"

@@ -186,3 +186,79 @@ class AIDecision(models.Model):
     @property
     def pending_review(self):
         return self.requires_human and self.accepted is None
+
+
+class AgentPolicyDecision(models.Model):
+    """Decisión propia del agente a partir de sus métricas (ADR-077).
+
+    Modo mixto: las decisiones seguras se aplican solas (`auto=True`); las que le dan
+    más autonomía quedan PROPUESTAS hasta que un Supervisor o Administrador las aprueba.
+    """
+
+    class Kind(models.TextChoices):
+        TRUST_UP = "TRUST_UP", "D1 · Ganar confianza (sin revisión)"
+        TRUST_DOWN = "TRUST_DOWN", "D2 · Perder confianza (revisión siempre)"
+        KEYWORDS = "KEYWORDS", "D3 · Aprender palabras clave"
+        LLM_PAUSE = "LLM_PAUSE", "D4 · Pausar el LLM"
+        LLM_RESUME = "LLM_RESUME", "D4 · Reactivar el LLM"
+        PRIORITY_UP = "PRIORITY_UP", "D5 · Subir prioridad por SLA"
+
+    class Status(models.TextChoices):
+        PROPOSED = "PROPOSED", "Propuesta"
+        APPLIED = "APPLIED", "Aplicada"
+        REJECTED = "REJECTED", "Rechazada"
+        REVERTED = "REVERTED", "Revertida"
+
+    kind = models.CharField("decisión", max_length=16, choices=Kind.choices)
+    intent = models.ForeignKey(
+        "automation.Intent",
+        verbose_name="intención",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
+    status = models.CharField("estado", max_length=10, choices=Status.choices)
+    auto = models.BooleanField("aplicada sola", default=False)
+    summary = models.CharField("resumen", max_length=255)
+    evidence = models.JSONField("evidencia", default=dict, blank=True)
+    change = models.JSONField("cambio", default=dict, blank=True)
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="decidida por",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    decided_at = models.DateTimeField("decidida", null=True, blank=True)
+    note = models.CharField("nota", max_length=255, blank=True, default="")
+    created_at = models.DateTimeField("creada", auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = "decisión del agente"
+        verbose_name_plural = "decisiones del agente"
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.get_kind_display()} · {self.get_status_display()} · #{self.pk}"
+
+
+class LLMCircuit(models.Model):
+    """Interruptor del LLM (D4): fila única. OPEN = no se llama al LLM hasta `retry_at`;
+    después se permite una llamada de prueba que lo cierra si responde."""
+
+    class State(models.TextChoices):
+        CLOSED = "CLOSED", "Activo"
+        OPEN = "OPEN", "En pausa"
+
+    state = models.CharField("estado", max_length=6, choices=State.choices, default=State.CLOSED)
+    retry_at = models.DateTimeField("reintentar desde", null=True, blank=True)
+    updated_at = models.DateTimeField("actualizado", auto_now=True)
+
+    class Meta:
+        verbose_name = "interruptor del LLM"
+        verbose_name_plural = "interruptor del LLM"
+
+    def __str__(self):
+        return self.get_state_display()
