@@ -54,7 +54,10 @@ class FakeLLMProvider(LLMProvider):
         context = context or {}
         words = _stems(text)
         scores = []
+        allowed = set(context.get("candidates") or [])
         for intent in context.get("intents", []):
+            if allowed and intent["code"] not in allowed:
+                continue
             vocab = _stems(f"{intent['name']} {intent.get('keywords', '')}")
             scores.append((len(words & vocab), intent))
         scores.sort(key=lambda s: (-s[0], s[1]["code"]))

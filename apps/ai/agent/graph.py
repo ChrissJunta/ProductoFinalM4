@@ -14,15 +14,15 @@ from . import nodes
 from .state import AgentState
 from .trace import traced
 
-GRAPH_VERSION = "1.0.0"
+GRAPH_VERSION = "1.1.0"
 L = AutomationLevel
 
 
 def after_rules(state):
     if state.get("intent"):
         return "decide_autonomy"
-    if len(state.get("candidates") or []) > 1:
-        return "decide_autonomy"  # empate de reglas: lo decide un humano (ADR-042)
+    # Sin coincidencias o con empate entre intenciones, el agente razona con el LLM
+    # (CR-009): si el LLM tampoco está seguro (< 0.70), validate_output lo lleva a N4.
     return "classify_llm"
 
 

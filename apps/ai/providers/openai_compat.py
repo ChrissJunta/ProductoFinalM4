@@ -100,6 +100,17 @@ class OpenAICompatibleProvider(LLMProvider):
             "{catalog}", f"{catalog}\n\nCategorías por intención: {categories}"
         )
         system = system.replace("{message}", "(el mensaje va en el turno del usuario)")
+        if candidates := context.get("candidates"):
+            hint = (
+                f"Las reglas dudan entre: {', '.join(candidates)}. Elige la que corresponda; "
+                "si el mensaje pide varias cosas distintas, usa confianza menor a 0.7."
+            )
+            system = (
+                system.replace("{candidates}", hint)
+                if "{candidates}" in system
+                else f"{system}\n\n{hint}"
+            )
+        system = system.replace("{candidates}", "")
         return self._chat(system, text, max_tokens=300)
 
     def extract(self, text, schema):

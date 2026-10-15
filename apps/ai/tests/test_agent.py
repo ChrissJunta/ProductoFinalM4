@@ -385,4 +385,38 @@ def test_postgres_checkpointer_persists_pause_and_resume(settings, make_user):
     r = run("certificado y contraseña", student)
     runner.reset()  # «reinicio»: el hilo pausado se recupera de PostgreSQL
     decision = runner.resume_agent(r.ticket, actor=sup, action="accept")
-    assert decision.node_path[-1] == "apply_review" and not decision.errors
+    # el empate pasó por el LLM, que tampoco estaba seguro (CR-009)
+    assert decision.node_path[-1] == "apply_review" and decision.errors == ["LLM: confianza baja"]
+
+
+# --- CR-009: el empate de reglas lo razona el agente con el LLM --------------------------------
+
+
+def test_rule_tie_is_disambiguated_by_llm(student, monkeypatch):
+    seen = {}
+
+    def classify(self, text, context=None):
+        seen["candidates"] = (context or {}).get("candidates")
+        return LLMResponse(
+            '{"intent": "CERTIFICATE_REQUEST", "category": "ACADEMIC", "subcategory": '
+            '"CERTIFICATES", "priority": "MEDIUM", "summary": "s", "requires_human": true, '
+            '"confidence": 0.9}'
+        )
+
+    monkeypatch.setattr(FakeLLMProvider, "classify", classify)
+    r = run("certificado y contraseña", student)
+    assert seen["candidates"] == ["CERTIFICATE_REQUEST", "PASSWORD_PROBLEM"]
+    assert r.path[:4] == ["load_context", "classify_rules", "classify_llm", "validate_output"]
+    assert (r.intent_code, r.level, r.pending_review) == ("CERTIFICATE_REQUEST", "N3", False)
+    step = next(s for s in r.decision.trace if s["node"] == "classify_llm")
+    assert step["data"]["disambiguation"] == ["CERTIFICATE_REQUEST", "PASSWORD_PROBLEM"]
+    assert r.decision.prompt_version.version == 2
+
+
+def test_fake_llm_only_chooses_among_candidates():
+    from apps.ai.service import AIService
+
+    result = AIService().classify(
+        "no puedo ingresar a mi correo", candidates=["PASSWORD_PROBLEM", "CHECK_CONTACT"]
+    )
+    assert result.intent.code in ("PASSWORD_PROBLEM", "CHECK_CONTACT")

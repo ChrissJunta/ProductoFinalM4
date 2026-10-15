@@ -240,8 +240,10 @@ class AIService:
 
     # --- Operaciones (SPEC §33) ----------------------------------------------------------
 
-    def classify(self, text, context=None):
+    def classify(self, text, context=None, candidates=None):
         context = dict(context or classification_context())
+        if candidates:
+            context["candidates"] = list(candidates)
         prompt = self.prompt_for(Operation.CLASSIFY)
         if prompt is not None:
             context.setdefault("prompt_template", prompt.template)
