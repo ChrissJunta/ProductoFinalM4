@@ -1170,6 +1170,11 @@ Ninguno nuevo. No se modifican archivos BACK, contratos ni permisos; se consume 
 ### Resultado y pendientes
 Renderizado y checks locales satisfactorios; REVIEW hasta CI, revisión visual interactiva y UAT. Sin merge automático a main.
 
+### Validación CI posterior — PR #22
+
+- Código y registro inicial `9f25318`: CI #96, run `38789481368`, job `116610012639`, SUCCESS. **859 pruebas PASS en 88,53 s; cobertura 99,05 %**, PostgreSQL 16 y Python 3.12. Lint, Django check y migraciones también satisfactorios.
+- Este resultado cierra el pendiente de CI del registro inicial. Revisión visual interactiva, axe y UAT permanecen pendientes; estado REVIEW. Esta anotación posterior solo cambia coordinación, no el código validado.
+
 ## 2026-10-15 — ChatGPT (FRONTEND) / Refinamiento de pantallas — IN_PROGRESS
 
 - Mejora adicional autorizada expresamente por el responsable tras la revisión visual; no se toman tareas nuevas del backlog ni se alteran filas BACK. Base main cb2da5f, incluyendo estilos UTI y trazas IA de Claude.
