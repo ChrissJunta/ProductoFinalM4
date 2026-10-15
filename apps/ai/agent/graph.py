@@ -12,6 +12,7 @@ from apps.automation.models import AutomationLevel, Intent
 
 from . import nodes
 from .state import AgentState
+from .trace import traced
 
 GRAPH_VERSION = "1.0.0"
 L = AutomationLevel
@@ -60,7 +61,7 @@ def build_graph(checkpointer=None):
         "respond", "respond_template", "create_ticket", "route_ticket", "respond_ticket",
         "request_review", "human_review", "apply_review",
     ):  # fmt: skip
-        g.add_node(name, getattr(nodes, name))
+        g.add_node(name, traced(name, getattr(nodes, name)))
 
     g.add_edge(START, "load_context")
     g.add_edge("load_context", "classify_rules")

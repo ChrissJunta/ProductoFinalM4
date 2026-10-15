@@ -1,12 +1,20 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.shortcuts import redirect
-from django.views.decorators.http import require_POST
+from django.core.paginator import Paginator
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_GET, require_POST
 
+from apps.accounts.permissions import role_required
+from apps.accounts.roles import Role
 from apps.helpdesk import queries
 
+from . import traces
 from .agent.runner import REVIEW_ACTIONS, can_review, resume_agent
+
+TRACE_ROLES = (Role.SUPERVISOR, Role.ADMINISTRADOR)
+TRACES_PER_PAGE = 25
 
 LABELS = {"accept": "aceptada", "correct": "corregida", "reject": "rechazada"}
 
@@ -31,3 +39,42 @@ def ticket_review(request, code):
     else:
         messages.success(request, f"Clasificación {LABELS[action]}.")
     return redirect("helpdesk:ticket_detail", code=code)
+
+
+@role_required(*TRACE_ROLES)
+@require_GET
+def trace_list(request):
+    """CONTRACT-020: ejecuciones del agente con filtros (Supervisor y Administrador)."""
+    form = traces.TraceFilterForm(request.GET or None)
+    data = form.cleaned_data if form.is_valid() else {}
+    page = Paginator(traces.filter_runs(data), TRACES_PER_PAGE).get_page(request.GET.get("page"))
+    query = request.GET.copy()
+    query.pop("page", None)
+    return render(
+        request,
+        "ai/trace_list.html",
+        {
+            "form": form,
+            "page_obj": page,
+            "runs": [traces.row(d) for d in page.object_list],
+            "querystring": query.urlencode(),
+        },
+    )
+
+
+@role_required(*TRACE_ROLES)
+@require_GET
+def trace_detail(request, pk):
+    """CONTRACT-020: línea de tiempo de una ejecución, nodo por nodo."""
+    decision = get_object_or_404(traces.runs(), pk=pk)
+    return render(request, "ai/trace_detail.html", traces.detail(decision))
+
+
+@role_required(*TRACE_ROLES)
+@require_GET
+def trace_json(request, pk):
+    """CONTRACT-020: la misma traza en JSON (descarga)."""
+    decision = get_object_or_404(traces.runs(), pk=pk)
+    response = JsonResponse(traces.export(decision), json_dumps_params={"ensure_ascii": False})
+    response["Content-Disposition"] = f'attachment; filename="traza-{decision.pk}.json"'
+    return response

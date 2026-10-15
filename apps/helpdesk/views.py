@@ -11,7 +11,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from apps.accounts.permissions import role_required
-from apps.accounts.roles import Role
+from apps.accounts.roles import Role, has_role
 
 from . import assignment, conversations, metrics, queries, sla, workflow
 from .forms import (
@@ -315,6 +315,7 @@ def ticket_detail(request, code):
             "message_form": MessageForm(),
             "assign": assignment.assign_options(ticket, user),
             "ai_review": _ai_review(ticket, user),
+            "agent_traces": _agent_traces(ticket, user),
         },
     )
 
@@ -324,6 +325,17 @@ def _ai_review(ticket, user):
     from apps.ai.agent.runner import review_options  # import diferido: ai depende de helpdesk
 
     return review_options(ticket, user)
+
+
+def _agent_traces(ticket, user):
+    """CONTRACT-020: ejecuciones del agente ligadas al ticket (Supervisor/Administrador)."""
+    if not has_role(user, Role.SUPERVISOR, Role.ADMINISTRADOR):
+        return []
+    return list(
+        ticket.ai_decisions.filter(operation="AGENT_RUN")
+        .order_by("created_at")
+        .values("id", "created_at", "autonomy_level", "intent_code")
+    )
 
 
 def _first_error(form):

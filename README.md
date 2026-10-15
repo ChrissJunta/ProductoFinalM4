@@ -187,6 +187,22 @@ python manage.py runserver &
 E2E_PASSWORD=Prueba-E2E-2026 python scripts/e2e_demo.py salida_e2e/   # 12 pasos, 5 roles
 ```
 
+## Trazabilidad del agente (cómo procesa cada mensaje)
+
+Cada mensaje al asistente (web o WhatsApp) deja una **traza nodo por nodo** del grafo LangGraph:
+qué nodo corrió, cuánto tardó, qué decidió (intención, confianza, nivel N0–N4, herramienta,
+ticket), las llamadas al LLM (modelo, latencia, tokens, errores) y la revisión humana.
+
+| Dónde | Cómo |
+|---|---|
+| Consola del `runserver` | Una línea por nodo y un resumen por ejecución (logger `apps.ai.agent.trace`). Ejemplo: `[run-…] classify_rules 3.5 ms · intent=CHECK_DEBT conf=0.90 origen=RULES`. |
+| Archivo | `LOG_FILE=logs/agent.log` en `.env` (rotativo, 5 MB × 3). |
+| Portal web | **Trazas IA** (`/ai/traces/`, Supervisor y Administrador): listado con filtros y detalle con la línea de tiempo de nodos, salida cruda del LLM y descarga en JSON. |
+| Comando | `python manage.py agent_trace` (últimas 5), `--last 20`, `--id 42`, `--ticket HD-2026-000034`, `--json`. |
+
+La traza guarda el mensaje recibido (recortado) y las decisiones, pero **no** el texto de la
+respuesta (puede traer notas o deudas): solo su longitud.
+
 ## Seguridad de accesos
 
 | Protección | Detalle |

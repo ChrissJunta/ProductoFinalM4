@@ -25,3 +25,7 @@ Thumbs.db
 
 # Salida de scripts/e2e_demo.py
 salida_e2e/
+
+# Logs locales (LOG_FILE)
+logs/
+*.log

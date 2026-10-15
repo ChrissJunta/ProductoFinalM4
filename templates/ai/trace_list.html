@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{# Plantilla funcional del backend (CONTRACT-020): el frontend puede refinar su diseño. #}
+{% load tz %}
+{% block title %}Trazas del agente{% endblock %}
+{% block content %}
+<div class="mesa-hero mb-4"><p class="mesa-eyebrow mb-2">Inteligencia artificial</p><h1>Trazas del agente</h1><p class="text-secondary mb-0">Cómo procesó el agente cada mensaje: nodos recorridos, decisiones, llamadas al LLM y errores.</p></div>
+<form method="get" action="{% url 'ai:trace_list' %}" class="card card-body border-0 shadow-sm mb-4 mesa-form" aria-label="Filtrar trazas">
+  <div class="row g-3 align-items-end">
+    {% for field in form %}
+    <div class="col-12 {% if field.name == 'q' %}col-md-6{% else %}col-sm-6 col-md-3{% endif %}">
+      <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors|join:' ' }}</div>{% endif %}
+    </div>
+    {% endfor %}
+    <div class="col-12 d-flex flex-wrap gap-2"><button type="submit" class="btn btn-primary">Aplicar filtros</button><a class="btn btn-outline-secondary" href="{% url 'ai:trace_list' %}">Limpiar</a></div>
+  </div>
+</form>
+{% get_current_timezone as current_timezone %}
+{% if runs %}
+<div class="table-responsive bg-white rounded border" role="region" aria-label="Ejecuciones del agente; tabla desplazable horizontalmente" tabindex="0">
+  <table class="table align-middle mb-0">
+    <caption class="caption-top px-3">{{ page_obj.paginator.count }} ejecuciones · fechas en {{ current_timezone }}</caption>
+    <thead class="table-light"><tr><th scope="col">Ejecución</th><th scope="col">Mensaje</th><th scope="col">Intención</th><th scope="col">Nivel</th><th scope="col">Duración</th><th scope="col">Estado</th></tr></thead>
+    <tbody>
+    {% for run in runs %}
+      <tr>
+        <th scope="row" class="fw-normal"><a class="fw-semibold" href="{% url 'ai:trace_detail' run.id %}">#{{ run.id }}</a><div class="small text-secondary">{{ run.created_at|localtime|date:'d/m/Y H:i:s' }}</div><div class="small">{{ run.user.username|default:'Anónimo' }} · {{ run.channel }}</div></th>
+        <td class="small" style="max-width:22rem">{{ run.message|truncatechars:90|default:'—' }}</td>
+        <td><span class="fw-semibold">{{ run.intent_code|default:'—' }}</span><div class="small text-secondary">{{ run.classification_source|default:'sin clasificar' }}{% if run.confidence is not None %} · {{ run.confidence }}{% endif %}</div></td>
+        <td><span class="badge text-bg-{% if run.autonomy_level == 'N0' or run.autonomy_level == 'N1' %}success{% elif run.autonomy_level == 'N4' %}danger{% else %}warning{% endif %}">{{ run.autonomy_level|default:'—' }}</span></td>
+        <td class="small">{% if run.duration_ms is not None %}{{ run.duration_ms }} ms{% else %}—{% endif %}<div class="text-secondary">{{ run.steps }} nodos{% if run.used_llm %} · LLM ×{{ run.llm_calls }}{% endif %}</div></td>
+        <td class="small">
+          {% if run.pending_review %}<span class="badge text-bg-warning">Revisión pendiente</span>{% endif %}
+          {% if run.has_errors %}<span class="badge text-bg-danger">Con errores</span>{% endif %}
+          {% if run.ticket_code %}<div>Ticket {{ run.ticket_code }}</div>{% elif not run.pending_review and not run.has_errors %}Respondido{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'components/pagination.html' with page_obj=page_obj only %}
+{% else %}
+<section class="card border-0 shadow-sm p-4" aria-labelledby="empty-title"><h2 id="empty-title" class="h5">Sin ejecuciones</h2><p class="text-secondary mb-0">No hay ejecuciones del agente que coincidan con estos filtros.</p></section>
+{% endif %}
+{% endblock %}

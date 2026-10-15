@@ -20,6 +20,7 @@ from apps.automation.catalog import INTENT_CATEGORY
 from apps.automation.models import Intent
 from apps.helpdesk.models import Category, Subcategory, Ticket
 
+from .agent.trace import record_llm_call
 from .models import AIModelConfig, AIPromptVersion, AIUsage, Operation
 from .providers import LLMError, get_llm_provider
 
@@ -208,6 +209,16 @@ class AIService:
         tokens_in = response.input_tokens if response else 0
         tokens_out = response.output_tokens if response else 0
         cin, cout = provider.cost_per_1k
+        record_llm_call(
+            provider=provider.name,
+            model=provider.model_name,
+            operation=operation,
+            latency_ms=int((time.monotonic() - start) * 1000),
+            input_tokens=tokens_in,
+            output_tokens=tokens_out,
+            success=response is not None,
+            error_code=error_code,
+        )
         AIUsage.objects.create(
             ticket=self.ticket,
             message=self.message,

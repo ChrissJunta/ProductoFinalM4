@@ -35,3 +35,4 @@ class AgentState(TypedDict, total=False):
     requires_human: bool
     review: dict | None
     node_path: Annotated[list[str], operator.add]
+    trace: Annotated[list[dict], operator.add]  # pasos resumidos (ADR-076)
