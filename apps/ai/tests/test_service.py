@@ -50,8 +50,9 @@ def test_initial_config_has_primary_and_fallback_per_operation():
     for purpose in ("CLASSIFY", "EXTRACT", "SUMMARIZE", "GENERATE_RESPONSE"):
         chain = AIService.chain(purpose)
         assert [(p.model_name, n) for p, n in chain] == [("fake-1", 2), ("fake-1-respaldo", 1)]
-        assert AIService.prompt_for(purpose).version == 1
-    assert AIPromptVersion.objects.count() == 4
+        # CR-009: el prompt de clasificación va en su v2 (desambiguación); v1 queda inactiva.
+        assert AIService.prompt_for(purpose).version == (2 if purpose == "CLASSIFY" else 1)
+    assert AIPromptVersion.objects.count() == 5
 
 
 def test_chain_without_config_uses_provider_default():
@@ -253,4 +254,4 @@ def test_ai_migrations_are_reversible_with_existing_decisions():
     assert AIDecision.objects.values_list("prompt_version", flat=True).get() is None
     call_command("migrate", "ai", "zero", verbosity=0)
     call_command("migrate", verbosity=0)
-    assert AIPromptVersion.objects.count() == 4 and AIModelConfig.objects.count() == 8
+    assert AIPromptVersion.objects.count() == 5 and AIModelConfig.objects.count() == 8

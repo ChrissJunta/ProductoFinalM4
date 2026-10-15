@@ -64,6 +64,8 @@ def summarize(update):
         data["review"] = update["review"]
     if update.get("policy"):
         data["policy"] = update["policy"]
+    if update.get("disambiguation"):
+        data["disambiguation"] = update["disambiguation"]
     return data
 
 
@@ -123,6 +125,8 @@ def format_step(step):
     for call in step.get("llm_calls", []):
         status = "ok" if call.get("success") else f"✗ {call.get('error_code')}"
         details.append(f"llm={call.get('model')} {call.get('latency_ms')} ms {status}")
+    if tie := data.get("disambiguation"):
+        details.append(f"desambigua={'|'.join(tie)}")
     if policy := data.get("policy"):
         sampled = " muestreo" if policy.get("sampled") else ""
         details.append(f"política={policy['review_mode']}{sampled}")

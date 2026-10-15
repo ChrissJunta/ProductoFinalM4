@@ -203,6 +203,16 @@ ticket), las llamadas al LLM (modelo, latencia, tokens, errores) y la revisión 
 La traza guarda el mensaje recibido (recortado) y las decisiones, pero **no** el texto de la
 respuesta (puede traer notas o deudas): solo su longitud.
 
+## Cómo razona el agente
+
+1. **Reglas** (rápidas y explicables): palabras clave por intención.
+2. **LLM** cuando las reglas no reconocen el mensaje **o empatan** entre intenciones: recibe los
+   candidatos y el criterio «pregunta informativa (N1) vs. petición de trámite (N2/N3)».
+3. **Decisión** N0–N4 según la intención y la confianza; solo lo que sigue dudoso (< 0.70) o
+   las intenciones N4 van a revisión humana.
+
+La traza («Trazas IA») muestra en `classify_llm` qué candidatos desambiguó (`desambigua=`).
+
 ## Decisiones propias del agente (revisa sus métricas y se ajusta)
 
 El agente revisa a diario sus métricas por intención (revisiones humanas aceptadas o

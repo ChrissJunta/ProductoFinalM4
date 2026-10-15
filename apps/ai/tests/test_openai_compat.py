@@ -181,3 +181,26 @@ def test_llm_ping_with_fake(settings):
     out = StringIO()
     call_command("llm_ping", "--text", "olvidé mi contraseña", stdout=out)
     assert "PASSWORD_PROBLEM" in out.getvalue()
+
+
+def test_tie_candidates_and_v2_criteria_reach_the_prompt(vllm):
+    """CR-009: en un empate el agente le pide al LLM desambiguar entre los candidatos."""
+    AIService().classify(
+        "certificado o contraseña", candidates=["CERTIFICATE_REQUEST", "PASSWORD_PROBLEM"]
+    )
+    system = vllm.requests[0]["messages"][0]["content"]
+    assert "Las reglas dudan entre: CERTIFICATE_REQUEST, PASSWORD_PROBLEM" in system
+    assert "consulta informativa (nivel N1)" in system and "{candidates}" not in system
+    AIService().classify("Ya pagué y sigue la deuda")
+    assert "Las reglas dudan" not in vllm.requests[1]["messages"][0]["content"]
+
+
+def test_hint_appended_when_template_has_no_placeholder(vllm):
+    from apps.ai.models import AIPromptVersion
+
+    AIPromptVersion.objects.filter(purpose="CLASSIFY", is_active=True).update(
+        template="Catálogo: {catalog}"
+    )
+    AIService().classify("x", candidates=["A_B", "C_D"])
+    system = vllm.requests[0]["messages"][0]["content"]
+    assert system.startswith("Catálogo:") and "Las reglas dudan entre: A_B, C_D." in system

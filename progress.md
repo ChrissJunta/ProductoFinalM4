@@ -299,6 +299,7 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-075 | 2026-10-14 | `check --deploy` propio: `accounts.W001` si un usuario demo activo conserva `Demo-2026!`; `accounts.W002` si el admin sigue en `/admin/` | Detectar configuraciones inseguras antes de exponer el sistema | `accounts.checks` |
 | ADR-076 | 2026-10-15 | **Trazabilidad del agente:** cada nodo del grafo se envuelve con `traced` (mismos nodos y aristas, sin cambio de `GRAPH_VERSION`): mide la duración, recoge las llamadas al LLM de `AIService` vía `contextvars`, añade un paso resumido a `state["trace"]` (persistido en `AIDecision.trace` + `duration_ms`) y escribe una línea en el logger `apps.ai.agent.trace`. Se guarda el mensaje recortado (300) y datos de decisión; nunca el texto de la respuesta. Consulta: `/ai/traces/` (Supervisor/Administrador), `agent_trace`, `LOG_FILE` | Solicitud del responsable: ver en logs cómo el agente procesa cada petición. La skill pedida (`trace-llm-langgraph`) no existe en el catálogo; se implementó sin servicios externos (sin LangSmith/Langfuse: los datos no salen de la red) | `ai/agent/trace.py`, `ai/traces.py`, `config/settings/base.py` (`LOGGING`) |
 | ADR-077 | 2026-10-15 | **Decisiones propias del agente** a partir de sus métricas (modo mixto elegido por el responsable): D1 TRUST_UP (propuesta), D2 TRUST_DOWN (automática), D3 KEYWORDS (propuesta), D4 LLM_PAUSE/LLM_RESUME (automática, interruptor con llamada de prueba), D5 PRIORITY_UP (propuesta). `IntentPolicy` (automation) guarda la política vigente; `AgentPolicyDecision` la decisión, su evidencia y su estado (PROPOSED/APPLIED/REJECTED/REVERTED) con auditoría; `LLMCircuit` el interruptor. Efecto: `decide_autonomy` (revisión por intención, muestreo 10 % con D1, visible en la traza como `política=`), routing (prioridad mínima), Intent Engine (palabras nuevas), `AIService` (no llama al LLM en pausa). Límites: solo N2/N3, prioridad máxima Alta, sin tocar datos institucionales, todo reversible | Solicitud del responsable: «revisar las métricas y que el agente haga decisiones propias». Mismos nodos y aristas: sin cambio de `GRAPH_VERSION` | `ai/policies.py`, `ai/circuit.py`, comandos `evaluate_agent_policies`, `agent_policy_demo` |
+| ADR-078 | 2026-10-15 | Reemplaza parcialmente ADR-042: un empate de reglas ya no escala directo a revisión humana; primero lo razona el LLM con los candidatos (CR-009). Las reglas siguen como vía rápida y explicable; las palabras clave nuevas (`automation.0007`) cubren «requisitos + trámite» sin gastar una llamada al LLM | Aplicación agéntica: el agente decide cuando puede justificarlo y solo escala lo que sigue dudoso | `ai/agent/graph.py`, `ai/agent/nodes.py`, `ai/migrations/0005` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -866,6 +867,14 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Aprobado:** Pendiente
 
 ## 12.2 Solicitudes de cambio
+
+### CHANGE REQUEST CR-009 — El agente desambigua con el LLM antes de escalar
+**Fecha:** 2026-10-15
+**Origen:** BACK, a pedido del responsable («la aplicación es agéntica»)
+**Contrato actual:** ADR-042: un empate de reglas va directo a revisión humana (N4) sin consultar al LLM.
+**Cambio:** `after_rules` envía el empate a `classify_llm` con los candidatos (`AIService.classify(..., candidates=…)`); el prompt de clasificación v2 (`ai.0005`) incluye los candidatos y el criterio «pregunta informativa (N1) vs. petición de trámite (N2/N3)». Si el LLM elige con confianza ≥ 0.70 el agente actúa; si no, `validate_output` lo lleva a N4 como antes (CA-006 se mantiene: «certificado y contraseña» sigue escalando). La traza registra `disambiguation` y la tarjeta de revisión conserva los candidatos originales. `GRAPH_VERSION` 1.1.0 (mismos nodos y aristas; cambia la condición), diagrama regenerado.
+**Impacto:** ninguno para FRONT. Medir con Qwen en la red de la universidad (`evaluate_intents --agent`): el fake no razona y deja los 4 empates del dataset en N4 como antes.
+**Aprobado:** Sí (solicitud del responsable)
 
 ### CHANGE REQUEST CR-008 — Hilos del agente por ejecución y revisión tras responder
 **Fecha:** 2026-10-13
@@ -2219,3 +2228,8 @@ Suite PostgreSQL/E2E completo y revisión de las pantallas restantes en el entor
 - Reporte del responsable: «¿Cuáles son los requisitos para un certificado?» (ejemplo sugerido del asistente) creaba un ticket N4. Causa: «requisitos» (CHECK_REQUIREMENTS, N1) empataba con «certificado» (CERTIFICATE_REQUEST, N3) y el empate va a revisión humana (CA-006). Lo mismo con «¿Qué requisitos necesito para matricularme?»; y «requisitos para el certificado de estudios» se clasificaba como solicitud.
 - Migración `automation.0007_requirements_keywords`: combinaciones «requisitos + trámite», «requisitos para», «que necesito + …» en CHECK_REQUIREMENTS (auditada y reversible). Ahora responden por plantilla N1 sin ticket; «Necesito un certificado de matrícula» sigue siendo solicitud N3.
 - `evaluate_intents` (test, 120 ejemplos): reglas 0.683 → 0.700; reglas + LLM 0.767 → 0.783.
+
+## 2026-10-15 — Claude (BACKEND) / CR-009: desambiguación agéntica (ADR-078)
+
+- Observación del responsable: la corrección por palabras clave no es suficiente en una aplicación agéntica. Ahora el empate de reglas lo razona el LLM con los candidatos y un prompt v2 que distingue consulta informativa de solicitud; solo lo dudoso escala a una persona.
+- Verificación: CA-006 se mantiene («certificado y contraseña» → LLM con 0.60 → N4); prueba con LLM seguro → resuelve sin revisión; el prompt real recibe candidatos y criterio. GRAPH_VERSION 1.1.0.

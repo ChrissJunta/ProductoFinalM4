@@ -125,10 +125,13 @@ def classify_rules(state):
 
 
 def classify_llm(state):
-    """Solo se visita si las reglas no resolvieron (SPEC §30)."""
+    """Solo se visita si las reglas no resolvieron (SPEC §30): sin coincidencias, o con
+    empate entre intenciones, en cuyo caso el LLM recibe los candidatos para desambiguar."""
     service = AIService()
+    candidates = state.get("candidates") or []
+    tie = candidates if len(candidates) > 1 else None  # desambiguar el empate de reglas
     try:
-        result = service.classify(state["message"])
+        result = service.classify(state["message"], candidates=tie)
     except AIUnavailable as exc:
         return _step(
             "classify_llm",
@@ -147,7 +150,9 @@ def classify_llm(state):
         subcategory=result.subcategory.code if result.subcategory else None,
         summary=result.summary,
         llm_raw=result.raw,
-        candidates=[result.intent.code],
+        # Con empate se conservan las opciones originales para el revisor humano.
+        candidates=tie or [result.intent.code],
+        disambiguation=tie,
     )
 
 

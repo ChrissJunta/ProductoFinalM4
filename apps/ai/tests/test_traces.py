@@ -191,8 +191,9 @@ def test_trace_list_rows_and_filters(supervisor, student):
 
     assert ids(level="N0") == {debt.decision.pk}
     assert ids(status="pending") == {review.decision.pk, failed.decision.pk}
-    assert ids(status="errors") == {failed.decision.pk}
-    assert ids(status="llm") == {failed.decision.pk}
+    # el empate también pasó por el LLM con confianza baja (CR-009)
+    assert ids(status="errors") == {failed.decision.pk, review.decision.pk}
+    assert ids(status="llm") == {failed.decision.pk, review.decision.pk}
     assert ids(status="ticket") == {review.decision.pk, failed.decision.pk}
     assert ids(q=review.ticket.ticket_code) == {review.decision.pk}
     assert ids(q="CHECK_DEBT") == {debt.decision.pk}
