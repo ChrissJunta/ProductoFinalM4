@@ -1145,6 +1145,42 @@ Formato:
 
 # 16. Historial de trabajo
 
+## 2026-10-15 — ChatGPT (FRONTEND) / Refinamiento de pantallas — REVIEW
+
+- Mejora adicional solicitada por el responsable, sobre main cb2da5f. Se conserva la integración previa de PR #20 y las trazas BACK de PR #21. No cambia el estado de tareas ni registros BACK.
+- Archivos: static/css/mesa.css; nuevos components/page_heading.html y metric_stat.html; components/metric_sla.html, ticket_actions.html, ticket_filters.html y ticket_table.html; helpdesk/ticket_detail.html, ticket_form.html, ticket_list.html, agent_inbox.html, alerts.html y metrics.html; accounts/whatsapp.html; automation/assistant.html; manage/index.html, list.html y form.html.
+- Detalle compacto con pares semánticos y accesos a conversación/respuesta/acciones; mensajes de sistema diferenciados, Web/WhatsApp preservados. Enlace a trazas solo cuando BACK entrega agent_traces (CONTRACT-020 aprobado); no se infieren permisos.
+- Búsqueda prioritaria y filtros avanzados nativos details, abiertos si están aplicados; parámetros/pestaña conservados sin JS adicional. Tablas mantienen todas las columnas y desplazamiento horizontal accesible. Alertas recuperan bordes Bootstrap de gravedad y enlazan al ticket.
+- Métricas con indicadores principales, porcentaje SLA destacado, desglose por estado y actividad IA agrupados; sin nuevos cálculos ni metrics.whatsapp pendiente. Creación sin doble padding, clasificación opcional en fieldset; login móvil compacto; catálogos con conteos jerarquizados; WhatsApp con estado/pasos/código; asistente con ejemplos junto al formulario y respuesta diferenciada.
+- Verificaciones locales: todas las plantillas compilan en Django 5.2.18; manage.py check sin hallazgos; git diff --check. 18 escenarios sintéticos renderizados con bloqueo explícito de consultas BD: contratos de envío comparados contra HEAD (mismos nombres/tipos de campos, method y action), CSRF en POST, autoescape, labels, IDs únicos y referencias ARIA; filtros activos abiertos, respuesta oculta por can_reply=False, traza suministrada, vinculación sin acción de desvincular si no verificada. Verificación adicional de navegación por cuatro roles y contraseña normal/forzada pasa. Todas las líneas previas de progress conservadas.
+- Limitaciones: Docker/PostgreSQL local no disponible (daemon apagado), sin suite funcional local. No se atribuyen pruebas de navegador, responsive real, axe ni UAT a este refinamiento: acceso a vista previa bloqueado por política del navegador en la revisión previa. CI de esta rama pendiente al publicar. Helpers y previews sintéticos fuera del checkout; sin cambios en datos reales ni capturas antiguas presentadas como nuevas.
+
+## Refinamiento de pantallas — Cierre FRONT
+
+**Estado:** REVIEW
+**Responsable/Agente:** ChatGPT (FRONTEND)
+**Fecha:** 2026-10-15 — America/Guayaquil
+
+### Implementado
+Mejoras de presentación aprobadas por el responsable para las pantallas mapeadas. Archivos y verificaciones en la entrada de historial anterior.
+
+### Migraciones y endpoints
+Ninguno nuevo. No se modifican archivos BACK, contratos ni permisos; se consume CONTRACT-020 ya aprobado para enlazar trazas autorizadas.
+
+### Resultado y pendientes
+Renderizado y checks locales satisfactorios; REVIEW hasta CI, revisión visual interactiva y UAT. Sin merge automático a main.
+
+### Validación CI posterior — PR #22
+
+- Código y registro inicial `9f25318`: CI #96, run `38789481368`, job `116610012639`, SUCCESS. **859 pruebas PASS en 88,53 s; cobertura 99,05 %**, PostgreSQL 16 y Python 3.12. Lint, Django check y migraciones también satisfactorios.
+- Este resultado cierra el pendiente de CI del registro inicial. Revisión visual interactiva, axe y UAT permanecen pendientes; estado REVIEW. Esta anotación posterior solo cambia coordinación, no el código validado.
+
+## 2026-10-15 — ChatGPT (FRONTEND) / Refinamiento de pantallas — IN_PROGRESS
+
+- Mejora adicional autorizada expresamente por el responsable tras la revisión visual; no se toman tareas nuevas del backlog ni se alteran filas BACK. Base main cb2da5f, incluyendo estilos UTI y trazas IA de Claude.
+- Rama feature/fe-mejoras-pantallas. Alcance: detalle, filtros/listados, métricas, creación, alertas, login móvil, administración, WhatsApp y asistente. Solo presentación con contratos existentes, sin nuevos endpoints, permisos ni cálculos de negocio.
+- Responsable/Agente: ChatGPT. Fecha local: 2026-10-15, America/Guayaquil. Validación y cierre pendientes.
+
 Añadir siempre al final, sin borrar entradas anteriores.
 
 ```md

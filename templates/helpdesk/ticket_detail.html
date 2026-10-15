@@ -13,20 +13,22 @@
       {% include 'components/ticket_badge.html' with label=ticket.get_status_display only %}
       {% include 'components/ticket_badge.html' with label=ticket.get_priority_display only %}
     </div>
-    <dl class="row small mb-3">
-      <dt class="col-sm-3">Categoría</dt><dd class="col-sm-9">{{ ticket.category.name|default:'Sin categoría' }}{% if ticket.subcategory %} / {{ ticket.subcategory.name }}{% endif %}</dd>
-      <dt class="col-sm-3">Área</dt><dd class="col-sm-9">{{ ticket.assigned_area.name|default:'Sin área' }}</dd>
-      <dt class="col-sm-3">Responsable</dt><dd class="col-sm-9">{% if ticket.assigned_user %}{{ ticket.assigned_user.get_full_name|default:ticket.assigned_user.username }}{% else %}Sin responsable{% endif %}</dd>
-      <dt class="col-sm-3">Solicitante</dt><dd class="col-sm-9">{{ ticket.user.get_full_name|default:ticket.user.username }}</dd>
-      <dt class="col-sm-3">Creado</dt><dd class="col-sm-9">{{ ticket.created_at|localtime|date:'d/m/Y H:i' }}</dd>
-      <dt class="col-sm-3">Primera respuesta</dt><dd class="col-sm-9">{% if ticket.first_response_at %}{{ ticket.first_response_at|localtime|date:'d/m/Y H:i' }}{% elif ticket.first_response_due_at %}Pendiente · vence {{ ticket.first_response_due_at|localtime|date:'d/m/Y H:i' }}{% else %}—{% endif %}</dd>
-      <dt class="col-sm-3">SLA de resolución</dt><dd class="col-sm-9">{% include 'components/sla_badge.html' with sla=sla only %}</dd>
+    <dl class="mesa-ticket-summary small mb-3">
+      <div><dt>Categoría</dt><dd>{{ ticket.category.name|default:'Sin categoría' }}{% if ticket.subcategory %} / {{ ticket.subcategory.name }}{% endif %}</dd></div>
+      <div><dt>Área</dt><dd>{{ ticket.assigned_area.name|default:'Sin área' }}</dd></div>
+      <div><dt>Responsable</dt><dd>{% if ticket.assigned_user %}{{ ticket.assigned_user.get_full_name|default:ticket.assigned_user.username }}{% else %}Sin responsable{% endif %}</dd></div>
+      <div><dt>Solicitante</dt><dd>{{ ticket.user.get_full_name|default:ticket.user.username }}</dd></div>
+      <div><dt>Creado</dt><dd>{{ ticket.created_at|localtime|date:'d/m/Y H:i' }}</dd></div>
+      <div><dt>Primera respuesta</dt><dd>{% if ticket.first_response_at %}{{ ticket.first_response_at|localtime|date:'d/m/Y H:i' }}{% elif ticket.first_response_due_at %}Pendiente · vence {{ ticket.first_response_due_at|localtime|date:'d/m/Y H:i' }}{% else %}—{% endif %}</dd></div>
+      <div class="mesa-summary-sla"><dt>SLA de resolución</dt><dd>{% include 'components/sla_badge.html' with sla=sla only %}</dd></div>
     </dl>
     <h2 class="h6">Descripción</h2>
     <p class="mb-0 mesa-preserve-lines">{{ ticket.description }}</p>
   </div>
 </section>
 
+<nav class="mesa-detail-jumps" aria-label="Secciones del ticket"><a href="#historial">Ver conversación</a>{% if can_reply %}<a href="#responder">Responder al ticket</a>{% endif %}{% if actions or assign.can_assign %}<a href="#acciones">Ver acciones disponibles</a>{% endif %}</nav>
+{% if agent_traces %}<section class="card card-body mb-4" aria-labelledby="traces-title"><h2 id="traces-title" class="h5">Trazas del agente</h2><ul class="mb-0">{% for trace in agent_traces %}<li><a href="{% url 'ai:trace_detail' trace.id %}">Ver traza {{ trace.id }}</a> · {{ trace.created_at|localtime|date:'d/m/Y H:i' }} · {{ trace.autonomy_level }} · {{ trace.intent_code }}</li>{% endfor %}</ul></section>{% endif %}
 {% include 'components/ai_review.html' %}
 {% include 'components/ticket_actions.html' %}
 
@@ -35,8 +37,8 @@
     <h2 id="historial" class="h5">Conversación e historial</h2>
     <ol class="list-unstyled mb-0 mesa-timeline">
       {% for item in timeline %}
-        <li class="mesa-timeline-entry">
-          <div class="small text-secondary">{{ item.created_at|localtime|date:'d/m/Y H:i' }}
+        <li class="mesa-timeline-entry{% if item.kind != 'message' %} mesa-timeline-system{% endif %}">
+          <div class="small text-secondary mesa-timeline-meta">{{ item.created_at|localtime|date:'d/m/Y H:i' }}
           {% if item.kind == 'message' %}· <span class="mesa-channel{% if item.channel == 'WHATSAPP' %} mesa-channel-whatsapp{% endif %}">{% if item.channel == 'WHATSAPP' %}WhatsApp{% else %}Web{% endif %}</span> {{ item.message.get_sender_type_display }}{% if item.message.sender %} ({{ item.message.sender.get_full_name|default:item.message.sender.username }}){% endif %}{% if item.message.message_type != 'TEXT' %} · {{ item.message.get_message_type_display }}{% endif %}
           {% else %}· [Sistema] Estado: {{ item.entry.get_previous_status_display|default:'—' }} → {{ item.entry.get_new_status_display }}{% if item.entry.actor %} ({{ item.entry.actor.username }}){% endif %}{% endif %}</div>
           {% if item.kind == 'message' %}

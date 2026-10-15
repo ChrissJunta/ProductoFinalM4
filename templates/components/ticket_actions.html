@@ -11,7 +11,7 @@
           <label class="form-label small" for="reason-{{ forloop.counter }}">Motivo / mensaje (obligatorio)</label>
           <textarea class="form-control form-control-sm mb-2" id="reason-{{ forloop.counter }}" name="reason" rows="2" maxlength="2000" required></textarea>
         {% endif %}
-        <p class="small text-secondary">Al enviar esta acción, el backend validará el estado y la versión del ticket.</p><button type="submit" class="btn btn-sm btn-outline-primary">{{ action.label }}</button>
+        <p class="small text-secondary">El cambio quedará registrado en el historial del ticket.</p><button type="submit" class="btn btn-sm btn-outline-primary">{{ action.label }}</button>
       </form>
     {% endfor %}
     {% include 'components/ticket_assignment.html' %}

@@ -2,8 +2,7 @@
 {% load tz %}
 {% block title %}Bandeja de atención{% endblock %}
 {% block content %}
-<h1 class="h3 mb-2">Bandeja de atención</h1>
-<p class="text-secondary mb-4">Consulta las solicitudes autorizadas y su prioridad de atención.</p>
+{% include 'components/page_heading.html' with heading='Bandeja de atención' eyebrow='Gestión de solicitudes' description='Elige una vista y encuentra las solicitudes que requieren atención.' only %}
 <nav aria-label="Vistas de la bandeja" class="mb-4">
   <ul class="nav nav-pills gap-2 flex-wrap">
     {% for item in tabs %}<li class="nav-item"><a class="nav-link{% if item.key == tab %} active{% endif %}" href="{% url 'helpdesk:agent_inbox' %}?tab={{ item.key|urlencode }}"{% if item.key == tab %} aria-current="page"{% endif %}>{{ item.label }}{% if item.count != None %} <span class="badge text-bg-light ms-1">{{ item.count }}</span>{% endif %}</a></li>{% endfor %}
