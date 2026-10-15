@@ -75,6 +75,32 @@ def test_tie_is_ambiguous():
     assert match.confidence < 0.70
 
 
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("¿Cuáles son los requisitos para un certificado?", "CHECK_REQUIREMENTS"),
+        ("¿Qué requisitos necesito para matricularme?", "CHECK_REQUIREMENTS"),
+        ("requisitos para el certificado de estudios", "CHECK_REQUIREMENTS"),
+        ("¿Qué necesito para sacar un certificado?", "CHECK_REQUIREMENTS"),
+        ("Necesito un certificado de matrícula", "CERTIFICATE_REQUEST"),
+        ("No puedo matricularme", "ENROLLMENT_PROBLEM"),
+    ],
+)
+def test_requirements_question_is_informative_not_a_request(text, expected):
+    """Preguntar por requisitos es N1 (respuesta automática), no un trámite con ticket."""
+    assert identify_intent(text).intent.code == expected
+
+
+def test_requirements_question_answered_without_ticket(make_user):
+    from apps.ai.agent import runner
+
+    runner.reset()
+    user = make_user("ana", role="Usuario")
+    r = runner.run_agent(text="¿Cuáles son los requisitos para un certificado?", user=user)
+    assert (r.level, r.ticket, r.path[-1]) == ("N1", None, "respond_template")
+    runner.reset()
+
+
 def test_keywords_are_configuration(make_user):
     """Cambiar palabras clave desde el admin cambia la clasificación sin redeploy."""
     admin = make_user("admin", role="Administrador")

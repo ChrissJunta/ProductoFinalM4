@@ -2213,3 +2213,9 @@ Suite PostgreSQL/E2E completo y revisión de las pantallas restantes en el entor
 - Solicitud del responsable: revisar las métricas y que el agente tome decisiones propias; modo mixto y las cinco decisiones D1–D5 elegidos por el responsable.
 - Verificación manual en desarrollo con `agent_policy_demo --llm-failures` + `evaluate_agent_policies`: se dispararon D1, D3, D5 (propuestas) y D2, D4 (aplicadas). Aprobadas las propuestas, el agente cambió su comportamiento: «documento de egresado» → CERTIFICATE_REQUEST por reglas (D3) y prioridad Media (D5); «No puedo matricularme» → revisión humana (`política=ALWAYS`, D2); biblioteca digital → sin llamar al LLM, N4 (D4); contraseña → `política=SKIP` (D1).
 - Plantilla `ai/policy_list.html` funcional; **FRONT puede refinarla** según CONTRACT-021.
+
+## 2026-10-15 — Claude (BACKEND) / Fix: preguntas de requisitos respondidas sin ticket
+
+- Reporte del responsable: «¿Cuáles son los requisitos para un certificado?» (ejemplo sugerido del asistente) creaba un ticket N4. Causa: «requisitos» (CHECK_REQUIREMENTS, N1) empataba con «certificado» (CERTIFICATE_REQUEST, N3) y el empate va a revisión humana (CA-006). Lo mismo con «¿Qué requisitos necesito para matricularme?»; y «requisitos para el certificado de estudios» se clasificaba como solicitud.
+- Migración `automation.0007_requirements_keywords`: combinaciones «requisitos + trámite», «requisitos para», «que necesito + …» en CHECK_REQUIREMENTS (auditada y reversible). Ahora responden por plantilla N1 sin ticket; «Necesito un certificado de matrícula» sigue siendo solicitud N3.
+- `evaluate_intents` (test, 120 ejemplos): reglas 0.683 → 0.700; reglas + LLM 0.767 → 0.783.
