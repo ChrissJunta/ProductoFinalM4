@@ -11,7 +11,7 @@ from typing import Annotated, TypedDict
 class AgentState(TypedDict, total=False):
     thread_id: str
     user_id: int | None
-    channel: str  # WEB | WHATSAPP
+    channel: str  # WEB | WHATSAPP | TELEGRAM
     is_verified: bool
     message: str
     intent: str | None

@@ -193,9 +193,9 @@ def _fallback(initial, user, exc):
         ],
     }
     if user is None:
-        from apps.automation.responses import LOGIN_FOR_TICKET
+        from apps.automation.responses import link_instructions
 
-        return {**state, "response": LOGIN_FOR_TICKET}
+        return {**state, "response": link_instructions(initial["channel"], for_ticket=True)}
     unknown = Intent.objects.filter(code="UNKNOWN_REQUEST").first()
     category, subcategory = category_for("UNKNOWN_REQUEST")
     ticket = TicketService.create(

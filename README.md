@@ -157,6 +157,29 @@ python manage.py llm_ping                     # conectividad, modelo y una clasi
 python manage.py evaluate_intents --agent     # accuracy / macro F1 / latencia con el LLM real
 ```
 
+### Bot de Telegram (@MesaUtiBot)
+
+Canal separado de WhatsApp: el bot lee mensajes con *long polling* (no necesita URL pública,
+funciona desde la PC de la presentación). En `.env`:
+
+```
+TELEGRAM_MODE=bot
+TELEGRAM_BOT_TOKEN=<token de @BotFather>
+TELEGRAM_BOT_USERNAME=MesaUtiBot
+```
+
+```bash
+python manage.py run_telegram_bot     # en una consola aparte, junto al runserver (Ctrl+C para salir)
+python manage.py telegram_simulate 123 "¿Cuánto debo?"   # sin red, para pruebas
+```
+
+1. En el portal: **Perfil → Telegram → Generar código → «Abrir Telegram y vincular»** (o enviar el código al bot).
+2. El bot confirma la vinculación; desde ahí responde con el agente (deuda y notas solo con el
+   total/resumen, como en WhatsApp). Sin vincular, solo información general.
+3. Las respuestas del personal en tickets nacidos en Telegram llegan al chat.
+
+El token nunca se registra en logs ni en errores (se reemplaza por `***`).
+
 ### WhatsApp simulado (sin acceso a Meta)
 
 ```bash

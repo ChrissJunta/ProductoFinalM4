@@ -23,6 +23,7 @@
       {% if user_role == 'Supervisor' or user_role == 'Administrador' %}{% include 'components/nav_link.html' with destination='ai:trace_list' label='Trazas IA' active_view='ai:trace_detail' %}{% include 'components/nav_link.html' with destination='ai:policy_list' label='Decisiones IA' %}{% endif %}
       {% if user_role == 'Usuario' %}{% include 'components/nav_link.html' with destination='automation:assistant' label='Asistente' %}{% endif %}
       {% include 'components/nav_link.html' with destination='accounts:whatsapp' label='WhatsApp' %}
+      {% include 'components/nav_link.html' with destination='accounts:telegram' label='Telegram' %}
       {% include 'components/nav_link.html' with destination='accounts:password_change' label='Contraseña' %}
     </div>
   </nav>

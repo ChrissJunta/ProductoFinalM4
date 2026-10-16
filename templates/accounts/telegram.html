@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{# Plantilla funcional del backend (CONTRACT-022): el frontend puede refinar su diseño. #}
+{% load tz %}
+{% block title %}Vinculación de Telegram{% endblock %}
+{% block content %}
+{% include 'components/page_heading.html' with heading='Vinculación de Telegram' eyebrow='Canales de atención' description='Asocia tu chat de Telegram para consultar tus datos y seguir tus solicitudes desde el bot.' only %}
+<div class="row g-4 mb-4"><div class="col-lg-5"><section class="card card-body h-100" aria-labelledby="telegram-status"><h2 id="telegram-status" class="h5">Estado de vinculación</h2>
+{% if is_linked %}<p><span class="badge text-bg-success">Vinculado</span></p><p class="small text-secondary">Vinculado el {{ linked_at|localtime|date:'d/m/Y H:i' }}.</p>
+{% else %}<p><span class="badge text-bg-light border">Sin vincular</span></p><p>Sin vincular, el bot solo da información general. Genera un código para consultar tus datos.</p>{% endif %}
+<p class="mb-0">Bot: <a href="{{ bot_url }}" target="_blank" rel="noopener">@{{ bot_username }}</a></p>
+</section></div><div class="col-lg-7">
+{% if code %}<section class="card card-body mb-4" aria-labelledby="code-title"><h2 id="code-title" class="h5">Código de vinculación</h2><p data-testid="link-code">Envía este código al bot <strong>@{{ bot_username }}</strong>: <strong class="mesa-link-code">{{ code }}</strong></p><p><a class="btn btn-primary" href="{{ code_url }}" target="_blank" rel="noopener">Abrir Telegram y vincular</a></p><p>Vence el {{ code_expires_at|localtime|date:'d/m/Y H:i' }} ({{ code_minutes }} minutos).</p><p class="small text-secondary mb-0">El código se muestra una sola vez. No lo compartas.</p></section>
+{% else %}<section class="card card-body h-100" aria-labelledby="link-steps"><h2 id="link-steps" class="h5">Cómo vincular tu chat</h2><ol class="mb-0"><li>Genera un código desde este portal.</li><li>Pulsa «Abrir Telegram y vincular», o envía el código al bot @{{ bot_username }}.</li><li>El bot te confirmará la vinculación.</li></ol></section>{% endif %}</div></div>
+<div class="d-flex flex-wrap gap-3"><form method="post" action="{% url 'accounts:telegram' %}">{% csrf_token %}<input type="hidden" name="action" value="generate"><button class="btn btn-primary" type="submit">Generar código</button></form>
+{% if is_linked %}<form method="post" action="{% url 'accounts:telegram' %}">{% csrf_token %}<input type="hidden" name="action" value="unlink"><button class="btn btn-outline-primary" type="submit">Desvincular Telegram</button></form>{% endif %}</div>
+{% endblock %}

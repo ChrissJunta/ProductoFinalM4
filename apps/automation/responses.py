@@ -23,6 +23,23 @@ LOGIN_FOR_TICKET = (
 )
 
 
+TELEGRAM_LINK_INSTRUCTIONS = (
+    "Para consultar datos personales necesitamos confirmar tu identidad. Genera un código en el "
+    "portal (Perfil → Telegram) y envíamelo aquí."
+)
+TELEGRAM_LOGIN_FOR_TICKET = (
+    "Para registrar tu solicitud necesitamos identificarte. Genera un código en el portal "
+    "(Perfil → Telegram) y envíamelo aquí, o inicia sesión en el portal."
+)
+
+
+def link_instructions(channel, *, for_ticket=False):
+    """Cómo identificarse, según el canal por el que escribe el usuario."""
+    if channel == Ticket.Channel.TELEGRAM:
+        return TELEGRAM_LOGIN_FOR_TICKET if for_ticket else TELEGRAM_LINK_INSTRUCTIONS
+    return LOGIN_FOR_TICKET if for_ticket else LINK_INSTRUCTIONS
+
+
 def _date(d):
     return f"{DAY_NAMES[d.weekday()]} {d:%d/%m/%Y}"
 
@@ -64,7 +81,7 @@ def debt(summary, channel=None):
     if not summary.items:
         return "No tienes valores pendientes de pago."
     head = f"Tu saldo pendiente es {summary.currency} {_money(summary.total)}."
-    if channel == Ticket.Channel.WHATSAPP:
+    if channel in (Ticket.Channel.WHATSAPP, Ticket.Channel.TELEGRAM):  # mensajería: minimizar
         return f"{head} Puedes ver el detalle en el portal."
     lines = [head]
     lines += [

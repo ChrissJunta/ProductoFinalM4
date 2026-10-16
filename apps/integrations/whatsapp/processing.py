@@ -141,7 +141,7 @@ def process_inbox(now=None):
     """Procesa entradas pendientes. Devuelve (procesadas, fallidas)."""
     done = failed = 0
     with transaction.atomic():
-        items = list(_due(IntegrationInbox.objects.all(), now or timezone.now()))
+        items = list(_due(IntegrationInbox.objects.filter(provider=WA), now or timezone.now()))
         for item in items:
             try:
                 with transaction.atomic():
@@ -164,7 +164,7 @@ def process_outbox(now=None):
     client = get_client()
     sent = failed = 0
     with transaction.atomic():
-        items = list(_due(IntegrationOutbox.objects.all(), now or timezone.now()))
+        items = list(_due(IntegrationOutbox.objects.filter(provider=WA), now or timezone.now()))
         for item in items:
             try:
                 item.external_message_id = client.send_text(

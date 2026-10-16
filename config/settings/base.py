@@ -219,6 +219,15 @@ WHATSAPP_ACCESS_TOKEN = env("WHATSAPP_ACCESS_TOKEN", default="")
 WHATSAPP_PHONE_NUMBER_ID = env("WHATSAPP_PHONE_NUMBER_ID", default="")
 WHATSAPP_API_VERSION = env("WHATSAPP_API_VERSION", default="v21.0")
 WHATSAPP_LINK_CODE_MINUTES = 10
+# Telegram (ADR-080): «simulated» registra la salida sin enviarla; «bot» usa la Bot API con
+# long polling (`python manage.py run_telegram_bot`), sin URL pública. El token va solo en .env.
+TELEGRAM_MODE = env("TELEGRAM_MODE", default="simulated")
+TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", default="")
+TELEGRAM_BOT_USERNAME = env("TELEGRAM_BOT_USERNAME", default="MesaUtiBot")
+TELEGRAM_POLL_TIMEOUT = env.int("TELEGRAM_POLL_TIMEOUT", default=25)  # segundos
+TELEGRAM_LINK_CODE_MINUTES = 10
+TELEGRAM_LINK_MAX_FAILURES = 5  # códigos fallidos por chat y hora
+TELEGRAM_LINK_GLOBAL_MAX_FAILURES = 100  # por hora, sumando todos los chats
 INTEGRATION_MAX_ATTEMPTS = 5  # reintentos con backoff exponencial (SPEC §38.1)
 WHATSAPP_LINK_MAX_FAILURES = 5  # códigos fallidos por número y hora (§35.1)
 WHATSAPP_LINK_GLOBAL_MAX_FAILURES = 100  # por hora, sumando todos los números
