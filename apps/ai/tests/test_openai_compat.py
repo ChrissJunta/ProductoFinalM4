@@ -204,3 +204,12 @@ def test_hint_appended_when_template_has_no_placeholder(vllm):
     AIService().classify("x", candidates=["A_B", "C_D"])
     system = vllm.requests[0]["messages"][0]["content"]
     assert system.startswith("Catálogo:") and "Las reglas dudan entre: A_B, C_D." in system
+
+
+def test_answer_general_question(vllm):
+    """ADR-083: respuesta general con el prompt que prohíbe inventar datos institucionales."""
+    vllm.content = "<think>x</think>La fotosíntesis convierte luz en energía."
+    assert AIService().answer("¿Qué es la fotosíntesis?").startswith("La fotosíntesis")
+    system = vllm.requests[-1]["messages"][0]["content"]
+    assert "NO inventes datos de la universidad" in system
+    assert vllm.requests[-1]["messages"][1]["content"] == "¿Qué es la fotosíntesis?"

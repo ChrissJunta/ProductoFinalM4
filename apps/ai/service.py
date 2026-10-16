@@ -263,6 +263,14 @@ class AIService:
         response = self._call(Operation.SUMMARIZE, "summarize", list(messages))
         return response.text.strip()[: settings.AI_SUMMARY_MAX_CHARS]
 
+    def answer(self, text):
+        """Respuesta del LLM a un saludo o pregunta general (ADR-083). Lanza AIUnavailable."""
+        response = self._call(Operation.GENERATE_RESPONSE, "answer", text)
+        reply = response.text.strip()
+        if not reply:
+            raise AIUnavailable("Respuesta vacía del LLM.")
+        return reply[: settings.AI_ANSWER_MAX_CHARS]
+
     def generate_response(self, template, facts=None):
         """Reformula una plantilla N1 sin añadir hechos (SPEC §31.1).
 

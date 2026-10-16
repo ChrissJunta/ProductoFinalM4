@@ -410,7 +410,7 @@ def test_rule_tie_is_disambiguated_by_llm(student, monkeypatch):
     assert (r.intent_code, r.level, r.pending_review) == ("CERTIFICATE_REQUEST", "N3", False)
     step = next(s for s in r.decision.trace if s["node"] == "classify_llm")
     assert step["data"]["disambiguation"] == ["CERTIFICATE_REQUEST", "PASSWORD_PROBLEM"]
-    assert r.decision.prompt_version.version == 2
+    assert r.decision.prompt_version.version == 3
 
 
 def test_fake_llm_only_chooses_among_candidates():

@@ -168,6 +168,7 @@ LLM_ENABLE_THINKING = env.bool("LLM_ENABLE_THINKING", default=False)
 LLM_FALLBACK_PROVIDER = env("LLM_FALLBACK_PROVIDER", default="")
 AI_MAX_RETRIES = 1  # reintentos del primario antes de pasar al respaldo (SPEC §46)
 AI_SUMMARY_MAX_CHARS = 500
+AI_ANSWER_MAX_CHARS = 1000  # respuesta libre a saludos y preguntas generales (ADR-083)
 
 # Agente LangGraph (SPEC §46A). «postgres» persiste los hilos pausados en revisión humana;
 # «memory» solo para pruebas (se pierde al reiniciar).

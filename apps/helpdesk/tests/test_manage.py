@@ -76,9 +76,9 @@ def test_list_filters_and_pagination(admin_client):
     Intent.objects.filter(code="GRADE_DISCREPANCY").update(is_active=False)
     r = admin_client.get(url("list", "intents"), {"status": "inactive"})
     assert [row["object"].code for row in r.context["rows"]] == ["GRADE_DISCREPANCY"]
-    r = admin_client.get(url("list", "intents"), {"status": "raro", "page": 2})
+    r = admin_client.get(url("list", "intents"), {"status": "raro", "page": "x"})
     assert r.context["filters"]["status"] == "all" and r.context["page_obj"].number == 1
-    assert r.context["page_obj"].paginator.count == 20
+    assert r.context["page_obj"].paginator.count == 21
 
 
 def test_area_list_shows_agents(admin_client, make_user):

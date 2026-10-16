@@ -34,7 +34,9 @@ def area(code):
 
 
 def test_initial_catalog_matches_spec():
-    assert set(Intent.objects.values_list("code", flat=True)) == SPEC_INTENTS
+    # + GENERAL_QUESTION: saludos y preguntas generales sin ticket (ADR-083).
+    codes = set(Intent.objects.values_list("code", flat=True))
+    assert codes == SPEC_INTENTS | {"GENERAL_QUESTION"}
 
 
 @pytest.mark.parametrize(
@@ -221,5 +223,5 @@ def test_automation_migrations_are_reversible():
     call_command("migrate", "helpdesk", "0009", verbosity=0)  # quita Ticket.intent primero
     call_command("migrate", "automation", "zero", verbosity=0)
     call_command("migrate", verbosity=0)
-    assert Intent.objects.count() == 20
+    assert Intent.objects.count() == 21
     assert Ticket._meta.get_field("intent")

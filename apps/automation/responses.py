@@ -23,6 +23,10 @@ LOGIN_FOR_TICKET = (
 )
 
 
+GENERAL_FALLBACK = (
+    "¡Hola! Soy el asistente de la Mesa de Ayuda. Puedo ayudarte con tu horario, notas, deuda, "
+    "el estado de tus solicitudes o registrar un trámite. ¿En qué te ayudo?"
+)
 TELEGRAM_LINK_INSTRUCTIONS = (
     "Para consultar datos personales necesitamos confirmar tu identidad. Genera un código en el "
     "portal (Perfil → Telegram) y envíamelo aquí."

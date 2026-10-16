@@ -22,7 +22,9 @@ def test_dataset_covers_catalog_with_20_examples_each():
 
 @pytest.mark.django_db
 def test_dataset_matches_intent_catalog():
-    assert set(BASES) == set(Intent.objects.values_list("code", flat=True))
+    # GENERAL_QUESTION (ADR-083) no es un trámite: saludos y cultura general quedan fuera.
+    codes = set(Intent.objects.exclude(code="GENERAL_QUESTION").values_list("code", flat=True))
+    assert set(BASES) == codes
 
 
 def test_dev_and_test_do_not_share_base_phrases():

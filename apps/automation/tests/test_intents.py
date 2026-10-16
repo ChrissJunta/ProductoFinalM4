@@ -63,8 +63,22 @@ def test_ticket_code_is_a_deterministic_rule():
 
 
 def test_no_match_is_left_for_llm():
-    match = identify_intent("Hola, buenas tardes")
+    match = identify_intent("Necesito ayuda con algo")
     assert (match.intent, match.confidence, match.ambiguous) == (None, 0.0, False)
+
+
+@pytest.mark.parametrize(
+    "text", ["Hola, buenas tardes", "¡Muchas gracias!", "buenos días, ¿qué tal?"]
+)
+def test_greeting_alone_is_general_question(text):
+    """ADR-083: un saludo solo se responde sin ticket."""
+    match = identify_intent(text)
+    assert (match.intent.code, match.confidence) == ("GENERAL_QUESTION", 0.90)
+
+
+def test_greeting_with_a_request_is_still_the_request():
+    match = identify_intent("Hola, necesito un certificado de matrícula")
+    assert match.intent.code == "CERTIFICATE_REQUEST"
 
 
 def test_tie_is_ambiguous():
