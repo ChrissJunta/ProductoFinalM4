@@ -157,6 +157,20 @@ python manage.py llm_ping                     # conectividad, modelo y una clasi
 python manage.py evaluate_intents --agent     # accuracy / macro F1 / latencia con el LLM real
 ```
 
+### LLM real fuera de la universidad
+
+`172.16.8.69` es una IP **privada**: solo responde dentro de la red de la universidad (o por
+su VPN). Fuera de ella sirve cualquier servidor compatible con la API de OpenAI:
+
+| Opción | Pasos | Notas |
+|---|---|---|
+| **A. Ollama en tu PC** (recomendada) | Instalar Ollama (ollama.com) → `ollama pull qwen2.5:3b` → en `.env`: `LLM_PROVIDER=openai_compat`, `LLM_BASE_URL=http://localhost:11434/v1`, `LLM_MODEL=qwen2.5:3b`, `LLM_TIMEOUT=60`, `LLM_CHAT_TEMPLATE_KWARGS=False` | Gratis, sin internet, los mensajes no salen de tu PC. Con 16 GB de RAM puede usarse `qwen2.5:7b` (más preciso, más lento). |
+| **B. API alojada** (p. ej. Groq) | Crear una clave → `LLM_BASE_URL=https://api.groq.com/openai/v1`, `LLM_MODEL=qwen/qwen3-32b`, `LLM_API_KEY=…`, `LLM_CHAT_TEMPLATE_KWARGS=False`, `LLM_EXTRA_BODY={"reasoning_effort": "none"}` | Rápida; el mensaje y el catálogo salen a un tercero (usar solo con datos de prueba). |
+| **C. VPN de la universidad** | Conectarse y usar `http://172.16.8.69:8000/v1` | El mismo Qwen3-8B de producción. |
+
+Con cualquiera: `python manage.py llm_ping` y `python manage.py evaluate_intents --agent`.
+`LLM_FALLBACK_PROVIDER=fake` evita que el portal se detenga si el servidor no responde.
+
 ### WhatsApp simulado (sin acceso a Meta)
 
 ```bash

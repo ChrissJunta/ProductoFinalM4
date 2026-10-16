@@ -164,6 +164,10 @@ LLM_MODEL = env("LLM_MODEL", default="Qwen/Qwen3-8B-AWQ")
 LLM_API_KEY = env("LLM_API_KEY", default="")  # vLLM no la exige por defecto
 LLM_TIMEOUT = env.float("LLM_TIMEOUT", default=20.0)  # segundos por llamada
 LLM_ENABLE_THINKING = env.bool("LLM_ENABLE_THINKING", default=False)
+# `chat_template_kwargs` es propio de vLLM; las APIs alojadas (Groq, OpenAI) lo rechazan.
+LLM_CHAT_TEMPLATE_KWARGS = env.bool("LLM_CHAT_TEMPLATE_KWARGS", default=True)
+# Campos extra del cuerpo de la petición, en JSON (p. ej. {"reasoning_effort": "none"}).
+LLM_EXTRA_BODY = env.json("LLM_EXTRA_BODY", default={})
 # Respaldo si el proveedor principal no responde (SPEC §46), p. ej. «fake». Vacío = ninguno.
 LLM_FALLBACK_PROVIDER = env("LLM_FALLBACK_PROVIDER", default="")
 AI_MAX_RETRIES = 1  # reintentos del primario antes de pasar al respaldo (SPEC §46)

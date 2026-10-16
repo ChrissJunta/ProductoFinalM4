@@ -12,6 +12,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from apps.ai.providers.openai_compat import auth_headers
 from apps.ai.service import AIInvalidOutput, AIService, AIUnavailable
 
 
@@ -30,7 +31,8 @@ class Command(BaseCommand):
         if settings.LLM_PROVIDER == "openai_compat":
             url = settings.LLM_BASE_URL.rstrip("/") + "/models"
             try:
-                with urllib.request.urlopen(url, timeout=settings.LLM_TIMEOUT) as response:
+                request = urllib.request.Request(url, headers=auth_headers())
+                with urllib.request.urlopen(request, timeout=settings.LLM_TIMEOUT) as response:
                     models = [m.get("id") for m in json.loads(response.read()).get("data", [])]
             except Exception as exc:  # noqa: BLE001 - diagnóstico para el usuario
                 raise CommandError(f"No se pudo contactar {url}: {exc}") from exc

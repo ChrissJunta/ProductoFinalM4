@@ -13,7 +13,7 @@ from django.core.management import CommandError, call_command
 from apps.ai.models import AIUsage
 from apps.ai.providers import LLMError, LLMTimeout, get_llm_provider
 from apps.ai.providers.openai_compat import OpenAICompatibleProvider, strip_thinking
-from apps.ai.service import AIInvalidOutput, AIService
+from apps.ai.service import AIInvalidOutput, AIService, AIUnavailable
 
 pytestmark = pytest.mark.django_db
 
@@ -39,12 +39,24 @@ class FakeVLLM(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):  # noqa: N802
+        self.server.auth.append(self.headers.get("Authorization"))
+        if self.server.mode == "auth" and self.headers.get("Authorization") != "Bearer clave":
+            return self._json(401, {"error": "sin clave"})
         self._json(200, {"data": [{"id": "Qwen/Qwen3-8B-AWQ"}]})
 
     def do_POST(self):  # noqa: N802
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         self.server.requests.append(body)
+        self.server.auth.append(self.headers.get("Authorization"))
         mode = self.server.mode
+        if mode == "strict" and set(body) - {
+            "model",
+            "messages",
+            "temperature",
+            "max_tokens",
+            "reasoning_effort",
+        }:
+            return self._json(400, {"error": "campo no soportado"})  # como Groq u OpenAI
         if mode == "500":
             return self._json(500, {"error": "boom"})
         if mode == "slow":
@@ -61,7 +73,7 @@ class FakeVLLM(BaseHTTPRequestHandler):
 @pytest.fixture
 def vllm(settings):
     server = ThreadingHTTPServer(("127.0.0.1", 0), FakeVLLM)
-    server.requests, server.mode = [], "ok"
+    server.requests, server.mode, server.auth = [], "ok", []
     server.content = "<think>\n\n</think>\n\n" + json.dumps(GOOD)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     settings.LLM_PROVIDER = "openai_compat"
@@ -204,3 +216,27 @@ def test_hint_appended_when_template_has_no_placeholder(vllm):
     AIService().classify("x", candidates=["A_B", "C_D"])
     system = vllm.requests[0]["messages"][0]["content"]
     assert system.startswith("Catálogo:") and "Las reglas dudan entre: A_B, C_D." in system
+
+
+def test_hosted_api_without_vllm_fields(vllm, settings):
+    """Groq/OpenAI rechazan campos desconocidos: se desactiva chat_template_kwargs y se pasan
+    las opciones propias del servidor con LLM_EXTRA_BODY."""
+    vllm.mode = "strict"
+    with pytest.raises(AIUnavailable):
+        AIService().classify("Ya pagué y sigue la deuda")  # con chat_template_kwargs → 400
+    settings.LLM_CHAT_TEMPLATE_KWARGS = False
+    settings.LLM_EXTRA_BODY = {"reasoning_effort": "none", "model": "no-se-reemplaza"}
+    settings.LLM_API_KEY = "clave"
+    result = AIService().classify("Ya pagué y sigue la deuda")
+    body = vllm.requests[-1]
+    assert result.intent.code == "PAYMENT_NOT_REFLECTED"
+    assert "chat_template_kwargs" not in body and body["reasoning_effort"] == "none"
+    assert body["model"] == "Qwen/Qwen3-8B-AWQ" and vllm.auth[-1] == "Bearer clave"
+
+
+def test_llm_ping_sends_api_key(vllm, settings):
+    vllm.mode = "auth"
+    settings.LLM_API_KEY = "clave"
+    out = StringIO()
+    call_command("llm_ping", stdout=out)
+    assert "Servidor OK" in out.getvalue() and vllm.auth[0] == "Bearer clave"

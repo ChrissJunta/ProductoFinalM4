@@ -32,6 +32,10 @@ SYSTEM_REPHRASE = (
 )
 
 
+def auth_headers():
+    return {"Authorization": f"Bearer {settings.LLM_API_KEY or 'no-se-necesita'}"}
+
+
 def strip_thinking(text):
     return THINK.sub("", text or "").strip()
 
@@ -56,16 +60,17 @@ class OpenAICompatibleProvider(LLMProvider):
             ],
             "temperature": temperature,
             "max_tokens": max_tokens,
-            # Qwen3: el «thinking mode» es más lento; se activa solo por configuración.
-            "chat_template_kwargs": {"enable_thinking": settings.LLM_ENABLE_THINKING},
         }
+        if settings.LLM_CHAT_TEMPLATE_KWARGS:  # vLLM + Qwen3: «thinking mode» por configuración
+            payload["chat_template_kwargs"] = {"enable_thinking": settings.LLM_ENABLE_THINKING}
+        # Opciones propias de cada servidor; nunca reemplazan modelo ni mensajes.
+        payload.update(
+            {k: v for k, v in settings.LLM_EXTRA_BODY.items() if k not in ("model", "messages")}
+        )
         request = urllib.request.Request(
             f"{self.base_url}/chat/completions",
             data=json.dumps(payload).encode(),
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {settings.LLM_API_KEY or 'no-se-necesita'}",
-            },
+            headers={"Content-Type": "application/json", **auth_headers()},
         )
         try:
             with urllib.request.urlopen(request, timeout=settings.LLM_TIMEOUT) as response:
