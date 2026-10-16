@@ -233,6 +233,18 @@ def respond(state):
 def respond_template(state):
     action = active_action(_intent(state["intent"]))
     template = action.response_template.strip()
+    if action.action_type == A.LLM_ANSWER:
+        # Saludo o pregunta general: responde el LLM, sin ticket (ADR-083). Si el LLM no
+        # está disponible, la plantilla de respaldo; tampoco se crea ticket.
+        try:
+            text = AIService().answer(state["message"])
+        except AIUnavailable as exc:
+            return _step(
+                "respond_template",
+                response=template or responses.GENERAL_FALLBACK,
+                errors=[f"LLM no disponible: {exc}"],
+            )
+        return _step("respond_template", response=text)
     # El LLM solo puede reformular sin añadir hechos; si no, se usa la plantilla (SPEC §31.1).
     return _step("respond_template", response=AIService().generate_response(template))
 

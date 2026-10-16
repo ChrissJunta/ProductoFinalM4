@@ -26,6 +26,14 @@ SYSTEM_SUMMARY = (
     "Resume la conversación para un agente de mesa de ayuda universitaria en máximo 500 "
     "caracteres, en español, sin incluir notas, montos ni datos personales."
 )
+SYSTEM_ANSWER = (
+    "Eres el asistente virtual de la Mesa de Ayuda de la Universidad Indoamérica. Responde en "
+    "español, de forma breve (máximo 4 oraciones) y cordial, saludos o preguntas generales. "
+    "NO inventes datos de la universidad (fechas, costos, requisitos, teléfonos, horarios, "
+    "notas o deudas): si te los piden, di que no tienes esa información y sugiere consultar con "
+    "el menú del asistente o registrar una solicitud. Nunca pidas contraseñas ni datos "
+    "personales. Responde solo con el texto final."
+)
 SYSTEM_REPHRASE = (
     "Reformula el texto oficial en tono cordial y breve, en español. No añadas hechos, cifras, "
     "fechas, teléfonos ni enlaces que no estén en el texto. Responde solo con el texto final."
@@ -120,6 +128,9 @@ class OpenAICompatibleProvider(LLMProvider):
     def summarize(self, messages):
         joined = "\n".join(f"- {m}" for m in messages if m)
         return self._chat(SYSTEM_SUMMARY, joined, temperature=0.2, max_tokens=250)
+
+    def answer(self, text):
+        return self._chat(SYSTEM_ANSWER, text, temperature=0.3, max_tokens=300)
 
     def generate_response(self, context):
         return self._chat(

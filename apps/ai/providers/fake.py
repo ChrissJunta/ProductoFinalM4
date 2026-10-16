@@ -31,6 +31,14 @@ def _stems(text):
     return {w[:STEM] for w in normalize(text).split() if len(w) >= 4 and w not in STOPWORDS}
 
 
+QUESTION_WORDS = ("que ", "quien", "como ", "cual", "cuando", "donde", "por que", "cuanto")
+
+
+def _is_question(text):
+    norm = normalize(text)
+    return "?" in text or norm.startswith(QUESTION_WORDS)
+
+
 def _tokens(text):
     return len(text.split())
 
@@ -62,7 +70,11 @@ class FakeLLMProvider(LLMProvider):
             scores.append((len(words & vocab), intent))
         scores.sort(key=lambda s: (-s[0], s[1]["code"]))
         best, runner = (scores + [(0, None), (0, None)])[:2]
-        if not best[0]:
+        known = {i["code"] for i in context.get("intents", [])}
+        if not best[0] and "GENERAL_QUESTION" in known and _is_question(text):
+            # Imita al LLM: una pregunta que no es un trámite se responde, no se tickea.
+            code, confidence = "GENERAL_QUESTION", 0.75
+        elif not best[0]:
             code, confidence = "UNKNOWN_REQUEST", 0.40
         else:
             code = best[1]["code"]
@@ -107,6 +119,14 @@ class FakeLLMProvider(LLMProvider):
         self._check(joined)
         first = [re.split(r"(?<=[.!?])\s", m.strip())[0] for m in messages if m and m.strip()]
         return self._reply(joined, " / ".join(first)[:400])
+
+    def answer(self, text):
+        self._check(text)
+        reply = (
+            "¡Hola! Soy el asistente de la Mesa de Ayuda. Puedo ayudarte con tu horario, notas, "
+            "deuda, el estado de tus solicitudes o registrar un trámite. ¿En qué te ayudo?"
+        )
+        return self._reply(text, reply)
 
     def generate_response(self, context):
         template = context.get("template", "")

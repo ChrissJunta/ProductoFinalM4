@@ -201,7 +201,7 @@ def test_ca006_ambiguous_request_goes_to_human_review(student):
 
 
 def test_unrecognized_message_goes_to_n4(student):
-    r = ask("hola buenas tardes", student)
+    r = ask("necesito ayuda con algo", student)
     assert (r.level, r.ticket.intent.code) == ("N4", "UNKNOWN_REQUEST")
 
 
@@ -214,7 +214,7 @@ def test_general_complaint_is_n4_with_intent(student):
 def test_human_review_alert_resolves_when_triaged(student, make_user):
     agent = make_user("agente", role="Agente")
     Area.objects.get(code="SERVICE").agents.add(agent)
-    t = ask("hola", student).ticket
+    t = ask("necesito ayuda con algo", student).ticket
     assignment.assign(t, actor=make_user("sup", role="Supervisor"), area=t.assigned_area,
                       assignee=agent)  # fmt: skip
     assert t.alerts.get().status == Alert.Status.RESOLVED

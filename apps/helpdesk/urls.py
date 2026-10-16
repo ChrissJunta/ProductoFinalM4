@@ -10,6 +10,7 @@ urlpatterns = [
     path("agent/inbox/", views.agent_inbox, name="agent_inbox"),
     path("alerts/", views.alert_list, name="alert_list"),
     path("metrics/", views.metrics_view, name="metrics"),
+    path("notifications/new-tickets/", views.new_tickets_feed, name="new_tickets_feed"),
     path("tickets/<str:code>/", views.ticket_detail, name="ticket_detail"),
     path("tickets/<str:code>/messages/", views.ticket_message, name="ticket_message"),
     path("tickets/<str:code>/assign/", views.ticket_assign, name="ticket_assign"),

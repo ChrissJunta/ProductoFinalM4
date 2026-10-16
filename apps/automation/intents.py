@@ -19,6 +19,13 @@ TICKET_CODE_RE = re.compile(r"\bHD-\d{4}-\d{6}\b", re.IGNORECASE)
 CODE_CONFIDENCE = 1.0
 RULES_CONFIDENCE = 0.90
 AMBIGUOUS_CONFIDENCE = 0.50
+# Un mensaje formado SOLO por estas palabras es un saludo (ADR-083). Con cualquier otra
+# palabra decide el resto del motor: «hola, necesito un certificado» sigue siendo trámite.
+GREETING_WORDS = frozenset(
+    "hola holi hey buenas buenos buen dia dias tardes noches saludos que tal gracias muchas "
+    "mil ok okay vale listo perfecto genial adios chao hasta luego pronto manana "
+    "como estas esta muy bien".split()
+)
 
 
 @dataclass(frozen=True)
@@ -75,6 +82,11 @@ def identify_intent(text):
             )
 
     norm = normalize(text)
+    if norm and set(norm.split()) <= GREETING_WORDS:
+        # Solo saludo o cortesía: responde el asistente, sin ticket (ADR-083).
+        intent = Intent.objects.filter(code="GENERAL_QUESTION", is_active=True).first()
+        if intent:
+            return IntentMatch(intent, RULES_CONFIDENCE, candidates=(intent.code,))
     scores = {}
     for intent in Intent.objects.filter(is_active=True).exclude(keywords=""):
         points = score(norm, parse_keywords(intent.keywords))

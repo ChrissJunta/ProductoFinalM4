@@ -48,3 +48,7 @@ class LLMProvider(ABC):
     @abstractmethod
     def generate_response(self, context) -> LLMResponse:
         """Reformula `context["template"]` sin añadir hechos (SPEC §31.1)."""
+
+    def answer(self, text) -> LLMResponse:
+        """Respuesta breve a un saludo o pregunta general (ADR-083)."""
+        raise NotImplementedError

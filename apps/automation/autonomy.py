@@ -30,10 +30,12 @@ def determine_autonomy(intent, confidence, action=None):
     # Sin acción automática válida no se responde solo: baja a ticket (SPEC §31.1).
     if level == L.N0 and (action is None or action.action_type != A.PROVIDER_QUERY):
         return L.N3
-    if level == L.N1 and (
-        action is None
-        or action.action_type != A.TEMPLATE_RESPONSE
-        or not action.response_template.strip()
+    if level == L.N1 and not (
+        action is not None
+        and (
+            (action.action_type == A.TEMPLATE_RESPONSE and action.response_template.strip())
+            or action.action_type == A.LLM_ANSWER  # saludos y preguntas generales (ADR-083)
+        )
     ):
         return L.N3
     return level

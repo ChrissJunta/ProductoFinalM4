@@ -69,6 +69,7 @@ class IntentAction(models.Model):
         TEMPLATE_RESPONSE = "TEMPLATE_RESPONSE", "Responder con plantilla (N1)"
         CREATE_TICKET = "CREATE_TICKET", "Crear ticket (N2/N3)"
         HUMAN_REVIEW = "HUMAN_REVIEW", "Derivar a revisión humana (N4)"
+        LLM_ANSWER = "LLM_ANSWER", "Responder con el LLM (N1, sin datos institucionales)"
 
     # Contrato de InstitutionalDataProvider (SPEC §39); se valida aquí para no
     # aceptar métodos inexistentes en la configuración.

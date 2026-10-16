@@ -192,6 +192,16 @@ python manage.py telegram_simulate 123 "¿Cuánto debo?"   # sin red, para prueb
 
 Prueba sin red: `python manage.py telegram_simulate 123 --boton close:HD-2026-000001`.
 
+**Saludos y preguntas generales (ADR-083, todos los canales):** «hola», «gracias» o una
+pregunta que no es un trámite («¿Qué es la fotosíntesis?») las responde el LLM (intención
+`GENERAL_QUESTION`, N1) **sin crear ticket**. El LLM no da datos de la universidad; si no está
+disponible (fuera de la red institucional) responde la plantilla con el menú. Una petición
+no reconocida («necesito ayuda con algo») sigue creando ticket para revisión humana.
+
+**Aviso en el portal:** cuando entra un ticket por Telegram, el personal (agente, supervisor,
+administrador) que tenga el portal abierto ve un aviso emergente con el código y el enlace al
+ticket (consulta cada `NEW_TICKET_POLL_SECONDS`, 15 s; canales en `NEW_TICKET_ALERT_CHANNELS`).
+
 El token nunca se registra en logs ni en errores (se reemplaza por `***`).
 
 ### WhatsApp simulado (sin acceso a Meta)

@@ -1,10 +1,11 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Count
-from django.http import FileResponse, Http404, HttpResponseBadRequest
+from django.http import FileResponse, Http404, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -435,4 +436,47 @@ def metrics_view(request):
             "metrics": result,
             "period": {"date_from": date_from, "date_to": date_to},
         },
+    )
+
+
+NEW_TICKET_ROLES = (Role.AGENTE, Role.SUPERVISOR, Role.ADMINISTRADOR)
+NEW_TICKETS_LIMIT = 5
+
+
+@role_required(*NEW_TICKET_ROLES)
+@require_GET
+def new_tickets_feed(request):
+    """CONTRACT-023: tickets nuevos de los canales con aviso (Telegram) para el pop-up.
+
+    Sin `after` solo devuelve el último id (punto de partida, sin avisos atrasados). Solo
+    tickets visibles para quien consulta y que no creó él mismo.
+    """
+    qs = queries.visible_tickets(request.user).filter(
+        channel__in=settings.NEW_TICKET_ALERT_CHANNELS
+    )
+    last_id = Ticket.objects.order_by("-id").values_list("id", flat=True).first() or 0
+    try:
+        after = int(request.GET["after"])
+    except (KeyError, ValueError):
+        return JsonResponse({"last_id": last_id, "tickets": []})
+    rows = (
+        qs.filter(id__gt=after, id__lte=last_id)
+        .exclude(user=request.user)
+        .select_related("user")
+        .order_by("-id")[:NEW_TICKETS_LIMIT]
+    )
+    tickets = [
+        {
+            "code": t.ticket_code,
+            "subject": t.subject,
+            "channel": t.get_channel_display(),
+            "priority": t.get_priority_display(),
+            "user": t.user.get_full_name() or t.user.username,
+            "created_at": t.created_at.isoformat(),
+            "url": reverse("helpdesk:ticket_detail", args=[t.ticket_code]),
+        }
+        for t in rows
+    ]
+    return JsonResponse(
+        {"last_id": last_id, "tickets": tickets}, json_dumps_params={"ensure_ascii": False}
     )
