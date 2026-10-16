@@ -42,6 +42,14 @@ class SimulatedTelegramClient:
     def set_commands(self, commands):
         return True
 
+    def send_document(self, chat_id, filename, content, content_type, caption=""):
+        if str(chat_id) in self.fail_chats:
+            raise TelegramError("Fallo simulado de envío.")
+        return f"tg.SIM.doc.{uuid.uuid4().hex[:12]}"
+
+    def answer_callback(self, callback_id, text=""):
+        return True
+
 
 class BotAPIClient:
     """Bot API real con long polling (`getUpdates`): no necesita URL pública."""
@@ -56,11 +64,11 @@ class BotAPIClient:
     def _safe(self, text):
         return str(text).replace(self.token, "***")
 
-    def _call(self, method, payload=None, timeout=15):
+    def _call(self, method, payload=None, timeout=15, *, body=None, content_type=None):
         request = urllib.request.Request(
             f"{API}/bot{self.token}/{method}",
-            data=json.dumps(payload or {}).encode(),
-            headers={"Content-Type": "application/json"},
+            data=body if body is not None else json.dumps(payload or {}).encode(),
+            headers={"Content-Type": content_type or "application/json"},
         )
         try:
             with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -86,7 +94,7 @@ class BotAPIClient:
         return str(result.get("message_id", ""))
 
     def get_updates(self, offset=None, timeout=0):
-        payload = {"timeout": timeout, "allowed_updates": ["message"]}
+        payload = {"timeout": timeout, "allowed_updates": ["message", "callback_query"]}
         if offset is not None:
             payload["offset"] = offset
         return self._call("getUpdates", payload, timeout=timeout + 10)
@@ -96,6 +104,36 @@ class BotAPIClient:
 
     def delete_webhook(self):
         return self._call("deleteWebhook")
+
+    def send_document(self, chat_id, filename, content, content_type, caption=""):
+        """Envía un archivo (p. ej. el certificado) con multipart/form-data."""
+        boundary = f"----mesa{uuid.uuid4().hex}"
+        safe_name = filename.replace('"', "")
+        parts = []
+        for name, value in (("chat_id", str(chat_id)), ("caption", caption[:1024])):
+            parts.append(
+                f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n'
+                f"{value}\r\n".encode()
+            )
+        parts.append(
+            (
+                f'--{boundary}\r\nContent-Disposition: form-data; name="document"; '
+                f'filename="{safe_name}"\r\nContent-Type: {content_type}\r\n\r\n'
+            ).encode()
+            + content
+            + b"\r\n"
+        )
+        parts.append(f"--{boundary}--\r\n".encode())
+        result = self._call(
+            "sendDocument",
+            body=b"".join(parts),
+            content_type=f"multipart/form-data; boundary={boundary}",
+            timeout=60,
+        )
+        return str(result.get("message_id", ""))
+
+    def answer_callback(self, callback_id, text=""):
+        return self._call("answerCallbackQuery", {"callback_query_id": callback_id, "text": text})
 
     def set_commands(self, commands):
         """Menú «/» de Telegram: [(comando, descripción), …]."""
