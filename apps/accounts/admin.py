@@ -11,6 +11,7 @@ class UserAdmin(BaseUserAdmin):
             "Datos institucionales",
             {"fields": ("phone", "phone_verified_at", "external_id", "source")},
         ),
+        ("Telegram", {"fields": ("telegram_chat_id", "telegram_verified_at")}),
         ("Seguridad", {"fields": ("must_change_password",)}),
     )
     list_display = ("username", "email", "first_name", "last_name", "source", "is_active")

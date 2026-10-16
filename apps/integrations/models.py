@@ -6,6 +6,7 @@ from django.db import models
 
 class Provider(models.TextChoices):
     WHATSAPP = "WHATSAPP", "WhatsApp"
+    TELEGRAM = "TELEGRAM", "Telegram"
 
 
 class IntegrationInbox(models.Model):
@@ -108,3 +109,40 @@ class WhatsAppLinkAttempt(models.Model):
 
     def __str__(self):
         return f"{self.phone} · {self.created_at:%Y-%m-%d %H:%M}"
+
+
+class TelegramLinkCode(models.Model):
+    """Código de vinculación de Telegram (ADR-080): hash, un solo uso, 10 minutos.
+
+    Separado de WhatsApp: cada canal tiene sus códigos, intentos y vinculación propios.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="telegram_codes"
+    )
+    code_hash = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "código de vinculación de Telegram"
+        verbose_name_plural = "códigos de vinculación de Telegram"
+        indexes = [models.Index(fields=["code_hash"], name="integ_tg_code_hash_idx")]
+
+    def __str__(self):
+        return f"Código Telegram de {self.user} ({'usado' if self.used_at else 'vigente'})"
+
+
+class TelegramLinkAttempt(models.Model):
+    """Intento fallido de vinculación de Telegram (límite por chat y global)."""
+
+    chat_id = models.CharField(max_length=32, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name = "intento fallido de vinculación de Telegram"
+        verbose_name_plural = "intentos fallidos de vinculación de Telegram"
+
+    def __str__(self):
+        return f"{self.chat_id} · {self.created_at:%Y-%m-%d %H:%M}"

@@ -300,6 +300,7 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-076 | 2026-10-15 | **Trazabilidad del agente:** cada nodo del grafo se envuelve con `traced` (mismos nodos y aristas, sin cambio de `GRAPH_VERSION`): mide la duración, recoge las llamadas al LLM de `AIService` vía `contextvars`, añade un paso resumido a `state["trace"]` (persistido en `AIDecision.trace` + `duration_ms`) y escribe una línea en el logger `apps.ai.agent.trace`. Se guarda el mensaje recortado (300) y datos de decisión; nunca el texto de la respuesta. Consulta: `/ai/traces/` (Supervisor/Administrador), `agent_trace`, `LOG_FILE` | Solicitud del responsable: ver en logs cómo el agente procesa cada petición. La skill pedida (`trace-llm-langgraph`) no existe en el catálogo; se implementó sin servicios externos (sin LangSmith/Langfuse: los datos no salen de la red) | `ai/agent/trace.py`, `ai/traces.py`, `config/settings/base.py` (`LOGGING`) |
 | ADR-077 | 2026-10-15 | **Decisiones propias del agente** a partir de sus métricas (modo mixto elegido por el responsable): D1 TRUST_UP (propuesta), D2 TRUST_DOWN (automática), D3 KEYWORDS (propuesta), D4 LLM_PAUSE/LLM_RESUME (automática, interruptor con llamada de prueba), D5 PRIORITY_UP (propuesta). `IntentPolicy` (automation) guarda la política vigente; `AgentPolicyDecision` la decisión, su evidencia y su estado (PROPOSED/APPLIED/REJECTED/REVERTED) con auditoría; `LLMCircuit` el interruptor. Efecto: `decide_autonomy` (revisión por intención, muestreo 10 % con D1, visible en la traza como `política=`), routing (prioridad mínima), Intent Engine (palabras nuevas), `AIService` (no llama al LLM en pausa). Límites: solo N2/N3, prioridad máxima Alta, sin tocar datos institucionales, todo reversible | Solicitud del responsable: «revisar las métricas y que el agente haga decisiones propias». Mismos nodos y aristas: sin cambio de `GRAPH_VERSION` | `ai/policies.py`, `ai/circuit.py`, comandos `evaluate_agent_policies`, `agent_policy_demo` |
 | ADR-078 | 2026-10-15 | Reemplaza parcialmente ADR-042: un empate de reglas ya no escala directo a revisión humana; primero lo razona el LLM con los candidatos (CR-009). Las reglas siguen como vía rápida y explicable; las palabras clave nuevas (`automation.0007`) cubren «requisitos + trámite» sin gastar una llamada al LLM | Aplicación agéntica: el agente decide cuando puede justificarlo y solo escala lo que sigue dudoso | `ai/agent/graph.py`, `ai/agent/nodes.py`, `ai/migrations/0005` |
+| ADR-080 | 2026-10-16 | **Bot de Telegram (@MesaUtiBot)**, canal separado de WhatsApp (pedido del responsable): canal `TELEGRAM`, paquete `integrations.telegram` (cliente Bot API, vinculación, procesamiento), modelos propios `TelegramLinkCode`/`TelegramLinkAttempt`, `User.telegram_chat_id/telegram_verified_at`. Comparte solo las colas genéricas `IntegrationInbox/Outbox` (por `provider`); el worker de WhatsApp ahora filtra `provider=WHATSAPP`. Long polling (`run_telegram_bot`): sin URL pública. Solo chats privados; sin vincular solo N1; respuestas minimizadas como WhatsApp; un ticket web que espera al usuario no captura mensajes de Telegram. Token solo en `.env`, enmascarado en errores | Demo en la red de la universidad sin dominio público ni acceso a Meta | `integrations/telegram/`, comandos `run_telegram_bot`, `telegram_simulate` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -827,6 +828,15 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **`ai:policy_decide`** → `/ai/decisions/<id>/` · POST (CSRF) `action` ∈ approve|reject (solo PROPOSED) · revert (solo APPLIED), `note` opcional (255). 302 a la lista con mensaje de éxito o de error (p. ej. «Otra decisión posterior ya cambió esta política.»).
 **Traza (CONTRACT-020):** el paso `decide_autonomy` puede traer `data.policy` = `{"review_mode": "SKIP"|"ALWAYS", "sampled": bool}`.
 **Sugerencias FRONT:** tarjetas de propuestas destacadas arriba con evidencia legible (no dict crudo), porcentajes como barras, confirmación antes de revertir, indicador del LLM en pausa visible también en `/metrics/`.
+**Aprobado:** Sí
+
+### CONTRACT-022 — Vinculación de Telegram
+**Fecha:** 2026-10-16
+**Origen:** BACK (ADR-080) → consumidor FRONT
+**URL name:** `accounts:telegram` → `/profile/telegram/` · GET, POST · cualquier usuario autenticado. Plantilla `accounts/telegram.html` (funcional del backend, refinable). Enlace «Telegram» ya agregado al menú.
+**Contexto:** `is_linked` (bool), `linked_at` (datetime o None), `bot_username` (str), `bot_url` (`https://t.me/<bot>`), `code` (6 dígitos solo en el GET inmediatamente posterior a generarlo; luego None), `code_url` (`https://t.me/<bot>?start=<código>`: abre Telegram y vincula en un toque), `code_expires_at`, `code_minutes` (10).
+**POST** (CSRF): `action=generate` → código nuevo y 302 a la misma URL; `action=unlink` → desvincula (302 + mensaje); otra acción → mensaje de error.
+**Sugerencias FRONT:** botón destacado «Abrir Telegram y vincular» y, opcional, un código QR de `code_url`.
 **Aprobado:** Sí
 
 ### CONTRACT-FRONT-005 — Pantallas administrativas FE-T09 — Respondida (CONTRACT-016)
@@ -2233,3 +2243,9 @@ Suite PostgreSQL/E2E completo y revisión de las pantallas restantes en el entor
 
 - Observación del responsable: la corrección por palabras clave no es suficiente en una aplicación agéntica. Ahora el empate de reglas lo razona el LLM con los candidatos y un prompt v2 que distingue consulta informativa de solicitud; solo lo dudoso escala a una persona.
 - Verificación: CA-006 se mantiene («certificado y contraseña» → LLM con 0.60 → N4); prueba con LLM seguro → resuelve sin revisión; el prompt real recibe candidatos y criterio. GRAPH_VERSION 1.1.0.
+
+
+## 2026-10-16 — Claude (BACKEND) / Bot de Telegram separado de WhatsApp (ADR-080, CONTRACT-022)
+
+- Solicitud del responsable: incluir el bot de Telegram (@MesaUtiBot) por separado de WhatsApp. El token se usa solo desde `.env` (no se versiona); se recomendó regenerarlo con @BotFather tras la presentación porque se compartió por chat.
+- Verificado con el simulador (sin red desde el entorno de desarrollo en la nube): bienvenida, consulta sin vincular → instrucciones de Telegram, vinculación con `/start <código>`, deuda minimizada, horario, ticket N3 por Telegram, comandos desconocidos → ayuda, grupos rechazados, colas separadas de WhatsApp y token enmascarado en errores.

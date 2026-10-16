@@ -27,6 +27,11 @@ class User(AbstractUser):
         blank=True,
         help_text="Vacío si el teléfono no está verificado para WhatsApp (SPEC §35.1).",
     )
+    telegram_chat_id = models.CharField(
+        "chat de Telegram", max_length=32, blank=True, default="",
+        help_text="Chat vinculado por código desde Perfil → Telegram (ADR-080).",
+    )  # fmt: skip
+    telegram_verified_at = models.DateTimeField("Telegram vinculado el", null=True, blank=True)
     external_id = models.CharField(
         "identificador institucional", max_length=64, blank=True, default=""
     )
@@ -45,6 +50,11 @@ class User(AbstractUser):
                 fields=["phone"],
                 condition=~Q(phone=""),
                 name="accounts_user_phone_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["telegram_chat_id"],
+                condition=~Q(telegram_chat_id=""),
+                name="accounts_user_telegram_unique",
             ),
             models.UniqueConstraint(
                 fields=["external_id"],
@@ -72,6 +82,10 @@ class User(AbstractUser):
     def refresh_from_db(self, *args, **kwargs):
         super().refresh_from_db(*args, **kwargs)
         self._loaded_phone = (self.phone, self.phone_verified_at)
+
+    @property
+    def is_telegram_linked(self):
+        return bool(self.telegram_chat_id) and self.telegram_verified_at is not None
 
     @property
     def is_phone_verified(self):

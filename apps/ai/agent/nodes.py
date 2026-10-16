@@ -191,7 +191,7 @@ def check_auth(state):
 
 def respond_link_instructions(state):
     ticket_level = state.get("autonomy_level") in (L.N2, L.N3, L.N4)
-    text = responses.LOGIN_FOR_TICKET if ticket_level else responses.LINK_INSTRUCTIONS
+    text = responses.link_instructions(state.get("channel"), for_ticket=ticket_level)
     return _step("respond_link_instructions", response=text)
 
 

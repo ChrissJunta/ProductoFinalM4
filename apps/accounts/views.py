@@ -159,3 +159,42 @@ def whatsapp_link(request):
             "code_minutes": settings.WHATSAPP_LINK_CODE_MINUTES,
         },
     )
+
+
+TG_SESSION_KEY = "telegram_link_code"
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def telegram_link(request):
+    """CONTRACT-022: vinculación del chat de Telegram por código (ADR-080)."""
+    from apps.integrations.telegram import linking
+
+    user = request.user
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "generate":
+            code, expires = linking.generate_code(user)
+            request.session[TG_SESSION_KEY] = {"code": code, "expires_at": expires.isoformat()}
+        elif action == "unlink":
+            linking.unlink(user, actor=user)
+            messages.success(request, "Telegram desvinculado.")
+        else:
+            messages.error(request, "Acción inválida.")
+        return redirect("accounts:telegram")
+    pending = request.session.pop(TG_SESSION_KEY, None)  # el código se muestra una sola vez
+    bot = settings.TELEGRAM_BOT_USERNAME
+    return render(
+        request,
+        "accounts/telegram.html",
+        {
+            "is_linked": user.is_telegram_linked,
+            "linked_at": user.telegram_verified_at,
+            "bot_username": bot,
+            "bot_url": f"https://t.me/{bot}",
+            "code": pending["code"] if pending else None,
+            "code_url": f"https://t.me/{bot}?start={pending['code']}" if pending else None,
+            "code_expires_at": (datetime.fromisoformat(pending["expires_at"]) if pending else None),
+            "code_minutes": settings.TELEGRAM_LINK_CODE_MINUTES,
+        },
+    )

@@ -12,4 +12,5 @@ urlpatterns = [
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("accounts/password/", views.PasswordChangeView.as_view(), name="password_change"),
     path("profile/whatsapp/", views.whatsapp_link, name="whatsapp"),
+    path("profile/telegram/", views.telegram_link, name="telegram"),
 ]

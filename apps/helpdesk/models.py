@@ -156,6 +156,7 @@ class Ticket(models.Model):
     class Channel(models.TextChoices):
         WEB = "WEB", "Web"
         WHATSAPP = "WHATSAPP", "WhatsApp"
+        TELEGRAM = "TELEGRAM", "Telegram"
 
     class Status(models.TextChoices):
         NEW = "NEW", "Nuevo"

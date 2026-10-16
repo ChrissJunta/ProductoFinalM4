@@ -56,7 +56,10 @@ def test_trace_has_one_step_per_node_without_response_text(student):
     tool = next(s for s in trace if s["node"] == "call_tool")
     assert tool["data"]["tool_calls"] == [{"tool": "get_debt", "ok": True}]
     assert tool["data"]["response_chars"] == len(r.response)
-    assert "390" not in json.dumps(trace)  # la respuesta (deuda) no se guarda en la traza
+    # La respuesta (deuda) no se guarda en la traza. Se buscan sus fragmentos, no «390» suelto:
+    # las marcas de tiempo y los milisegundos pueden contener esos dígitos por azar.
+    dumped = json.dumps([step["data"] for step in trace], ensure_ascii=False)
+    assert "USD 390.00" not in dumped and "Matrícula" not in dumped
     assert all(s["ms"] >= 0 and s["at"] for s in trace)
     assert r.decision.duration_ms is not None
 
