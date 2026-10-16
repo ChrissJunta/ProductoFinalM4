@@ -16,6 +16,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from apps.automation.intents import normalize
 from apps.helpdesk import conversations
 from apps.helpdesk.models import Ticket
 
@@ -33,9 +34,29 @@ WELCOME = (
     "cuenta: genera un código en el portal (Perfil → Telegram) y envíamelo aquí."
 )
 HELP = (
-    "Puedo responder consultas como «¿Cuál es mi horario de hoy?», «¿Cuánto debo?» o registrar "
-    "una solicitud. Para datos personales primero vincula tu cuenta en Perfil → Telegram."
+    "Esto es lo que puedo hacer por ti (usa los botones o escríbeme con tus palabras):\n"
+    "• Horario, notas, asignaturas, matrícula y deuda (requieren vincular tu cuenta).\n"
+    "• Estado de tus solicitudes («Mis solicitudes» o el código HD-…).\n"
+    "• Requisitos de trámites, fechas académicas y teléfonos de contacto.\n"
+    "• Registrar una solicitud: descríbeme tu problema («Olvidé mi contraseña»…).\n"
+    "Te avisaré aquí cuando tus solicitudes cambien de estado.\n"
+    "Para vincular tu cuenta: Perfil → Telegram en el portal."
 )
+# Menú de opciones (teclado de Telegram): cada botón envía una pregunta que el agente entiende.
+MENU = [
+    ["¿Cuál es mi horario de hoy?", "¿Cuáles son mis notas?"],
+    ["¿Cuánto debo?", "Mis asignaturas"],
+    ["Mis solicitudes", "¿Estoy matriculado?"],
+    ["Requisitos de trámites", "Fechas académicas"],
+    ["Teléfono de contacto", "Ayuda"],
+]
+MENU_WORDS = {"ayuda", "menu", "opciones", "que puedes hacer", "que puedo hacer"}
+KEYBOARD = {
+    "keyboard": [[{"text": label} for label in row] for row in MENU],
+    "resize_keyboard": True,
+    "is_persistent": True,
+    "input_field_placeholder": "Escribe tu consulta o elige una opción",
+}
 UNSUPPORTED = "Por ahora solo puedo leer mensajes de texto. Escríbeme tu consulta, por favor."
 GROUPS = "Solo atiendo en chats privados para proteger tus datos."
 
@@ -66,14 +87,17 @@ def ingest_update(update):
     return created
 
 
-def enqueue_text(chat_id, text):
+def enqueue_text(chat_id, text, *, menu=False):
+    payload = {"type": "text", "text": text}
+    if menu:
+        payload["reply_markup"] = KEYBOARD
     return IntegrationOutbox.objects.create(
-        provider=TG, destination=str(chat_id), payload_json={"type": "text", "text": text}
+        provider=TG, destination=str(chat_id), payload_json=payload
     )
 
 
-def _reply(chat_id, text):
-    enqueue_text(chat_id, text)
+def _reply(chat_id, text, *, menu=False):
+    enqueue_text(chat_id, text, menu=menu)
     return text
 
 
@@ -94,12 +118,15 @@ def handle_message(item):
         command = command.split("@")[0].lower()
         if command == "/start":
             if linking.looks_like_code(argument):  # enlace t.me/<bot>?start=<código>
-                return _reply(chat_id, linking.redeem(argument, chat_id)[1])
-            return _reply(chat_id, WELCOME)
-        return _reply(chat_id, HELP)  # /ayuda, /help y cualquier otro comando
+                return _reply(chat_id, linking.redeem(argument, chat_id)[1], menu=True)
+            return _reply(chat_id, f"{WELCOME}\n\n{HELP}", menu=True)
+        return _reply(chat_id, HELP, menu=True)  # /menu, /ayuda y cualquier otro comando
+
+    if normalize(text) in MENU_WORDS:
+        return _reply(chat_id, HELP, menu=True)
 
     if linking.looks_like_code(text):
-        return _reply(chat_id, linking.redeem(text, chat_id)[1])
+        return _reply(chat_id, linking.redeem(text, chat_id)[1], menu=True)
 
     user = linking.linked_user(chat_id)
     if user is not None and (ticket := _ticket_waiting_for(user)):
@@ -180,7 +207,9 @@ def process_outbox(now=None, client=None):
         for item in list(_due(IntegrationOutbox, now or timezone.now())):
             try:
                 item.external_message_id = client.send_text(
-                    item.destination, item.payload_json.get("text", "")
+                    item.destination,
+                    item.payload_json.get("text", ""),
+                    reply_markup=item.payload_json.get("reply_markup"),
                 )
             except TelegramError as exc:
                 _fail(item, exc, now or timezone.now())
@@ -192,12 +221,3 @@ def process_outbox(now=None, client=None):
                 sent += 1
             item.save()
     return sent, failed
-
-
-def notify_ticket_reply(message):
-    """Respuesta del personal en un ticket nacido en Telegram → al chat vinculado."""
-    ticket = message.ticket
-    user = ticket.user
-    if ticket.channel != CHANNEL or not user.is_telegram_linked:
-        return None
-    return enqueue_text(user.telegram_chat_id, f"[{ticket.ticket_code}] {message.content}"[:4096])

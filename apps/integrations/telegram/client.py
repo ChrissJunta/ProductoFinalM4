@@ -25,7 +25,7 @@ class SimulatedTelegramClient:
     name = "simulated"
     fail_chats = set()  # pruebas: chats que simulan un fallo de envío
 
-    def send_text(self, chat_id, text):
+    def send_text(self, chat_id, text, reply_markup=None):
         if str(chat_id) in self.fail_chats:
             raise TelegramError("Fallo simulado de envío.")
         return f"tg.SIM.{uuid.uuid4().hex[:12]}"
@@ -37,6 +37,9 @@ class SimulatedTelegramClient:
         return {"username": settings.TELEGRAM_BOT_USERNAME, "simulated": True}
 
     def delete_webhook(self):
+        return True
+
+    def set_commands(self, commands):
         return True
 
 
@@ -75,8 +78,11 @@ class BotAPIClient:
             raise TelegramError(self._safe(f"{method}: {data.get('description', 'error')}"))
         return data["result"]
 
-    def send_text(self, chat_id, text):
-        result = self._call("sendMessage", {"chat_id": chat_id, "text": text[:4096]})
+    def send_text(self, chat_id, text, reply_markup=None):
+        payload = {"chat_id": chat_id, "text": text[:4096]}
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
+        result = self._call("sendMessage", payload)
         return str(result.get("message_id", ""))
 
     def get_updates(self, offset=None, timeout=0):
@@ -90,6 +96,13 @@ class BotAPIClient:
 
     def delete_webhook(self):
         return self._call("deleteWebhook")
+
+    def set_commands(self, commands):
+        """Menú «/» de Telegram: [(comando, descripción), …]."""
+        return self._call(
+            "setMyCommands",
+            {"commands": [{"command": c, "description": d} for c, d in commands]},
+        )
 
 
 def get_client():

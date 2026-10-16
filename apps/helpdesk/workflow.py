@@ -211,6 +211,10 @@ def transition(ticket, target, *, actor=None, reason="", expected_version=None):
             Ticket.objects.filter(pk=locked.pk).update(first_response_at=now)
             locked.first_response_at = now
     _sync_alerts(locked, previous, target, reason)
+    # Aviso proactivo al usuario con Telegram vinculado (ADR-081); va por la cola de salida.
+    from apps.integrations.telegram.notifications import notify_status_change
+
+    notify_status_change(locked, previous, target, actor=actor, reason=reason)
     audit.record(
         audit.Action.STATUS_CHANGE,
         locked,

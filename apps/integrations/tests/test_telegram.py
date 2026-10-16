@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from apps.ai.agent import runner
 from apps.helpdesk import conversations, workflow
-from apps.helpdesk.models import Ticket
+from apps.helpdesk.models import Area, Ticket
 from apps.helpdesk.tickets import TicketService
 from apps.integrations.models import (
     IntegrationInbox,
@@ -153,13 +153,10 @@ def test_reply_to_waiting_ticket_born_in_telegram(student, make_user):
 
     ticket = assignment.assign(ticket, actor=agent, area=ticket.assigned_area, assignee=agent)
     workflow.transition(ticket, Ticket.Status.IN_PROGRESS, actor=agent)
-    before = IntegrationOutbox.objects.count()
+    start = _last_id()
     conversations.add_message(ticket, agent, "¿Desde cuándo?", request_info=True)
-    staff = IntegrationOutbox.objects.filter(id__gt=0).order_by("-id").first()
-    assert IntegrationOutbox.objects.count() == before + 1  # sale por Telegram al chat
-    assert staff.destination == CHAT and staff.payload_json["text"].startswith(
-        f"[{ticket.ticket_code}]"
-    )
+    [staff] = _outbox_texts(start)  # ticket nacido en Telegram: se contesta en el chat
+    assert staff == f"[{ticket.ticket_code}] ¿Desde cuándo?"
     [reply] = say("Desde ayer")
     ticket.refresh_from_db()
     assert ticket.status == Ticket.Status.IN_PROGRESS and ticket.ticket_code in reply
@@ -174,13 +171,82 @@ def test_web_waiting_ticket_does_not_capture_telegram_messages(student, make_use
     assert not web.messages.exists()
 
 
-def test_staff_reply_on_web_ticket_is_not_sent_to_telegram(student, make_user):
+def _outbox_texts(after_id):
+    return [
+        o.payload_json["text"]
+        for o in IntegrationOutbox.objects.filter(id__gt=after_id, provider="TELEGRAM")
+    ]
+
+
+def _last_id():
+    return IntegrationOutbox.objects.order_by("-id").values_list("id", flat=True).first() or 0
+
+
+def test_proactive_status_and_staff_notifications(student, make_user):
+    """ADR-081: el chat vinculado recibe los cambios de TODAS las solicitudes del usuario."""
+    from apps.helpdesk import assignment
+
     link(student)
-    ticket = TicketService.create(user=student, subject="Web", description="d")
-    agent = make_user("tomas", role="Supervisor")
-    before = IntegrationOutbox.objects.count()
-    conversations.add_message(ticket, agent, "Hola")
-    assert IntegrationOutbox.objects.count() == before
+    ticket = TicketService.create(user=student, subject="Certificado", description="d")
+    sup = make_user("sup", role="Supervisor")
+    area = Area.objects.get(code="ACADEMIC")
+    start = _last_id()
+    ticket = assignment.assign(ticket, actor=sup, area=area)
+    ticket = workflow.transition(ticket, Ticket.Status.IN_PROGRESS, actor=sup)
+    conversations.add_message(ticket, sup, "¿Para qué trámite?", request_info=True)
+    ticket.refresh_from_db()
+    conversations.add_message(ticket, student, "Para una beca")  # el usuario: sin aviso
+    ticket.refresh_from_db()
+    workflow.transition(ticket, Ticket.Status.RESOLVED, actor=sup, reason="Listo en Secretaría.")
+    texts = _outbox_texts(start)
+    code = ticket.ticket_code
+    assert texts[0] == f"[{code}] «Certificado»: tu solicitud fue asignada al área {area.name}."
+    assert texts[1].endswith("estamos atendiendo tu solicitud.")
+    assert texts[2] == f"[{code}] ¿Para qué trámite?\nResponde desde el portal (Mis tickets)."
+    assert "fue resuelta. Listo en Secretaría." in texts[3] and "Confirma" in texts[3]
+    assert len(texts) == 4  # ni «esperando usuario» ni la vuelta a «en proceso» del usuario
+    assert all(o.destination == CHAT for o in IntegrationOutbox.objects.filter(id__gt=start))
+
+
+@pytest.mark.parametrize(
+    ("previous", "target", "reason", "expected"),
+    [
+        ("RESOLVED", "IN_PROGRESS", "", "retomamos la atención"),
+        ("IN_PROGRESS", "ESCALATED", "", "fue escalada"),
+        ("RESOLVED", "CLOSED", "Cierre automático.", "quedó cerrada. Cierre automático."),
+        ("RESOLVED", "CLOSED", "", "quedó cerrada."),
+        ("WAITING_USER", "CANCELLED", "Sin respuesta.", "cancelada. Motivo: Sin respuesta."),
+        ("NEW", "CANCELLED", "", "fue cancelada."),
+        ("CLOSED", "REOPENED", "", "fue reabierta."),
+        ("RESOLVED", "RESOLVED", "", "fue resuelta.\nConfirma"),
+        ("NEW", "CLASSIFIED", "", None),
+        ("IN_PROGRESS", "WAITING_USER", "", None),
+    ],
+)
+def test_status_texts(student, previous, target, reason, expected):
+    from apps.integrations.telegram.notifications import status_text
+
+    ticket = TicketService.create(user=student, subject="S", description="d")
+    text = status_text(ticket, previous, target, reason)
+    assert text is None if expected is None else expected in text
+
+
+def test_no_notifications_without_link_inactive_or_own_action(student, make_user):
+    from apps.integrations.telegram.notifications import notify_staff_message, notify_status_change
+
+    ticket = TicketService.create(user=student, subject="S", description="d")
+    sup = make_user("sup", role="Supervisor")
+    assert notify_status_change(ticket, "NEW", "ASSIGNED", actor=sup) is None  # sin vincular
+    link(student)
+    student.refresh_from_db()
+    ticket.refresh_from_db()
+    assert notify_status_change(ticket, "RESOLVED", "CLOSED", actor=student) is None  # propio
+    message = conversations.add_message(ticket, student, "hola")
+    assert notify_staff_message(message) is None  # mensaje del propio usuario
+    student.is_active = False
+    student.save()
+    ticket.refresh_from_db()
+    assert notify_status_change(ticket, "NEW", "ASSIGNED", actor=sup) is None
 
 
 def test_commands_groups_and_non_text(student):
@@ -264,6 +330,7 @@ def test_bot_api_client(monkeypatch, settings):
             "sendMessage": {"message_id": 77},
             "getUpdates": [{"update_id": 1}],
             "deleteWebhook": True,
+            "setMyCommands": True,
         }[method]
         return FakeResponse(json.dumps({"ok": True, "result": result}).encode())
 
@@ -276,6 +343,10 @@ def test_bot_api_client(monkeypatch, settings):
     assert calls[-1][1] == {"timeout": 25, "allowed_updates": ["message"], "offset": 3}
     assert calls[-1][2] == 35
     assert client.delete_webhook() is True
+    assert client.set_commands([("menu", "Opciones")]) is True
+    assert calls[-1][1] == {"commands": [{"command": "menu", "description": "Opciones"}]}
+    client.send_text("5", "hola", reply_markup={"keyboard": []})
+    assert calls[-1][1]["reply_markup"] == {"keyboard": []}
 
 
 def test_bot_api_errors_never_leak_token(monkeypatch, settings):
@@ -346,7 +417,7 @@ class ScriptedClient(SimulatedTelegramClient):
             raise batch
         return batch
 
-    def send_text(self, chat_id, text):
+    def send_text(self, chat_id, text, reply_markup=None):
         self.sent.append((chat_id, text))
         return "1"
 
@@ -426,3 +497,57 @@ def test_telegram_link_page(client, student):
     r = client.post(url, {"action": "unlink"}, follow=True)
     assert "Telegram desvinculado" in r.content.decode()
     assert "Acción inválida" in client.post(url, {"action": "x"}, follow=True).content.decode()
+
+
+# --- Menú de opciones -------------------------------------------------------------------------
+
+
+def _last_payload(chat=CHAT):
+    return IntegrationOutbox.objects.filter(destination=chat).order_by("-id").first().payload_json
+
+
+def test_menu_keyboard_on_start_menu_and_help(student):
+    [welcome] = say("/start")
+    assert welcome.startswith("¡Hola!") and processing.HELP in welcome
+    keyboard = _last_payload()["reply_markup"]["keyboard"]
+    assert [b["text"] for row in keyboard for b in row] == [
+        label for row in processing.MENU for label in row
+    ]
+    for text in ("/menu", "Menú", "opciones", "Ayuda", "¿Qué puedes hacer?"):
+        assert say(text) == [processing.HELP]
+        assert "reply_markup" in _last_payload()
+    say("¿Cuánto debo?")
+    assert "reply_markup" not in _last_payload()  # las respuestas del agente no repiten el menú
+
+
+def test_menu_buttons_reach_the_right_answers(student):
+    link(student)
+    assert "reply_markup" in _last_payload()  # tras vincular, el menú queda a mano
+    answers = {label: say(label)[0] for row in processing.MENU for label in row}
+    assert answers["¿Cuánto debo?"].startswith("Tu saldo pendiente")
+    assert answers["¿Cuáles son mis notas?"].startswith("Tus notas")
+    assert answers["Mis asignaturas"].startswith("Tus asignaturas")
+    assert "solicitudes" in answers["Mis solicitudes"].lower()
+    assert answers["Ayuda"] == processing.HELP
+    assert not Ticket.objects.exists()  # ningún botón crea tickets
+
+
+def test_status_query_phrases_do_not_create_tickets(student):
+    link(student)
+    TicketService.create(user=student, subject="Certificado", description="d")
+    for text in ("mis solicitudes", "¿Qué pasó con mi trámite?", "¿Cómo va mi ticket?"):
+        [reply] = say(text)
+        assert "Certificado" in reply
+    assert Ticket.objects.count() == 1
+
+
+def test_run_telegram_bot_registers_commands(monkeypatch):
+    client = ScriptedClient([[]])
+    registered = []
+    client.set_commands = registered.append
+    monkeypatch.setattr(
+        "apps.integrations.management.commands.run_telegram_bot.get_client", lambda: client
+    )
+    call_command("run_telegram_bot", "--once", stdout=StringIO())
+    assert [c for c, _ in registered[0]] == ["start", "menu", "ayuda"]
+    assert SimulatedTelegramClient().set_commands([]) is True

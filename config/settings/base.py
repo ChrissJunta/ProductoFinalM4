@@ -224,7 +224,8 @@ WHATSAPP_LINK_CODE_MINUTES = 10
 TELEGRAM_MODE = env("TELEGRAM_MODE", default="simulated")
 TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", default="")
 TELEGRAM_BOT_USERNAME = env("TELEGRAM_BOT_USERNAME", default="MesaUtiBot")
-TELEGRAM_POLL_TIMEOUT = env.int("TELEGRAM_POLL_TIMEOUT", default=25)  # segundos
+TELEGRAM_POLL_TIMEOUT = env.int("TELEGRAM_POLL_TIMEOUT", default=10)  # segundos; también
+# es la demora máxima de los avisos proactivos, que salen en cada vuelta del bot
 TELEGRAM_LINK_CODE_MINUTES = 10
 TELEGRAM_LINK_MAX_FAILURES = 5  # códigos fallidos por chat y hora
 TELEGRAM_LINK_GLOBAL_MAX_FAILURES = 100  # por hora, sumando todos los chats
