@@ -15,6 +15,11 @@ from apps.integrations.telegram import processing
 from apps.integrations.telegram.client import TelegramError, get_client
 
 RETRY_SECONDS = 5
+COMMANDS = [
+    ("start", "Bienvenida y menú de opciones"),
+    ("menu", "Ver lo que puedo hacer por ti"),
+    ("ayuda", "Ayuda"),
+]
 
 
 class Command(BaseCommand):
@@ -28,6 +33,7 @@ class Command(BaseCommand):
         try:
             me = client.get_me()
             client.delete_webhook()  # con webhook activo, getUpdates no funciona
+            client.set_commands(COMMANDS)
         except TelegramError as exc:
             raise CommandError(f"No se pudo conectar con Telegram: {exc}") from exc
         self.stdout.write(

@@ -102,11 +102,11 @@ def add_message(
 
     if is_staff:
         # Ticket nacido en WhatsApp o Telegram: la respuesta del personal sale por ese canal.
-        from apps.integrations.telegram.processing import notify_ticket_reply as notify_telegram
+        from apps.integrations.telegram.notifications import notify_staff_message
         from apps.integrations.whatsapp.processing import notify_ticket_reply
 
         notify_ticket_reply(message)
-        notify_telegram(message)
+        notify_staff_message(message)  # Telegram vinculado: avisos de todas sus solicitudes
     if request_info:
         workflow.transition(ticket, S.WAITING_USER, actor=author, reason="Solicitud de información")
     elif not is_staff and ticket.status == S.WAITING_USER:

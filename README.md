@@ -176,7 +176,14 @@ python manage.py telegram_simulate 123 "¿Cuánto debo?"   # sin red, para prueb
 1. En el portal: **Perfil → Telegram → Generar código → «Abrir Telegram y vincular»** (o enviar el código al bot).
 2. El bot confirma la vinculación; desde ahí responde con el agente (deuda y notas solo con el
    total/resumen, como en WhatsApp). Sin vincular, solo información general.
-3. Las respuestas del personal en tickets nacidos en Telegram llegan al chat.
+3. **Menú de opciones:** `/start`, `/menu`, «menú» o «ayuda» muestran botones (horario, notas,
+   deuda, asignaturas, matrícula, mis solicitudes, requisitos, fechas, contacto). Cada botón
+   envía una pregunta que el agente entiende.
+4. **Estado de solicitudes:** «Mis solicitudes», «¿cómo va mi ticket?» o el código `HD-…`.
+5. **Avisos proactivos:** con el chat vinculado llegan los cambios de estado (asignada, en
+   atención, resuelta con el motivo, cerrada, cancelada, reabierta) y los mensajes del personal
+   de **todas** tus solicitudes. Si la solicitud no nació en Telegram, el aviso indica responder
+   desde el portal. Salen en la siguiente vuelta del bot (≤ `TELEGRAM_POLL_TIMEOUT`, 10 s).
 
 El token nunca se registra en logs ni en errores (se reemplaza por `***`).
 
