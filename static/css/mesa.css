@@ -197,3 +197,12 @@ a { text-underline-offset: .2em; }
   .mesa-metric-stats .mesa-stat { padding:1rem; }
   .mesa-metric-secondary { flex-direction:column; gap:.5rem; }
 }
+/* CONTRACT-023: aviso emergente de ticket nuevo (Telegram) para el personal. */
+.mesa-toast-stack { position: fixed; right: 1rem; bottom: 1rem; z-index: 1080; display: flex; flex-direction: column; gap: .75rem; width: min(24rem, calc(100vw - 2rem)); }
+.mesa-toast { background: #fff; border: 1px solid var(--bs-border-color); border-left: 4px solid var(--mesa-accent); border-radius: .8rem; box-shadow: 0 12px 32px rgba(44,21,71,.18); padding: .9rem 1rem; animation: mesa-toast-in .25s ease-out; }
+.mesa-toast-head { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .35rem; }
+.mesa-toast-subject { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.mesa-toast-meta { margin: 0 0 .6rem; font-size: .85rem; color: var(--bs-secondary-color); }
+.mesa-toast-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+@keyframes mesa-toast-in { from { opacity: 0; transform: translateY(.75rem); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .mesa-toast { animation: none; } }

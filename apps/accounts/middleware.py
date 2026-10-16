@@ -18,6 +18,7 @@ from django.urls import reverse
 LAST_ACTIVITY_KEY = "_last_activity"
 # Se reescribe la marca como mucho una vez por minuto para no guardar la sesión en cada petición.
 ACTIVITY_RESOLUTION = 60
+BACKGROUND_HEADER = "X-Mesa-Background"
 
 
 class SessionIdleTimeoutMiddleware:
@@ -33,7 +34,10 @@ class SessionIdleTimeoutMiddleware:
                 logout(request)
                 messages.info(request, "Tu sesión se cerró por inactividad.")
                 return redirect_to_login(request.get_full_path())
-            if last is None or now - last >= ACTIVITY_RESOLUTION:
+            # El sondeo de avisos (CONTRACT-023) no cuenta como actividad: si no, la sesión
+            # de un puesto abierto nunca vencería.
+            background = request.headers.get(BACKGROUND_HEADER) == "1"
+            if not background and (last is None or now - last >= ACTIVITY_RESOLUTION):
                 request.session[LAST_ACTIVITY_KEY] = now
         return self.get_response(request)
 

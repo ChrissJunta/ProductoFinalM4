@@ -18,6 +18,10 @@
   </main>
   <footer class="mesa-footer"><div class="container d-flex flex-wrap justify-content-between gap-2"><span>Universidad Tecnológica Indoamérica</span><span>Mesa de Ayuda · Portal de atención</span></div></footer>
   <script src="{% static 'js/navigation.js' %}" defer></script>
+  {% if user_role == 'Agente' or user_role == 'Supervisor' or user_role == 'Administrador' %}{# CONTRACT-023 #}
+  <div id="mesa-ticket-alerts" class="mesa-toast-stack" aria-live="polite" data-feed-url="{% url 'helpdesk:new_tickets_feed' %}" data-poll-seconds="{{ new_ticket_poll_seconds }}"></div>
+  <script src="{% static 'js/new-ticket-alerts.js' %}" defer></script>
+  {% endif %}
   {% block scripts %}{% endblock %}
 </body>
 </html>

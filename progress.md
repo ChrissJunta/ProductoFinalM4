@@ -304,6 +304,7 @@ Toda decisión técnica relevante debe añadirse aquí.
 | ADR-081 | 2026-10-16 | Telegram: **avisos proactivos** al usuario con el chat vinculado — cambios de estado desde `workflow.transition` (asignada, en atención, escalada, resuelta con motivo, cerrada, cancelada, reabierta; no «Clasificado» ni «Esperando usuario», que llega como mensaje del personal; nunca lo que hizo el propio usuario) y mensajes del personal de **todas** sus solicitudes (si no nació en Telegram, se indica responder en el portal). **Menú de opciones** (teclado de Telegram + comandos `/start`, `/menu`, `/ayuda` registrados con `setMyCommands`). Consultas de estado ampliadas (`automation.0008`: «mis solicitudes», «qué pasó con mi trámite»…), que antes creaban un ticket | Pedido del responsable: enterarse de los cambios de sus solicitudes y ver las opciones del bot | `integrations/telegram/notifications.py`, `processing.MENU` |
 | ADR-082 | 2026-10-16 | Telegram: el aviso de «Resuelto» trae botones (callback_query). «Sí» → `RESOLVED → CLOSED` con el usuario como actor (fila 14); «No» → el bot pide el motivo y el siguiente mensaje del chat lo usa para `RESOLVED → IN_PROGRESS` (fila 15, motivo obligatorio; pendiente en caché 30 min). Solo el dueño con el chat vinculado y solo si sigue «Resuelto». Los adjuntos de los mensajes del personal (p. ej. certificados) se envían como documentos (`sendDocument`, multipart) desde la cola de salida | Pedido del responsable: aprobar o rechazar desde Telegram y recibir el certificado por el bot | `integrations/telegram/resolution.py`, `processing._send` |
 | ADR-083 | 2026-10-16 | Intención `GENERAL_QUESTION` (N1) con acción nueva `LLM_ANSWER`: saludos y preguntas generales los responde el LLM (`AIService.answer`, prompt que prohíbe inventar datos institucionales, máx. `AI_ANSWER_MAX_CHARS`) sin crear ticket. Un mensaje formado solo por palabras de saludo/cortesía se resuelve por regla determinística; las preguntas las clasifica el LLM (prompt de clasificación v3). Si el LLM no está disponible se responde la plantilla de la acción; nunca se crea ticket. `UNKNOWN_REQUEST` queda para peticiones no reconocidas | Pedido del responsable: una pregunta fuera de lo normal no debe abrir ticket | `automation/0009-0010`, `ai/0006`, `nodes.respond_template` |
+| ADR-084 | 2026-10-16 | Pop-up en el portal al llegar un ticket por Telegram: sondeo JSON cada 15 s (sin WebSockets ni dependencias nuevas), solo para el personal y solo de los tickets que cada uno ya puede ver; el sondeo no cuenta como actividad de la sesión | Pedido del responsable: avisar a quien tenga el portal abierto | `helpdesk.views.new_tickets_feed`, `static/js/new-ticket-alerts.js` |
 | ADR-015 | 2026-10-12 | Usuario autenticado sin grupo = rol `Usuario`; superusuario = `Administrador` | Mínimo privilegio | `accounts.roles.get_role` |
 
 ---
@@ -840,6 +841,16 @@ FE-004 (Usuario) solo necesita `status`, `date_from`/`date_to` y `page`; el rest
 **Contexto:** `is_linked` (bool), `linked_at` (datetime o None), `bot_username` (str), `bot_url` (`https://t.me/<bot>`), `code` (6 dígitos solo en el GET inmediatamente posterior a generarlo; luego None), `code_url` (`https://t.me/<bot>?start=<código>`: abre Telegram y vincula en un toque), `code_expires_at`, `code_minutes` (10).
 **POST** (CSRF): `action=generate` → código nuevo y 302 a la misma URL; `action=unlink` → desvincula (302 + mensaje); otra acción → mensaje de error.
 **Sugerencias FRONT:** botón destacado «Abrir Telegram y vincular» y, opcional, un código QR de `code_url`.
+**Aprobado:** Sí
+
+### CONTRACT-023 — Aviso emergente de ticket nuevo (Telegram)
+**Fecha:** 2026-10-16
+**Origen:** BACK (ADR-084) → consumidor FRONT
+**URL name:** `helpdesk:new_tickets_feed` → `/notifications/new-tickets/` · GET (JSON) · Agente, Supervisor, Administrador (Usuario → 403; sin sesión → 302 al login).
+**Parámetros:** `after` (id del último ticket ya visto). Sin `after` (o inválido) → `{"last_id": N, "tickets": []}` (punto de partida, sin avisos atrasados).
+**Respuesta:** `last_id` (int, último ticket existente) y `tickets` (máx. 5, más nuevo primero) con `code`, `subject`, `channel` (etiqueta), `priority` (etiqueta), `user` (nombre), `created_at` (ISO 8601), `url` (detalle). Solo tickets de los canales `NEW_TICKET_ALERT_CHANNELS` (por defecto `TELEGRAM`), visibles para quien consulta (`queries.visible_tickets`) y no creados por él.
+**Cabecera:** `X-Mesa-Background: 1` → la consulta no renueva la inactividad de la sesión (ADR-072); con la sesión vencida responde 302 y el script deja de consultar.
+**Plantilla:** `base.html` incluye, solo para el personal, `<div id="mesa-ticket-alerts" class="mesa-toast-stack" data-feed-url data-poll-seconds>` y `static/js/new-ticket-alerts.js` (sondeo cada `NEW_TICKET_POLL_SECONDS`, 15 s; último id en `sessionStorage`; aviso del sistema operativo si la pestaña está oculta y el usuario lo permitió). Estilos `.mesa-toast*` en `mesa.css`, refinables.
 **Aprobado:** Sí
 
 ### CONTRACT-FRONT-005 — Pantallas administrativas FE-T09 — Respondida (CONTRACT-016)
@@ -2267,3 +2278,8 @@ Suite PostgreSQL/E2E completo y revisión de las pantallas restantes en el entor
 - `GENERAL_QUESTION` (N1, `LLM_ANSWER`): «hola», «gracias» y preguntas de cultura general reciben respuesta del LLM sin ticket, en web, WhatsApp y Telegram. Sin LLM (fuera de la red de la universidad) se responde la plantilla con el menú del asistente.
 - El catálogo pasa a 21 intenciones; el dataset de evaluación sigue con las 20 de trámites (GENERAL_QUESTION no es un trámite).
 - Verificado: `telegram_simulate 5550001 "hola"` y `"¿Qué es la fotosíntesis?"` responden sin crear ticket; `"necesito ayuda con algo"` sigue creando ticket (N4). 941 pruebas.
+
+## 2026-10-16 — Claude (BACKEND) / Pop-up de ticket nuevo por Telegram (ADR-084, CONTRACT-023)
+
+- Agentes, supervisores y administradores con el portal abierto reciben un aviso emergente (abajo a la derecha) cuando entra un ticket por Telegram, con enlace «Abrir ticket» y opción de aviso del navegador fuera de la pestaña.
+- Verificado con Chromium (Playwright): supervisora en la bandeja → `telegram_simulate` pide un certificado → aparece el aviso con HD-2026-000005 en ≤ 5 s; al navegar no se repite.
