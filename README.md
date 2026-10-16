@@ -3,7 +3,23 @@
 Especificación: [`SPEC_MVP_Mesa_Ayuda_v5_2_PostgreSQL_Tareas.md`](SPEC_MVP_Mesa_Ayuda_v5_2_PostgreSQL_Tareas.md)
 Coordinación entre agentes, contratos de vista y estado de tareas: [`progress.md`](progress.md)
 
-Backend: Claude · Frontend (`templates/`, `static/`): ChatGPT.
+**Estado: MVP terminado** — backend, interfaz web, agente IA y canales (web, Telegram y
+WhatsApp simulado) funcionando, con más de 900 pruebas automáticas en CI.
+
+Desarrollo: backend Claude · interfaz (`templates/`, `static/`) ChatGPT.
+
+## Qué incluye
+
+| Módulo | Qué hace |
+|---|---|
+| Portal web por rol | Usuario (mis tickets, nueva solicitud, asistente), Agente (bandeja por área), Supervisor (todo, alertas, métricas), Administrador (catálogos, áreas, intenciones, routing, SLA). |
+| Ciclo del ticket | Flujo de estados completo con SLA, alertas, escalamiento, adjuntos, conversación, confirmar/rechazar la solución y cierre automático a los 3 días. |
+| Agente IA (LangGraph) | Reglas → LLM (Qwen3-8B) → decisión N0–N4: responde consultas con datos institucionales, contesta saludos y preguntas generales sin ticket, crea y enruta tickets, y pide revisión humana cuando duda. |
+| Trazabilidad y autonomía | **Trazas IA** (cada paso del agente) y **Decisiones IA** (el agente revisa sus métricas y se ajusta; lo riesgoso lo aprueba un supervisor). |
+| Telegram (@MesaUtiBot) | Vinculación por código, menú de opciones, consultas, avisos de cambios, confirmar la solución con botones y recepción de documentos (certificados). |
+| WhatsApp (simulado) | Mismo agente con minimización de datos; sin conexión real a Meta. |
+| Aviso en el portal | Pop-up al personal cuando entra un ticket por Telegram. |
+| Seguridad | Argon2id, bloqueo por fuerza bruta, sesión por inactividad, contraseñas demo aleatorias, auditoría. |
 
 ## Requisitos
 
@@ -99,9 +115,13 @@ se imprime una sola vez (si se pierde: `python manage.py seed_demo --rotate`):
 |---|---|---|
 | `usuario` | Usuario | «Mis tickets» (4 tickets en distintos estados), crear solicitud con adjunto, responder, confirmar o rechazar una solución, reabrir. |
 | `agente_ti` | Agente (área TI) | «Bandeja» → «Sin asignar», abrir un ticket, asignárselo, iniciar atención, pedir información, resolver con mensaje. |
-| `agente_fin` | Agente (área Finanzas) | Solo ve tickets de Finanzas, los asignados a él y los sin área; un ticket de TI le da 404. |
-| `supervisor` | Supervisor | Ve todos los tickets, reasigna entre áreas, «Alertas» de SLA, escalados y `/metrics/` (métricas operativas e IA). |
-| `admin` | Administrador | `/manage/` (administración propia: áreas y agentes, categorías, intenciones, routing, SLA) y `/admin/` (auditoría). |
+| `agente_fin` | Agente (área Finanzas) | Solo ve tickets de Finanzas, los asignados a su cuenta y los sin área; un ticket de TI le da 404. |
+| `supervisor` | Supervisor | Ve todos los tickets, reasigna entre áreas, «Alertas» de SLA, escalados, `/metrics/`, Trazas IA y Decisiones IA. Atiende los tickets de áreas sin agente (p. ej. certificados de Secretaría Académica). |
+| `admin` | Administrador | `/manage/` (administración propia: áreas y agentes, categorías, intenciones, routing, SLA) y `/admin/` (auditoría). No atiende tickets. |
+
+En la demo, Secretaría Académica no tiene agentes: sus tickets (certificados, notas) los ve y
+resuelve el `supervisor`. Para que los atienda un agente: `admin` → Administración → Áreas →
+Secretaría Académica → agregar el agente.
 
 Recorrido sugerido:
 1. `usuario` → «Mis tickets» → «Nota incorrecta en Cálculo I» → **Confirmar solución** (queda Cerrado).
@@ -110,10 +130,14 @@ Recorrido sugerido:
 4. `agente_ti` → «Bandeja» → «Sin asignar» → abrir el ticket nuevo → asignarse → «Iniciar atención» → «Resolver» con un mensaje.
 5. `usuario` → abrir ese ticket → ver la resolución en la conversación → confirmar o rechazar.
 6. `supervisor` → «Alertas» y «Bandeja» → «Historial».
-7. `usuario` → abrir **`/assistant/`** (pantalla provisional hasta que FRONT la diseñe) y preguntar:
+7. `usuario` → **Asistente** (`/assistant/`) y preguntar:
    «¿Cuál es mi horario de hoy?», «¿Cuáles son mis notas?», «¿Cuánto debo?» (respuesta automática con datos simulados),
    «Mi nota de Cálculo I está incorrecta» (crea ticket para Secretaría Académica) o «certificado y contraseña»
    (ambigua: ticket + alerta de revisión humana, visible para `supervisor` en «Alertas»).
+   «Hola» o «¿Qué es la fotosíntesis?» se responden sin crear ticket.
+8. `supervisor` → **Trazas IA** → abrir la última ejecución y ver el recorrido del agente.
+9. Telegram (ver «Bot de Telegram»): vincular el chat, pedir un certificado y ver el aviso
+   emergente en el portal del `supervisor`.
 
 El mismo agente se puede probar desde consola (muestra intención, nivel N0–N4 y recorrido):
 
@@ -135,9 +159,9 @@ python manage.py ask usuario "algo raro #fallo-llm"                  # LLM caíd
 python manage.py evaluate_intents                                    # accuracy y macro F1 del clasificador
 ```
 
-Los casos que quedan en revisión aparecen como alerta «Revisión humana»; un `agente_ti` o el
-`supervisor` decide (aceptar/corregir/rechazar) con `POST /tickets/<código>/review/` (la tarjeta
-visual del detalle la hará FRONT; mientras tanto, también desde `python manage.py shell`).
+Los casos que quedan en revisión aparecen como alerta «Revisión humana»; un agente del área o
+el `supervisor` decide desde la tarjeta **Revisión del asistente** del detalle del ticket
+(aceptar, corregir o rechazar la clasificación).
 
 Tareas periódicas (en producción, con cron; en desarrollo se pueden lanzar a mano):
 
@@ -192,7 +216,7 @@ python manage.py telegram_simulate 123 "¿Cuánto debo?"   # sin red, para prueb
 
 Prueba sin red: `python manage.py telegram_simulate 123 --boton close:HD-2026-000001`.
 
-**Saludos y preguntas generales (ADR-083, todos los canales):** «hola», «gracias» o una
+**Saludos y preguntas generales (todos los canales):** «hola», «gracias» o una
 pregunta que no es un trámite («¿Qué es la fotosíntesis?») las responde el LLM (intención
 `GENERAL_QUESTION`, N1) **sin crear ticket**. El LLM no da datos de la universidad; si no está
 disponible (fuera de la red institucional) responde la plantilla con el menú. Una petición
@@ -236,7 +260,7 @@ E2E_PASSWORD=Prueba-E2E-2026 python scripts/e2e_demo.py salida_e2e/   # 12 pasos
 
 ## Trazabilidad del agente (cómo procesa cada mensaje)
 
-Cada mensaje al asistente (web o WhatsApp) deja una **traza nodo por nodo** del grafo LangGraph:
+Cada mensaje al asistente (web, Telegram o WhatsApp) deja una **traza nodo por nodo** del grafo LangGraph:
 qué nodo corrió, cuánto tardó, qué decidió (intención, confianza, nivel N0–N4, herramienta,
 ticket), las llamadas al LLM (modelo, latencia, tokens, errores) y la revisión humana.
 
@@ -255,7 +279,9 @@ respuesta (puede traer notas o deudas): solo su longitud.
 1. **Reglas** (rápidas y explicables): palabras clave por intención.
 2. **LLM** cuando las reglas no reconocen el mensaje **o empatan** entre intenciones: recibe los
    candidatos y el criterio «pregunta informativa (N1) vs. petición de trámite (N2/N3)».
-3. **Decisión** N0–N4 según la intención y la confianza; solo lo que sigue dudoso (< 0.70) o
+3. **Saludos y preguntas generales** (intención `GENERAL_QUESTION`): los contesta el LLM sin
+   crear ticket y sin dar datos de la universidad; sin LLM, responde el menú del asistente.
+4. **Decisión** N0–N4 según la intención y la confianza; solo lo que sigue dudoso (< 0.70) o
    las intenciones N4 van a revisión humana.
 
 La traza («Trazas IA») muestra en `classify_llm` qué candidatos desambiguó (`desambigua=`).
