@@ -184,6 +184,13 @@ python manage.py telegram_simulate 123 "¿Cuánto debo?"   # sin red, para prueb
    atención, resuelta con el motivo, cerrada, cancelada, reabierta) y los mensajes del personal
    de **todas** tus solicitudes. Si la solicitud no nació en Telegram, el aviso indica responder
    desde el portal. Salen en la siguiente vuelta del bot (≤ `TELEGRAM_POLL_TIMEOUT`, 10 s).
+6. **Confirmar o rechazar la solución:** el aviso de «resuelta» trae los botones «Sí, está
+   resuelto» (cierra la solicitud al instante) y «No, sigue el problema» (el bot pide el motivo
+   y la solicitud vuelve a atención).
+7. **Documentos:** si el personal adjunta un archivo al responder (p. ej. el certificado de
+   Secretaría), el bot lo envía al chat como documento.
+
+Prueba sin red: `python manage.py telegram_simulate 123 --boton close:HD-2026-000001`.
 
 El token nunca se registra en logs ni en errores (se reemplaza por `***`).
 

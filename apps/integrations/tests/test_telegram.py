@@ -22,7 +22,7 @@ from apps.integrations.models import (
     TelegramLinkCode,
 )
 from apps.integrations.telegram import client as tg_client
-from apps.integrations.telegram import linking, processing
+from apps.integrations.telegram import linking, processing, resolution
 from apps.integrations.telegram.client import (
     BotAPIClient,
     SimulatedTelegramClient,
@@ -172,9 +172,11 @@ def test_web_waiting_ticket_does_not_capture_telegram_messages(student, make_use
 
 
 def _outbox_texts(after_id):
+    """Textos enviados al chat (sin documentos ni respuestas a botones)."""
     return [
         o.payload_json["text"]
         for o in IntegrationOutbox.objects.filter(id__gt=after_id, provider="TELEGRAM")
+        if "text" in o.payload_json
     ]
 
 
@@ -203,7 +205,7 @@ def test_proactive_status_and_staff_notifications(student, make_user):
     assert texts[0] == f"[{code}] «Certificado»: tu solicitud fue asignada al área {area.name}."
     assert texts[1].endswith("estamos atendiendo tu solicitud.")
     assert texts[2] == f"[{code}] ¿Para qué trámite?\nResponde desde el portal (Mis tickets)."
-    assert "fue resuelta. Listo en Secretaría." in texts[3] and "Confirma" in texts[3]
+    assert "fue resuelta. Listo en Secretaría." in texts[3] and "botones" in texts[3]
     assert len(texts) == 4  # ni «esperando usuario» ni la vuelta a «en proceso» del usuario
     assert all(o.destination == CHAT for o in IntegrationOutbox.objects.filter(id__gt=start))
 
@@ -218,7 +220,7 @@ def test_proactive_status_and_staff_notifications(student, make_user):
         ("WAITING_USER", "CANCELLED", "Sin respuesta.", "cancelada. Motivo: Sin respuesta."),
         ("NEW", "CANCELLED", "", "fue cancelada."),
         ("CLOSED", "REOPENED", "", "fue reabierta."),
-        ("RESOLVED", "RESOLVED", "", "fue resuelta.\nConfirma"),
+        ("RESOLVED", "RESOLVED", "", "fue resuelta.\n¿Quedó resuelta?"),
         ("NEW", "CLASSIFIED", "", None),
         ("IN_PROGRESS", "WAITING_USER", "", None),
     ],
@@ -340,7 +342,11 @@ def test_bot_api_client(monkeypatch, settings):
     assert client.send_text("5", "x" * 5000) == "77"
     assert len(calls[-1][1]["text"]) == 4096
     assert client.get_updates(offset=3, timeout=25) == [{"update_id": 1}]
-    assert calls[-1][1] == {"timeout": 25, "allowed_updates": ["message"], "offset": 3}
+    assert calls[-1][1] == {
+        "timeout": 25,
+        "allowed_updates": ["message", "callback_query"],
+        "offset": 3,
+    }
     assert calls[-1][2] == 35
     assert client.delete_webhook() is True
     assert client.set_commands([("menu", "Opciones")]) is True
@@ -551,3 +557,162 @@ def test_run_telegram_bot_registers_commands(monkeypatch):
     call_command("run_telegram_bot", "--once", stdout=StringIO())
     assert [c for c, _ in registered[0]] == ["start", "menu", "ayuda"]
     assert SimulatedTelegramClient().set_commands([]) is True
+
+
+# --- Resolución por botones y documentos (ADR-082) -----------------------------------------
+
+
+def press(data, chat=CHAT):
+    """Pulsa un botón de un mensaje del bot. Devuelve las respuestas de texto al chat."""
+    say.counter = getattr(say, "counter", 0) + 1
+    last = _last_id()
+    processing.ingest_update(
+        {
+            "update_id": 100000 + say.counter,
+            "callback_query": {
+                "id": f"cb{say.counter}",
+                "data": data,
+                "message": {"chat": {"id": int(chat), "type": "private"}},
+            },
+        }
+    )
+    processing.process_inbox()
+    processing.process_outbox(client=SimulatedTelegramClient())
+    return [t for t in _outbox_texts(last) if t]
+
+
+def _resolved_ticket(student, make_user, attachment=None):
+    from apps.helpdesk import assignment
+
+    ticket = TicketService.create(user=student, subject="Certificado", description="d")
+    sup = make_user("sup", role="Supervisor")
+    ticket = assignment.assign(ticket, actor=sup, area=Area.objects.get(code="ACADEMIC"))
+    ticket = workflow.transition(ticket, Ticket.Status.IN_PROGRESS, actor=sup)
+    if attachment is not None:
+        conversations.add_message(ticket, sup, "Adjuntamos tu certificado.", attachment=attachment)
+        ticket.refresh_from_db()
+    return workflow.transition(ticket, Ticket.Status.RESOLVED, actor=sup, reason="Listo.")
+
+
+def test_resolved_notice_has_buttons_and_confirm_closes(student, make_user):
+    link(student)
+    ticket = _resolved_ticket(student, make_user)
+    notice = IntegrationOutbox.objects.filter(provider="TELEGRAM").latest("id").payload_json
+    [[yes, no]] = notice["reply_markup"]["inline_keyboard"]
+    assert yes["callback_data"] == f"close:{ticket.ticket_code}"
+    assert no["callback_data"] == f"reject:{ticket.ticket_code}"
+    assert press(yes["callback_data"]) == [f"¡Gracias! Cerramos tu solicitud {ticket.ticket_code}."]
+    ticket.refresh_from_db()
+    assert ticket.status == Ticket.Status.CLOSED
+    history = ticket.status_history.order_by("-id").first()
+    assert history.actor == student and "Telegram" in history.reason
+    answers = IntegrationOutbox.objects.filter(payload_json__type="callback_answer")
+    assert answers.filter(status="SENT").exists()  # se quita el «cargando» del botón
+    assert press(yes["callback_data"]) == [resolution.NOT_YOURS]  # ya no está resuelta
+
+
+def test_reject_asks_reason_and_reopens_attention(student, make_user):
+    link(student)
+    ticket = _resolved_ticket(student, make_user)
+    [ask] = press(f"reject:{ticket.ticket_code}")
+    assert "qué sigue fallando" in ask
+    ticket.refresh_from_db()
+    assert ticket.status == Ticket.Status.RESOLVED  # todavía falta el motivo
+    [ok] = say("El certificado tiene mal mi apellido")
+    assert ticket.ticket_code in ok
+    ticket.refresh_from_db()
+    assert ticket.status == Ticket.Status.IN_PROGRESS
+    assert ticket.status_history.order_by("-id").first().reason.startswith("El certificado")
+    [debt] = say("¿Cuánto debo?")  # el siguiente mensaje ya sigue el curso normal
+    assert debt.startswith("Tu saldo pendiente")
+
+
+def test_resolution_buttons_only_for_owner_and_resolved(student, make_user):
+    ticket = _resolved_ticket(student, make_user)
+    assert press(f"close:{ticket.ticket_code}") == [resolution.NOT_YOURS]  # chat sin vincular
+    other = make_user("beto", role="Usuario")
+    link(other)
+    assert press(f"close:{ticket.ticket_code}") == [resolution.NOT_YOURS]  # no es suyo
+    link(student)
+    assert press(f"borrar:{ticket.ticket_code}") == [resolution.NOT_YOURS]  # acción inválida
+    ticket.refresh_from_db()
+    assert ticket.status == Ticket.Status.RESOLVED
+
+
+def test_pending_reject_ignored_if_ticket_no_longer_resolved(student, make_user):
+    from django.core.cache import cache
+
+    link(student)
+    ticket = _resolved_ticket(student, make_user)
+    press(f"reject:{ticket.ticket_code}")
+    Ticket.objects.filter(pk=ticket.pk).update(status=Ticket.Status.CLOSED)
+    [reply] = say("¿Cuánto debo?")
+    assert reply.startswith("Tu saldo pendiente")
+    assert cache.get(f"telegram:reject:{CHAT}") is None
+
+
+def test_staff_attachment_is_sent_as_document(student, make_user, settings, tmp_path):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    settings.MEDIA_ROOT = tmp_path
+    link(student)
+    pdf = SimpleUploadedFile("certificado.pdf", b"%PDF-1.4 demo", content_type="application/pdf")
+    start = _last_id()
+    ticket = _resolved_ticket(student, make_user, attachment=pdf)
+    doc = IntegrationOutbox.objects.get(id__gt=start, payload_json__type="document")
+    assert doc.destination == CHAT
+    assert doc.payload_json["caption"] == f"[{ticket.ticket_code}] certificado.pdf"
+
+    sent = []
+
+    class Recorder(SimulatedTelegramClient):
+        def send_document(self, chat_id, filename, content, content_type, caption=""):
+            sent.append((chat_id, filename, content, content_type, caption))
+            return "9"
+
+    processing.process_outbox(client=Recorder())
+    caption = doc.payload_json["caption"]
+    assert sent == [(CHAT, "certificado.pdf", b"%PDF-1.4 demo", "application/pdf", caption)]
+    doc.refresh_from_db()
+    assert doc.status == "SENT"
+    missing = processing.enqueue(CHAT, {"type": "document", "attachment_id": 999999})
+    processing.process_outbox(client=Recorder())
+    missing.refresh_from_db()
+    assert missing.status == "PENDING" and "ya no existe" in missing.last_error
+
+
+def test_bot_api_send_document_and_answer_callback(monkeypatch, settings):
+    settings.TELEGRAM_BOT_TOKEN = "123:SECRETO"
+    calls = []
+
+    def urlopen(request, timeout):
+        calls.append((request.full_url, request.headers, request.data))
+        method = request.full_url.rsplit("/", 1)[1]
+        result = {"sendDocument": {"message_id": 5}, "answerCallbackQuery": True}[method]
+        return FakeResponse(json.dumps({"ok": True, "result": result}).encode())
+
+    monkeypatch.setattr(tg_client.urllib.request, "urlopen", urlopen)
+    client = BotAPIClient()
+    assert client.send_document(7, 'cer"t.pdf', b"PDFDATA", "application/pdf", "cap") == "5"
+    url, headers, body = calls[-1]
+    assert url.endswith("/sendDocument")
+    assert headers["Content-type"].startswith("multipart/form-data; boundary=")
+    assert b'filename="cert.pdf"' in body and b"PDFDATA" in body and b"cap" in body
+    assert client.answer_callback("cb1", "ok") is True
+    assert json.loads(calls[-1][2]) == {"callback_query_id": "cb1", "text": "ok"}
+    simulated = SimulatedTelegramClient()
+    assert simulated.answer_callback("x") is True
+    assert simulated.send_document("1", "a", b"", "x").startswith("tg.SIM.doc")
+    simulated.fail_chats = {"1"}
+    with pytest.raises(TelegramError):
+        simulated.send_document("1", "a", b"", "x")
+
+
+def test_ingest_callback_and_simulate_button_command(student, make_user):
+    link(student)
+    ticket = _resolved_ticket(student, make_user)
+    out = StringIO()
+    call_command("telegram_simulate", CHAT, "--boton", f"close:{ticket.ticket_code}", stdout=out)
+    assert "Cerramos tu solicitud" in out.getvalue()
+    item = IntegrationInbox.objects.filter(payload_json__kind="callback").latest("id")
+    assert item.payload_json["data"] == f"close:{ticket.ticket_code}"

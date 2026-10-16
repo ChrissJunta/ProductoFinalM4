@@ -21,7 +21,7 @@ from apps.helpdesk import conversations
 from apps.helpdesk.models import Ticket
 
 from ..models import IntegrationInbox, IntegrationOutbox, Provider
-from . import linking
+from . import linking, resolution
 from .client import TelegramError, get_client
 
 logger = logging.getLogger(__name__)
@@ -69,8 +69,9 @@ def backoff(attempts):
 
 
 def ingest_update(update):
-    """Guarda un update de la Bot API. Devuelve True si es nuevo."""
-    message = update.get("message") or {}
+    """Guarda un update de la Bot API (mensaje o botón pulsado). Devuelve True si es nuevo."""
+    callback = update.get("callback_query")
+    message = (callback or {}).get("message") or update.get("message") or {}
     chat = message.get("chat") or {}
     if "update_id" not in update or "id" not in chat:
         return False
@@ -78,22 +79,29 @@ def ingest_update(update):
         "update_id": update["update_id"],
         "chat_id": str(chat["id"]),
         "chat_type": chat.get("type", ""),
-        "text": message.get("text"),
         "date": message.get("date"),
     }
+    if callback:
+        payload.update(kind="callback", callback_id=callback.get("id"), data=callback.get("data"))
+    else:
+        payload["text"] = message.get("text")
     _, created = IntegrationInbox.objects.get_or_create(
         provider=TG, external_event_id=str(update["update_id"]), defaults={"payload_json": payload}
     )
     return created
 
 
-def enqueue_text(chat_id, text, *, menu=False):
-    payload = {"type": "text", "text": text}
-    if menu:
-        payload["reply_markup"] = KEYBOARD
+def enqueue(chat_id, payload):
     return IntegrationOutbox.objects.create(
         provider=TG, destination=str(chat_id), payload_json=payload
     )
+
+
+def enqueue_text(chat_id, text, *, menu=False, reply_markup=None):
+    payload = {"type": "text", "text": text}
+    if menu or reply_markup:
+        payload["reply_markup"] = reply_markup or KEYBOARD
+    return enqueue(chat_id, payload)
 
 
 def _reply(chat_id, text, *, menu=False):
@@ -109,6 +117,8 @@ def handle_message(item):
         return None
     if data.get("chat_type") != "private":
         return _reply(chat_id, GROUPS)
+    if data.get("kind") == "callback":
+        return resolution.handle_button(chat_id, data)
     text = (data.get("text") or "").strip()
     if not text:
         return _reply(chat_id, UNSUPPORTED)
@@ -129,6 +139,8 @@ def handle_message(item):
         return _reply(chat_id, linking.redeem(text, chat_id)[1], menu=True)
 
     user = linking.linked_user(chat_id)
+    if user is not None and (reply := resolution.take_reject_reason(chat_id, user, text)):
+        return _reply(chat_id, reply)
     if user is not None and (ticket := _ticket_waiting_for(user)):
         conversations.add_message(
             ticket, user, text, channel=CHANNEL, external_message_id=item.external_event_id
@@ -206,11 +218,7 @@ def process_outbox(now=None, client=None):
     with transaction.atomic():
         for item in list(_due(IntegrationOutbox, now or timezone.now())):
             try:
-                item.external_message_id = client.send_text(
-                    item.destination,
-                    item.payload_json.get("text", ""),
-                    reply_markup=item.payload_json.get("reply_markup"),
-                )
+                item.external_message_id = _send(client, item)
             except TelegramError as exc:
                 _fail(item, exc, now or timezone.now())
                 failed += 1
@@ -221,3 +229,30 @@ def process_outbox(now=None, client=None):
                 sent += 1
             item.save()
     return sent, failed
+
+
+def _send(client, item):
+    """Envía un elemento de la cola según su tipo: texto, documento o respuesta a un botón."""
+    payload = item.payload_json
+    kind = payload.get("type", "text")
+    if kind == "document":
+        from apps.helpdesk.models import Attachment
+
+        attachment = Attachment.objects.filter(pk=payload.get("attachment_id")).first()
+        if attachment is None:
+            raise TelegramError("El adjunto ya no existe.")
+        with attachment.file.open("rb") as handle:
+            content = handle.read()
+        return client.send_document(
+            item.destination,
+            attachment.original_name,
+            content,
+            attachment.content_type,
+            caption=payload.get("caption", ""),
+        )
+    if kind == "callback_answer":
+        client.answer_callback(payload["callback_id"], payload.get("text", ""))
+        return ""
+    return client.send_text(
+        item.destination, payload.get("text", ""), reply_markup=payload.get("reply_markup")
+    )

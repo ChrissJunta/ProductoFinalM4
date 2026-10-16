@@ -7,7 +7,7 @@ de información llega como mensaje del personal (no se repite como cambio de est
 
 from apps.helpdesk.models import Ticket, TicketMessage
 
-from . import processing
+from . import processing, resolution
 
 S = Ticket.Status
 PORTAL_HINT = "Responde desde el portal (Mis tickets)."
@@ -32,7 +32,7 @@ def status_text(ticket, previous, target, reason):
         detail = f" {reason}" if reason else ""
         return (
             f"{head}: tu solicitud fue resuelta.{detail}\n"
-            "Confirma la solución o recházala desde el portal (Mis tickets)."
+            "¿Quedó resuelta? Responde con los botones (o desde el portal, Mis tickets)."
         )
     if target == S.CLOSED:
         return f"{head}: tu solicitud quedó cerrada." + (f" {reason}" if reason else "")
@@ -58,7 +58,9 @@ def notify_status_change(ticket, previous, target, *, actor=None, reason=""):
     text = status_text(ticket, previous, target, reason) if user else None
     if text is None:
         return None
-    return processing.enqueue_text(user.telegram_chat_id, text[:4096])
+    # Resuelta: botones para confirmar (cierra) o rechazar (vuelve a atención), ADR-082.
+    markup = resolution.buttons(ticket) if target == S.RESOLVED else None
+    return processing.enqueue_text(user.telegram_chat_id, text[:4096], reply_markup=markup)
 
 
 def notify_staff_message(message):
@@ -72,4 +74,15 @@ def notify_staff_message(message):
     text = f"[{ticket.ticket_code}] {message.content}"
     if ticket.channel != Ticket.Channel.TELEGRAM:  # se contesta donde nació la solicitud
         text += f"\n{PORTAL_HINT}"
-    return processing.enqueue_text(user.telegram_chat_id, text[:4096])
+    item = processing.enqueue_text(user.telegram_chat_id, text[:4096])
+    # Archivos del mensaje (p. ej. el certificado de Secretaría): se envían como documentos.
+    for attachment in message.attachments.all():
+        processing.enqueue(
+            user.telegram_chat_id,
+            {
+                "type": "document",
+                "attachment_id": attachment.pk,
+                "caption": f"[{ticket.ticket_code}] {attachment.original_name}",
+            },
+        )
+    return item
